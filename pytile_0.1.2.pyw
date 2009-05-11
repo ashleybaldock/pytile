@@ -262,14 +262,8 @@ class TileSprite(pygame.sprite.Sprite):
         self.zdim = 0
         self.type = type
         self.update()
-    def update_type(self):
-        """Update type to match what it should be"""
-        self.type = self.array_to_string(World.array[self.xWorld][self.yWorld][1])
-        self.update()
-    def update(self):
-        """Update sprite's rect and other attributes"""
-        # What tile type should this tile be?
-        self.image = TileSprite.tile_images[self.type]
+    def calc_rect(self):
+        """Calculate the current rect of this tile"""
         x = self.xWorld
         y = self.yWorld
         z = self.zWorld
@@ -278,6 +272,20 @@ class TileSprite(pygame.sprite.Sprite):
         self.ypos = (x * p4) + (y * p4) - (z * ph)
         # Rect position takes into account the offset
         self.rect = (self.xpos - World.dxoff, self.ypos - World.dyoff, p, p)
+        return self.rect
+    def update_xyz(self):
+        """Update xyz coords to match those in the array"""
+        self.zWorld = World.array[self.xWorld][self.yWorld][0]
+        return self.calc_rect()
+    def update_type(self):
+        """Update type to match those in the array"""
+        self.type = self.array_to_string(World.array[self.xWorld][self.yWorld][1])
+##        self.update()
+    def update(self):
+        """Update sprite's rect and other attributes"""
+        # What tile type should this tile be?
+        self.image = TileSprite.tile_images[self.type]
+        self.calc_rect()
     def change_highlight(self, type):
         """Update this tile's image with a highlight"""
         image = pygame.Surface((p,p))
@@ -449,8 +457,9 @@ class DisplayMain(object):
 
             if self.lmb_current_drag:
                 # Update the screen to reflect changes made by ground altering tools
+##                self.dirty.append(self.update_world(self.highlight_tiles))
                 self.update_world(self.highlight_tiles)
-##                self.paint_world()
+##				self.paint_world()
 
             if self.highlight_tiles == []:
                 t = self.CollideLocate(self.last_mouse_position, self.orderedSprites)
@@ -570,7 +579,8 @@ class DisplayMain(object):
             # And add the tile itself
             posy = posybase - (World.array[x][y][0] * ph)
             t.update_type()
-            self.dirty.append(t.rect)
+            self.dirty.append(t.update_xyz())
+##            return t.rect
 
             
 
