@@ -399,8 +399,9 @@ class DisplayMain(object):
 
             # Clear all the old highlighted tiles
             for t in self.highlight_tiles:
-                self.dirty.append(t.change_highlight(0))
-            self.highlight_tiles = []
+                self.dirty.append(self.orderedSpritesDict[t[0]][0].change_highlight(0))
+            if not self.lmb_current_drag:
+                self.highlight_tiles = []
 
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
@@ -462,21 +463,24 @@ class DisplayMain(object):
                 if rmb_current_drag:
                     rmb_current_drag[0] = rmb_current_drag[1]
 
+
+            if not self.lmb_current_drag and self.highlight_tiles == []:
+                t = self.CollideLocate(self.last_mouse_position, self.orderedSprites)
+                if t:
+                    subtileposition = self.SubTilePosition(self.last_mouse_position, self.orderedSpritesDict[(t.xWorld, t.yWorld)][0])
+                    self.highlight_tiles = [[(t.xWorld, t.yWorld), subtileposition]]
+
+##            print self.highlight_tiles
+
             if self.lmb_current_drag:
                 # Update the screen to reflect changes made by ground altering tools
                 self.update_world(self.highlight_tiles)
-
-            if self.highlight_tiles == []:
-                t = self.CollideLocate(self.last_mouse_position, self.orderedSprites)
-                if t:
-                    self.highlight_tiles = [t]
-
+##                self.paint_world()
 
             # Find position of cursor relative to the confines of the selected tile
             # Use first item in the list
             for t in self.highlight_tiles:
-                subtileposition = self.SubTilePosition(pygame.mouse.get_pos(), t)
-                self.dirty.append(t.change_highlight(subtileposition))
+                self.dirty.append(self.orderedSpritesDict[t[0]][0].change_highlight(t[1]))
 
 
             # Write some useful info on the top bar
@@ -484,7 +488,7 @@ class DisplayMain(object):
             if self.fps_elapsed >= self.fps_refresh:
                 self.fps_elapsed = 0
                 if self.highlight_tiles:
-                    ii = self.highlight_tiles[0]
+                    ii = self.orderedSpritesDict[self.highlight_tiles[0][0]][0]
                     layer = self.orderedSprites.get_layer_of_sprite(ii)
                     pygame.display.set_caption("FPS: %i | Tile: (%s,%s) of type: %s, layer: %s | dxoff: %s dyoff: %s" %
                                                (self.clock.get_fps(), ii.xWorld, ii.yWorld, ii.type, layer, World.dxoff, World.dyoff))
@@ -574,9 +578,12 @@ class DisplayMain(object):
         """Instead of completely regenerating the entire world, just update certain tiles
         Returns dirty rects"""
         for t in tiles:
+            print t
+            x = t[0][0]
+            y = t[0][1]
+            t = self.orderedSpritesDict[(x,y)][0]
             self.dirty.append(t.rect)
-            x = t.xWorld
-            y = t.yWorld
+
             l = x + y
             
             # Look the tile up in the group using the position, this will give us the tile and all its cliffs

@@ -206,12 +206,16 @@ class Tool(object):
 
 class Test(Tool):
     """Testing tool"""
+    xdims = 2
+    ydims = 3
     def __init__(self, start):
         """New application of this tool, begins at startpos"""
         # Call init method of parent
         super(Test, self).__init__()
         self.start = start
         self.tile = None
+        self.tiles = None
+        
     def update(self, current, collisionlist):
         """Tool updated, current cursor position is newpos"""
         self.current = current
@@ -222,17 +226,33 @@ class Test(Tool):
         if not self.tile:
             self.tile = self.collide_locate(self.current, collisionlist)
             self.subtile = self.subtile_position(self.current, self.tile)
+        if not self.tiles:
+            self.tile = self.collide_locate(self.current, collisionlist)
+            x = self.tile.xWorld
+            y = self.tile.yWorld
+            self.tiles = []
+            for xx in range(Test.xdims):
+                for yy in range(Test.ydims):
+                    self.tiles.append([(x + xx, y + yy), self.subtile])
+            # Tiles now contains a list of all tiles to modify
+            
 
         diff = (self.current[1] - self.start[1]) / ph
         diffrem = (self.current[1] - self.start[1]) % ph
         self.start = (self.start[0], self.start[1] + diff * ph)
 
-        if diff != 0:
-            invdiff = - diff
-            totalchange, realchange = self.modify_tile(self.tile, self.subtile, invdiff)
-            print "invdiff: %s, realchange: %s, totalchange: %s, addback: %s" % (invdiff, realchange, totalchange, addback)
+##        if diff != 0:
+##            invdiff = - diff
+##            totalchange, realchange = self.modify_tile(self.tile, self.subtile, invdiff)
+##            print "invdiff: %s, realchange: %s, totalchange: %s, addback: %s" % (invdiff, realchange, totalchange, addback)
 
-        return [self.tile]
+        invdiff = -diff
+
+        if diff != 0:
+            for t in self.tiles:
+                totalchange, realchange = self.modify_tile(t[0], self.subtile, invdiff)
+
+        return self.tiles
 
     def end(self, endpos):
         """End of application of tool"""
@@ -323,10 +343,13 @@ class Test(Tool):
         return tgrid, t
 
 
-    def modify_tile(self, tile, subtile, amount):
+    def modify_tile(self, t, subtile, amount):
         """Raise (or lower) a tile based on the subtile"""
-        tgrid = tGrid(World.array[tile.xWorld][tile.yWorld][1])
-        t = World.array[tile.xWorld][tile.yWorld][0]
+        x = t[0]
+        y = t[1]
+        t = World.array[x][y][0]
+        tgrid = tGrid(World.array[x][y][1])
+##        t = World.array[tile.xWorld][tile.yWorld][0]
         total = 0
         if amount > 0:
             step = 1
@@ -399,9 +422,9 @@ class Test(Tool):
         # Tile must not be reduced to below 0
         if t < 0:
             t = 0
-        ct = World.array[tile.xWorld][tile.yWorld][0]
+        ct = World.array[x][y][0]
         
-        World.array[tile.xWorld][tile.yWorld][1] = tgrid
-        World.array[tile.xWorld][tile.yWorld][0] = t
+        World.array[x][y][1] = tgrid
+        World.array[x][y][0] = t
         # Return the total amount of height change, and the real amount
         return (total, ct - t)
