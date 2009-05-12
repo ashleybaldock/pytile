@@ -361,6 +361,7 @@ class DisplayMain(object):
 ##        background.fill([0, 0, 0])
 
         self.orderedSprites = pygame.sprite.LayeredUpdates()
+        self.orderedSpritesDict = {}
 
         self.paint_world()
 
@@ -572,24 +573,80 @@ class DisplayMain(object):
             self.dirty.append(t.rect)
             x = t.xWorld
             y = t.yWorld
-            posx = World.WorldWidth2 - (x * p2) + (y * p2) - p2
-            posybase = (x * p4) + (y * p4)
             l = x + y
-
-            # And add the tile itself
-            posy = posybase - (World.array[x][y][0] * ph)
+            
+            # Look the tile up in the group using the position, this will give us the tile and all its cliffs
+            tileset = self.orderedSpritesDict[(x, y)]
+            t = tileset[0]
+            # Update the tile
             t.update_type()
             self.dirty.append(t.update_xyz())
-##            return t.rect
+            
+            self.orderedSprites.remove(tileset)
+            # Recreate the cliffs
+            cliffs = self.make_cliffs(x, y)
+            cliffs.insert(0, t)
+            self.orderedSpritesDict[(x, y)] = cliffs
+            self.orderedSprites.add(cliffs, layer=l)
 
             
 
+    def make_cliffs(self, x, y):
+        """Produce a set of cliff sprites to go with a particular tile"""
+        returnvals = []
+        # A1/A2 are top and right vertices of tile in front/left of the one we're testing
+        if x == World.WorldX - 1:
+            A1 = 0
+            A2 = 0
+        else:
+            A1 = World.array[x+1][y][1][3] + World.array[x+1][y][0]
+            A2 = World.array[x+1][y][1][2] + World.array[x+1][y][0]
+        # B1/B2 are left and bottom vertices of tile we're testing
+        B1 = World.array[x][y][1][0] + World.array[x][y][0]
+        B2 = World.array[x][y][1][1] + World.array[x][y][0]
+        while B1 > A1 or B2 > A2:
+            if B1 > B2:
+                B1 -= 1
+                tiletype = "CL10"
+            elif B1 == B2:
+                B1 -= 1
+                B2 -= 1
+                tiletype = "CL11"
+            else:
+                B2 -= 1
+                tiletype = "CL01"
+            returnvals.append(TileSprite(tiletype, x, y, B1, exclude=True))
+        # A1/A2 are top and right vertices of tile in front/right of the one we're testing
+        if y == World.WorldY - 1:
+            A1 = 0
+            A2 = 0
+        else:
+            A1 = World.array[x][y+1][1][3] + World.array[x][y+1][0]
+            A2 = World.array[x][y+1][1][0] + World.array[x][y+1][0]
+        # B1/B2 are left and bottom vertices of tile we're testing
+        B1 = World.array[x][y][1][2] + World.array[x][y][0]
+        B2 = World.array[x][y][1][1] + World.array[x][y][0]
+        while B1 > A1 or B2 > A2:
+            if B1 > B2:
+                B1 -= 1
+                tiletype = "CR10"
+            elif B1 == B2:
+                B1 -= 1
+                B2 -= 1
+                tiletype = "CR11"
+            else:
+                B2 -= 1
+                tiletype = "CR01"
+            returnvals.append(TileSprite(tiletype, x, y, B1, exclude=True))
+        return returnvals
 
     def paint_world(self):
         """Paint the world as a series of sprites
         Includes ground and other objects"""
         self.refresh_screen = 1
+##        print self.orderedSpritesDict
         self.orderedSprites.empty()     # This doesn't necessarily delete the sprites though?
+        self.orderedSpritesDict = {}
         # Top-left of view relative to world given by self.dxoff, self.dyoff
         # Find the base-level tile at this position
         topleftTileY, topleftTileX = self.screen_to_iso((World.dxoff, World.dyoff))
@@ -597,60 +654,20 @@ class DisplayMain(object):
             for y1 in range(self.screen_height / p4):
                 x = int(topleftTileX - x1 + math.ceil(y1 / 2.0))
                 y = int(topleftTileY + x1 + math.floor(y1 / 2.0))
+                add_to_dict = []
                 # Tile must be within the bounds of the map
                 if (x >= 0 and y >= 0) and (x < World.WorldX and y < World.WorldY):
-                    # Add vertical surfaces for this tile (if any)
-                    # A1/A2 are top and right vertices of tile in front/left of the one we're testing
                     l = x + y
-                    if x == World.WorldX - 1:
-                        A1 = 0
-                        A2 = 0
-                    else:
-                        A1 = World.array[x+1][y][1][3] + World.array[x+1][y][0]
-                        A2 = World.array[x+1][y][1][2] + World.array[x+1][y][0]
-                    # B1/B2 are left and bottom vertices of tile we're testing
-                    B1 = World.array[x][y][1][0] + World.array[x][y][0]
-                    B2 = World.array[x][y][1][1] + World.array[x][y][0]
-                    while B1 > A1 or B2 > A2:
-                        if B1 > B2:
-                            B1 -= 1
-                            tiletype = "CL10"
-                        elif B1 == B2:
-                            B1 -= 1
-                            B2 -= 1
-                            tiletype = "CL11"
-                        else:
-                            B2 -= 1
-                            tiletype = "CL01"
-                        self.orderedSprites.add(TileSprite(tiletype,
-                                                x, y, B1, exclude=True), layer=l)
-                    # A1/A2 are top and right vertices of tile in front/right of the one we're testing
-                    if y == World.WorldY - 1:
-                        A1 = 0
-                        A2 = 0
-                    else:
-                        A1 = World.array[x][y+1][1][3] + World.array[x][y+1][0]
-                        A2 = World.array[x][y+1][1][0] + World.array[x][y+1][0]
-                    # B1/B2 are left and bottom vertices of tile we're testing
-                    B1 = World.array[x][y][1][2] + World.array[x][y][0]
-                    B2 = World.array[x][y][1][1] + World.array[x][y][0]
-                    while B1 > A1 or B2 > A2:
-                        if B1 > B2:
-                            B1 -= 1
-                            tiletype = "CR10"
-                        elif B1 == B2:
-                            B1 -= 1
-                            B2 -= 1
-                            tiletype = "CR11"
-                        else:
-                            B2 -= 1
-                            tiletype = "CR01"
-                        self.orderedSprites.add(TileSprite(tiletype,
-                                                x, y, B1, exclude=True), layer=l)
-                    # And add the tile itself
+                    # Add the main tile
                     tiletype = self.array_to_string(World.array[x][y][1])
-                    self.orderedSprites.add(TileSprite(tiletype, x, y, World.array[x][y][0], exclude=False), layer=l)
-
+                    t = TileSprite(tiletype, x, y, World.array[x][y][0], exclude=False)
+                    add_to_dict.append(t)
+                    self.orderedSprites.add(t, layer=l)
+                    # Add vertical surfaces for this tile (if any)
+                    for t in self.make_cliffs(x, y):
+                        add_to_dict.append(t)
+                        self.orderedSprites.add(t, layer=l)
+                    self.orderedSpritesDict[(x,y)] = add_to_dict
 
 
 
