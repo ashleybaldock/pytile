@@ -34,8 +34,8 @@ from copy import copy
 from World import World
 import Tools
 
-##import logger
-##debug = logger.Log()
+import logger
+debug = logger.Log()
 
 # Pre-compute often used multiples
 p = 64
@@ -1053,9 +1053,9 @@ type["0101"] = [[0,0,0,0,0,0,0,0],
                 [0,0,0,2,2,0,0,0],]
 
 if __name__ == "__main__":
-##    sys.stderr = debug
-##    sys.stdout = debug
-##    print "debug test"
+    sys.stderr = debug
+    sys.stdout = debug
+    print "debug test"
     os.environ["SDL_VIDEO_CENTERED"] = "1"
     world = World()
     MainWindow = DisplayMain(WINDOW_WIDTH, WINDOW_HEIGHT)
