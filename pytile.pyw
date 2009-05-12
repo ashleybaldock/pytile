@@ -578,7 +578,6 @@ class DisplayMain(object):
         """Instead of completely regenerating the entire world, just update certain tiles
         Returns dirty rects"""
         for t in tiles:
-            print t
             x = t[0][0]
             y = t[0][1]
             t = self.orderedSpritesDict[(x,y)][0]

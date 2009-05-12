@@ -249,8 +249,9 @@ class Test(Tool):
         invdiff = -diff
 
         if diff != 0:
-            for t in self.tiles:
-                totalchange, realchange = self.modify_tile(t[0], self.subtile, invdiff)
+            self.modify_tiles(self.tiles, 9, invdiff)
+##            for t in self.tiles:
+##                totalchange, realchange = self.modify_tile(t[0], self.subtile, invdiff)
 
         return self.tiles
 
@@ -260,88 +261,78 @@ class Test(Tool):
         # This should return a list of tiles to highlight
         return []
 
+    def modify_tiles(self, tiles, subtile, amount):
+        """Raise or lower a region of tiles"""
+        # This will always be a whole tile raise/lower
+
+        # Find highest point
+        # Reduce those points by 1 each
+        # Continue to next iteration
+        # 4 points per tile at each vertex, found by summing height with vertexheight
+        # These can be represented by [x][y][v] where x and y are the world coords, and v is the vertex coord [0,1,2,3]
+        vertices = []
+        tset = []
+##        for t in tiles:
+##            print t
+##            x = t[0][0]
+##            y = t[0][1]
+##            for v in range(3):
+##                vertices.append([World.array[x][y][0] + World.array[x][y][1][v], (x, y, v)])
+        for t in tiles:
+            x = t[0][0]
+            y = t[0][1]
+            vertices.append([World.array[x][y][0] + max(World.array[x][y][1]), (x, y)])
+##        print "unsorted"
+##        print vertices
+        # Lowering terrain, find maximum value to start from
+        if amount < 0:
+            step = -1
+            for i in range(0, amount, step):
+                maxval = max(vertices, key=lambda x: x[0])[0]
+                if maxval != 0:
+                    for p in vertices:
+                        if p[0] == maxval:
+                            p[0] -= 1
+                            x = p[1][0]
+                            y = p[1][1]
+                            grid = [World.array[x][y][1][0], World.array[x][y][1][1], World.array[x][y][1][2], World.array[x][y][1][3]]
+                            t = World.array[x][y][0]
+
+                            if 2 in grid:
+                                for k in range(len(grid)):
+                                    if grid[k] == 2:
+                                        grid[k] = 1
+                            elif 1 in grid:
+                                grid = [0,0,0,0]
+                            else:
+                                t -= 1
+
+                            # Tile must not be reduced to below 0
+                            if t < 0:
+                                t = 0
+            
+                            World.array[x][y][1] = grid
+                            World.array[x][y][0] = t
+##                        vertices.sort(key=lambda x: x[0], reverse=True)
+##            # Return the total amount of height change, and the real amount
+##            return (total, ct - t)
 
 
-
-    def modify_vertex(self, tgrid, t, st, step):
-        """Raise or lower one corner of a tile"""
-        if step > 0:
-            if tgrid[st] == 0:
-                tgrid[st] += 1
-                if not 0 in tgrid:
-                    for k in range(len(tgrid)):
-                        tgrid[k] -= 1
-                    t += 1
-                elif 2 in tgrid and not 0 in tgrid:
-                    for k in range(len(tgrid)):
-                        tgrid[k] -= 1
-                    t += 1
-            elif tgrid[st] == 1:
-                if 2 in tgrid:
-                    # If there is a 2 there already increase the tile we're dealing with to 2, then subtract 1
-                    # from any remaining 1's and increase the tile's height by 1
-                    t += 1
-                    tgrid[st] += 1
-                    for k in range(len(tgrid)):
-                        if tgrid[k] == 2:
-                            tgrid[k] = 1
-                        elif tgrid[k] == 1:
-                            tgrid[k] = 0
-                else:
-                    # If there isn't already a 2, if neighbours are both 0 and opposite is 1
-                    # raise height by 1 and set active corner to 1
-                    if tgrid[st + 2] == 1:
-                        t += 1
-                        tgrid([0,0,0,0])
-                        tgrid[st] = 1
-                    else:
-                        tgrid([0,0,0,0])
-                        tgrid[st] = 2
-                        # Modify ones either side
-                        tgrid[st + 1] = 1
-                        tgrid[st - 1] = 1
-            elif tgrid[st] == 2:
-                # If raising corner is 2, just raise the entire tile by 1
-                t += 1
+        # Raising terrain, find minimum value to start from
         else:
-            if tgrid[st] == 0 and t != 0:
-                if 2 in tgrid:
-                    # Just reduce the layer
-                    t -= 1
-                elif 1 in tgrid:
-                    # Reduce by 1 and set the others to a 121 configuration, unless opposite is also
-                    # 0 in which case set all to 1, then set active corner to 0 and reduce tile by 1
-                    if tgrid[st + 2] == 0:
-                        t -= 1
-                        tgrid([1,1,1,1])
-                        tgrid[st] = 0
-                    else:
-                        t -= 1
-                        tgrid([2,2,2,2])
-                        tgrid[st] = 0
-                        # Modify ones either side
-                        tgrid[st + 1] = 1
-                        tgrid[st - 1] = 1
-                else:
-                    t -= 1
-                    tgrid([1,1,1,1])
-                    tgrid[st] = 0
-            elif tgrid[st] == 1:
-                if 2 in tgrid:
-                # If lowering corner is 1 and there is a 2 reduce the 2 by 1 and reduce
-                # the lowering corner by 1
-                    for k in range(len(tgrid)):
-                        if tgrid[k] == 2:
-                            tgrid[k] -= 1
-                    tgrid[st] -= 1
-                else:
-                    # No 2, so just 1's and 0's, so safe to just reduce by 1
-                    tgrid[st] -= 1
-            elif tgrid[st] == 2:
-                # If lowering corner is 2, simply reduce it by 1
-                tgrid[st] -= 1
-        return tgrid, t
-
+            # Sort the list, find the max value, max will be at the head of the list, perform reduction function on that maximum value, then repeat
+            vertices.sort(key=lambda x: x[0], reverse=True)
+            minval = min(vertices, key=lambda x: x[0])
+            print "minval"
+            print minval
+            print vertices
+            print amount
+##            while min(vertices, key=lambda x: x[0]) == minval:
+##                vertices.sort(key=lambda x: x[0], reverse=True)
+##                vertices[0][0] += amount
+##                x = vertices[0][1][0]
+##                y = vertices[0][1][1]
+##                self.modify_tile((x, y), 9, amount)
 
     def modify_tile(self, t, subtile, amount):
         """Raise (or lower) a tile based on the subtile"""
@@ -424,7 +415,88 @@ class Test(Tool):
             t = 0
         ct = World.array[x][y][0]
         
-        World.array[x][y][1] = tgrid
+        World.array[x][y][1] = [tgrid[0],tgrid[1],tgrid[2],tgrid[3]]
         World.array[x][y][0] = t
         # Return the total amount of height change, and the real amount
         return (total, ct - t)
+
+    def modify_vertex(self, tgrid, t, st, step):
+        """Raise or lower one corner of a tile"""
+        if step > 0:
+            if tgrid[st] == 0:
+                tgrid[st] += 1
+                if not 0 in tgrid:
+                    for k in range(len(tgrid)):
+                        tgrid[k] -= 1
+                    t += 1
+                elif 2 in tgrid and not 0 in tgrid:
+                    for k in range(len(tgrid)):
+                        tgrid[k] -= 1
+                    t += 1
+            elif tgrid[st] == 1:
+                if 2 in tgrid:
+                    # If there is a 2 there already increase the tile we're dealing with to 2, then subtract 1
+                    # from any remaining 1's and increase the tile's height by 1
+                    t += 1
+                    tgrid[st] += 1
+                    for k in range(len(tgrid)):
+                        if tgrid[k] == 2:
+                            tgrid[k] = 1
+                        elif tgrid[k] == 1:
+                            tgrid[k] = 0
+                else:
+                    # If there isn't already a 2, if neighbours are both 0 and opposite is 1
+                    # raise height by 1 and set active corner to 1
+                    if tgrid[st + 2] == 1:
+                        t += 1
+                        tgrid([0,0,0,0])
+                        tgrid[st] = 1
+                    else:
+                        tgrid([0,0,0,0])
+                        tgrid[st] = 2
+                        # Modify ones either side
+                        tgrid[st + 1] = 1
+                        tgrid[st - 1] = 1
+            elif tgrid[st] == 2:
+                # If raising corner is 2, just raise the entire tile by 1
+                t += 1
+        else:
+            if tgrid[st] == 0 and t != 0:
+                if 2 in tgrid:
+                    # Just reduce the layer
+                    t -= 1
+                elif 1 in tgrid:
+                    # Reduce by 1 and set the others to a 121 configuration, unless opposite is also
+                    # 0 in which case set all to 1, then set active corner to 0 and reduce tile by 1
+                    if tgrid[st + 2] == 0:
+                        t -= 1
+                        tgrid([1,1,1,1])
+                        tgrid[st] = 0
+                    else:
+                        t -= 1
+                        tgrid([2,2,2,2])
+                        tgrid[st] = 0
+                        # Modify ones either side
+                        tgrid[st + 1] = 1
+                        tgrid[st - 1] = 1
+                else:
+                    t -= 1
+                    tgrid([1,1,1,1])
+                    tgrid[st] = 0
+            elif tgrid[st] == 1:
+                if 2 in tgrid:
+                # If lowering corner is 1 and there is a 2 reduce the 2 by 1 and reduce
+                # the lowering corner by 1
+                    for k in range(len(tgrid)):
+                        if tgrid[k] == 2:
+                            tgrid[k] -= 1
+                    tgrid[st] -= 1
+                else:
+                    # No 2, so just 1's and 0's, so safe to just reduce by 1
+                    tgrid[st] -= 1
+            elif tgrid[st] == 2:
+                # If lowering corner is 2, simply reduce it by 1
+                tgrid[st] -= 1
+        return tgrid, t
+
+
