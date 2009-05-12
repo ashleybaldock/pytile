@@ -20,6 +20,12 @@
 
 
 
+
+# Issues
+# BUG - clicking on cliff tile causes crash (needs checks for non-interactable tile type)
+
+
+
 import os, sys
 import pygame
 import random, math
@@ -365,20 +371,20 @@ class DisplayMain(object):
 
         self.paint_world()
 
-        highlightSprite = None
+        # Sprite used to find what the cursor is selecting
         self.mouseSprite = None
-        self.last_pos = None
+        # Settings for FPS counter
         self.fps_refresh = FPS_REFRESH
         self.fps_elapsed = 0
-        coltile = None
+        # Associated with user input
         self.last_mouse_position = pygame.mouse.get_pos()
         self.lmb_current_drag = False
         rmb_current_drag = False
-        del_coltile = False
-        self.old_coltile = []
+
+        # Tool currently selected for use
         active_tool = Tools.Test
 
-
+        # Array of tiles which should have highlighting applied to them
         self.highlight_tiles = []
         
         while True:
@@ -458,9 +464,7 @@ class DisplayMain(object):
 
             if self.lmb_current_drag:
                 # Update the screen to reflect changes made by ground altering tools
-##                self.dirty.append(self.update_world(self.highlight_tiles))
                 self.update_world(self.highlight_tiles)
-##				self.paint_world()
 
             if self.highlight_tiles == []:
                 t = self.CollideLocate(self.last_mouse_position, self.orderedSprites)
@@ -534,7 +538,7 @@ class DisplayMain(object):
             tilesubposition = type[tile.type][offy16][offx8]
             return tilesubposition
         except IndexError:
-            print "offy16: %s, offx8: %s, coltile: %s" % (offy16, offx8, tile.type)
+            print "offy16: %s, offx8: %s, tile type: %s" % (offy16, offx8, tile.type)
             return None
 
     def CollideLocate(self, mousepos, collideagainst):
@@ -589,7 +593,33 @@ class DisplayMain(object):
             self.orderedSpritesDict[(x, y)] = cliffs
             self.orderedSprites.add(cliffs, layer=l)
 
-            
+    def paint_world(self):
+        """Paint the world as a series of sprites
+        Includes ground and other objects"""
+        self.refresh_screen = 1
+        self.orderedSprites.empty()     # This doesn't necessarily delete the sprites though?
+        self.orderedSpritesDict = {}
+        # Top-left of view relative to world given by self.dxoff, self.dyoff
+        # Find the base-level tile at this position
+        topleftTileY, topleftTileX = self.screen_to_iso((World.dxoff, World.dyoff))
+        for x1 in range(self.screen_width / p + 1):
+            for y1 in range(self.screen_height / p4):
+                x = int(topleftTileX - x1 + math.ceil(y1 / 2.0))
+                y = int(topleftTileY + x1 + math.floor(y1 / 2.0))
+                add_to_dict = []
+                # Tile must be within the bounds of the map
+                if (x >= 0 and y >= 0) and (x < World.WorldX and y < World.WorldY):
+                    l = x + y
+                    # Add the main tile
+                    tiletype = self.array_to_string(World.array[x][y][1])
+                    t = TileSprite(tiletype, x, y, World.array[x][y][0], exclude=False)
+                    add_to_dict.append(t)
+                    self.orderedSprites.add(t, layer=l)
+                    # Add vertical surfaces (cliffs) for this tile (if any)
+                    for t in self.make_cliffs(x, y):
+                        add_to_dict.append(t)
+                        self.orderedSprites.add(t, layer=l)
+                    self.orderedSpritesDict[(x,y)] = add_to_dict
 
     def make_cliffs(self, x, y):
         """Produce a set of cliff sprites to go with a particular tile"""
@@ -639,35 +669,6 @@ class DisplayMain(object):
                 tiletype = "CR01"
             returnvals.append(TileSprite(tiletype, x, y, B1, exclude=True))
         return returnvals
-
-    def paint_world(self):
-        """Paint the world as a series of sprites
-        Includes ground and other objects"""
-        self.refresh_screen = 1
-##        print self.orderedSpritesDict
-        self.orderedSprites.empty()     # This doesn't necessarily delete the sprites though?
-        self.orderedSpritesDict = {}
-        # Top-left of view relative to world given by self.dxoff, self.dyoff
-        # Find the base-level tile at this position
-        topleftTileY, topleftTileX = self.screen_to_iso((World.dxoff, World.dyoff))
-        for x1 in range(self.screen_width / p + 1):
-            for y1 in range(self.screen_height / p4):
-                x = int(topleftTileX - x1 + math.ceil(y1 / 2.0))
-                y = int(topleftTileY + x1 + math.floor(y1 / 2.0))
-                add_to_dict = []
-                # Tile must be within the bounds of the map
-                if (x >= 0 and y >= 0) and (x < World.WorldX and y < World.WorldY):
-                    l = x + y
-                    # Add the main tile
-                    tiletype = self.array_to_string(World.array[x][y][1])
-                    t = TileSprite(tiletype, x, y, World.array[x][y][0], exclude=False)
-                    add_to_dict.append(t)
-                    self.orderedSprites.add(t, layer=l)
-                    # Add vertical surfaces for this tile (if any)
-                    for t in self.make_cliffs(x, y):
-                        add_to_dict.append(t)
-                        self.orderedSprites.add(t, layer=l)
-                    self.orderedSpritesDict[(x,y)] = add_to_dict
 
 
 
