@@ -271,23 +271,15 @@ class Test(Tool):
         # 4 points per tile at each vertex, found by summing height with vertexheight
         # These can be represented by [x][y][v] where x and y are the world coords, and v is the vertex coord [0,1,2,3]
         vertices = []
-        tset = []
-##        for t in tiles:
-##            print t
-##            x = t[0][0]
-##            y = t[0][1]
-##            for v in range(3):
-##                vertices.append([World.array[x][y][0] + World.array[x][y][1][v], (x, y, v)])
-        for t in tiles:
-            x = t[0][0]
-            y = t[0][1]
-            vertices.append([World.array[x][y][0] + max(World.array[x][y][1]), (x, y)])
-##        print "unsorted"
-##        print vertices
         # Lowering terrain, find maximum value to start from
         if amount < 0:
+            for t in tiles:
+                x = t[0][0]
+                y = t[0][1]
+                vertices.append([World.array[x][y][0] + max(World.array[x][y][1]), (x, y)])
             step = -1
             for i in range(0, amount, step):
+                print vertices
                 maxval = max(vertices, key=lambda x: x[0])[0]
                 if maxval != 0:
                     for p in vertices:
@@ -313,26 +305,37 @@ class Test(Tool):
             
                             World.array[x][y][1] = grid
                             World.array[x][y][0] = t
-##                        vertices.sort(key=lambda x: x[0], reverse=True)
-##            # Return the total amount of height change, and the real amount
-##            return (total, ct - t)
-
-
-        # Raising terrain, find minimum value to start from
         else:
-            # Sort the list, find the max value, max will be at the head of the list, perform reduction function on that maximum value, then repeat
-            vertices.sort(key=lambda x: x[0], reverse=True)
-            minval = min(vertices, key=lambda x: x[0])
-            print "minval"
-            print minval
-            print vertices
-            print amount
-##            while min(vertices, key=lambda x: x[0]) == minval:
-##                vertices.sort(key=lambda x: x[0], reverse=True)
-##                vertices[0][0] += amount
-##                x = vertices[0][1][0]
-##                y = vertices[0][1][1]
-##                self.modify_tile((x, y), 9, amount)
+            for t in tiles:
+                x = t[0][0]
+                y = t[0][1]
+                vertices.append([World.array[x][y][0], (x, y)])
+            step = 1
+            for i in range(0, amount, step):
+                minval = min(vertices, key=lambda x: x[0])[0]
+                for p in vertices:
+                    if p[0] == minval:
+                        p[0] += 1
+                        x = p[1][0]
+                        y = p[1][1]
+                        grid = [World.array[x][y][1][0], World.array[x][y][1][1], World.array[x][y][1][2], World.array[x][y][1][3]]
+                        t = World.array[x][y][0]
+                        # Sort the correct tile type
+                        if 2 in grid:
+                            t += 1
+                            for k in range(len(grid)):
+                                grid[k] -= 1
+                                if grid[k] < 0:
+                                    grid[k] = 0
+                        elif 1 in grid:
+                            t += 1
+                            grid = [0,0,0,0]
+                        else:
+                            t += 1
+        
+                        World.array[x][y][1] = grid
+                        World.array[x][y][0] = t
+
 
     def modify_tile(self, t, subtile, amount):
         """Raise (or lower) a tile based on the subtile"""
