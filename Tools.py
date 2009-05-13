@@ -206,8 +206,8 @@ class Tool(object):
 
 class Test(Tool):
     """Testing tool"""
-    xdims = 2
-    ydims = 3
+    xdims = 1
+    ydims = 1
     def __init__(self, start):
         """New application of this tool, begins at startpos"""
         # Call init method of parent
@@ -249,9 +249,9 @@ class Test(Tool):
         invdiff = -diff
 
         if diff != 0:
-            self.modify_tiles(self.tiles, 9, invdiff)
-##            for t in self.tiles:
-##                totalchange, realchange = self.modify_tile(t[0], self.subtile, invdiff)
+##            self.modify_tiles(self.tiles, 9, invdiff)
+            for t in self.tiles:
+                totalchange, realchange = self.modify_tile(t[0], self.subtile, invdiff)
 
         return self.tiles
 
@@ -264,12 +264,6 @@ class Test(Tool):
     def modify_tiles(self, tiles, subtile, amount):
         """Raise or lower a region of tiles"""
         # This will always be a whole tile raise/lower
-
-        # Find highest point
-        # Reduce those points by 1 each
-        # Continue to next iteration
-        # 4 points per tile at each vertex, found by summing height with vertexheight
-        # These can be represented by [x][y][v] where x and y are the world coords, and v is the vertex coord [0,1,2,3]
         vertices = []
         # Lowering terrain, find maximum value to start from
         if amount < 0:
@@ -279,32 +273,13 @@ class Test(Tool):
                 vertices.append([World.array[x][y][0] + max(World.array[x][y][1]), (x, y)])
             step = -1
             for i in range(0, amount, step):
-                print vertices
                 maxval = max(vertices, key=lambda x: x[0])[0]
                 if maxval != 0:
                     for p in vertices:
                         if p[0] == maxval:
                             p[0] -= 1
-                            x = p[1][0]
-                            y = p[1][1]
-                            grid = [World.array[x][y][1][0], World.array[x][y][1][1], World.array[x][y][1][2], World.array[x][y][1][3]]
-                            t = World.array[x][y][0]
-
-                            if 2 in grid:
-                                for k in range(len(grid)):
-                                    if grid[k] == 2:
-                                        grid[k] = 1
-                            elif 1 in grid:
-                                grid = [0,0,0,0]
-                            else:
-                                t -= 1
-
-                            # Tile must not be reduced to below 0
-                            if t < 0:
-                                t = 0
-            
-                            World.array[x][y][1] = grid
-                            World.array[x][y][0] = t
+                            self.lower_face(p[1][0], p[1][1])
+        # Raising terrain, find minimum value to start from
         else:
             for t in tiles:
                 x = t[0][0]
@@ -316,25 +291,70 @@ class Test(Tool):
                 for p in vertices:
                     if p[0] == minval:
                         p[0] += 1
-                        x = p[1][0]
-                        y = p[1][1]
-                        grid = [World.array[x][y][1][0], World.array[x][y][1][1], World.array[x][y][1][2], World.array[x][y][1][3]]
-                        t = World.array[x][y][0]
-                        # Sort the correct tile type
-                        if 2 in grid:
-                            t += 1
-                            for k in range(len(grid)):
-                                grid[k] -= 1
-                                if grid[k] < 0:
-                                    grid[k] = 0
-                        elif 1 in grid:
-                            t += 1
-                            grid = [0,0,0,0]
-                        else:
-                            t += 1
-        
-                        World.array[x][y][1] = grid
-                        World.array[x][y][0] = t
+                        self.raise_face(p[1][0], p[1][1])
+
+
+    # All of these low-level raise/lower functions should return 1 if they modify the base height of the tile
+    # World object needs better access functions for setting the tile's properties
+    # There will be an even lower level function (modify_vertex) called by the edge and vertex modifiers
+
+    def raise_face(self, x, y):
+        """Raise an entire face of a tile (all 4 vertices)"""
+        # Get properties of the tile to modify
+        grid = World.array[x][y][1]
+        t = World.array[x][y][0]
+        # Sort the correct tile type
+        if 2 in grid:
+            t += 1
+            for k in range(len(grid)):
+                grid[k] -= 1
+                if grid[k] < 0:
+                    grid[k] = 0
+        elif 1 in grid:
+            t += 1
+            grid = [0,0,0,0]
+        else:
+            t += 1
+        # Modify the World array to reflect changes
+        World.array[x][y][1] = grid
+        World.array[x][y][0] = t
+    def lower_face(self, x, y):
+        """Lower an entire face of a tile (all 4 vertices)"""
+        # Get properties of the tile to modify
+        grid = World.array[x][y][1]
+        t = World.array[x][y][0]
+        # Sort the correct tile type
+        if 2 in grid:
+            for k in range(len(grid)):
+                if grid[k] == 2:
+                    grid[k] = 1
+        elif 1 in grid:
+            grid = [0,0,0,0]
+        else:
+            t -= 1
+        # Tile must not be reduced to below 0
+        if t < 0:
+            t = 0
+        # Modify the World array to reflect changes
+        World.array[x][y][1] = grid
+        World.array[x][y][0] = t
+
+    def raise_edge(self, x, y, v1, v2):
+        """Raise edge denoted by v1->v2"""
+    def lower_edge(self, x, y, v1, v2):
+        """Lower edge denoted by v1->v2"""
+
+    def raise_vertex(self, x, y, v):
+        """Raise a single vertex"""
+        # Vertices are 0:left, 1:bottom, 2:right, 3:top
+        t = World.array[x][y][0]
+        tgrid = tGrid(World.array[x][y][1])
+        tgrid, t = self.modify_vertex(tgrid, t, v, 1)
+    def lower_vertex(self, x, y, v):
+        """Lower a single vertex"""
+        t = World.array[x][y][0]
+        tgrid = tGrid(World.array[x][y][1])
+        tgrid, t = self.modify_vertex(tgrid, t, v, -1)
 
 
     def modify_tile(self, t, subtile, amount):

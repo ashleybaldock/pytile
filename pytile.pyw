@@ -473,12 +473,10 @@ class DisplayMain(object):
                     subtileposition = self.SubTilePosition(self.last_mouse_position, self.orderedSpritesDict[(t.xWorld, t.yWorld)][0])
                     self.highlight_tiles = [[(t.xWorld, t.yWorld), subtileposition]]
 
-##            print self.highlight_tiles
 
             if self.lmb_current_drag:
                 # Update the screen to reflect changes made by ground altering tools
                 self.update_world(self.highlight_tiles)
-##                self.paint_world()
 
             # Find position of cursor relative to the confines of the selected tile
             # Use first item in the list
@@ -514,15 +512,6 @@ class DisplayMain(object):
             else:
                 pygame.display.update(self.dirty)
 
-
-# Only mark dirty when the cursor position has significantly changed (i.e. new graphic)
-
-# Could also use a mode which maintains the slope of the tile, and simply increases its height
-# shift+LMBdrag - preserve slope and move up/down (whole tile only)
-# ctrl+LMBdrag  - vertex, modify this vertex and its neighbours
-#               - edge, modify this edge, its facing neighbour and the vertices at either end
-#               - tile, modify this tile, its surrounding neighbour edges and vertices
-#
 
 
     def SubTilePosition(self, mousepos, tile):
