@@ -245,18 +245,19 @@ class Test(Tool):
         # This should return a list of tiles to highlight
         # First time update is called store the tile we're interacting with by doing a collision detection search,
         # also store subtile so we know which corner we're modifying
-        if not self.tile:
-            self.tile = self.collide_locate(self.current, collisionlist)
-            self.subtile = self.subtile_position(self.current, self.tile)
         if not self.tiles:
             self.tile = self.collide_locate(self.current, collisionlist)
-            x = self.tile.xWorld
-            y = self.tile.yWorld
-            self.tiles = []
-            for xx in range(Test.xdims):
-                for yy in range(Test.ydims):
-                    self.tiles.append([(x + xx, y + yy), self.subtile])
-            # Tiles now contains a list of all tiles to modify
+            if self.tile and not self.tile.exclude:
+                self.subtile = self.subtile_position(self.current, self.tile)
+                x = self.tile.xWorld
+                y = self.tile.yWorld
+                self.tiles = []
+                for xx in range(Test.xdims):
+                    for yy in range(Test.ydims):
+                        self.tiles.append([(x + xx, y + yy), self.subtile])
+                # Tiles now contains a list of all tiles to modify
+            else:
+                return []
             
 
         diff = (self.current[1] - self.start[1]) / ph
@@ -274,7 +275,7 @@ class Test(Tool):
             if len(self.tiles) > 1:
                 self.modify_tiles(self.tiles, 9, invdiff)
             else:
-                totalchange, realchange = self.modify_tile(t[0], self.subtile, invdiff)
+                totalchange, realchange = self.modify_tile(self.tiles[0][0], self.subtile, invdiff)
 
         return self.tiles
 

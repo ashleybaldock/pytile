@@ -22,7 +22,7 @@
 
 
 # Issues
-# BUG - clicking on cliff tile causes crash (needs checks for non-interactable tile type)
+# BUG - clicking on cliff tile causes crash (needs checks for non-interactable tile type) - Fixed
 
 
 
@@ -399,7 +399,6 @@ class DisplayMain(object):
             if pygame.event.peek(pygame.QUIT):
                 pygame.display.quit()
                 sys.exit()
-            lmb_drags = []
             rmb_drags = []
 
             # Clear all the old highlighted tiles
