@@ -1042,8 +1042,8 @@ type["0101"] = [[0,0,0,0,0,0,0,0],
                 [0,0,0,2,2,0,0,0],]
 
 if __name__ == "__main__":
-    sys.stderr = debug
-    sys.stdout = debug
+##    sys.stderr = debug
+##    sys.stdout = debug
     print "debug test"
     os.environ["SDL_VIDEO_CENTERED"] = "1"
     world = World()

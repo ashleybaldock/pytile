@@ -24,6 +24,8 @@ import os, sys
 import pygame
 import random
 
+import Tools
+
 # Pre-compute often used multiples
 p = 64
 p2 = p / 2
@@ -445,6 +447,19 @@ class World:
 # Finally multi-tile smooth/sharp deformations
 
 # Functions in World are hooked into by functions in the GUI of the main program
+
+    def set_height(self, tgrid, x, y=None):
+        """Sets the height of a tile"""
+        if y is None:
+            x, y = x
+        self.array[x][y][0] = tgrid.height
+        self.array[x][y][1] = tgrid.array
+
+    def get_height(self, x, y=None):
+        """Get height of a tile, return as TGrid object"""
+        if y is None:
+            x, y = x
+        return Tools.TGrid(self.array[x][y][0], self.array[x][y][1])
 
     def modify_tiles(self, array, tiles, action, softedges):
         """array=world array, tiles=list of tiles to alter, action=raise,lower,smooth, softedges=True,False"""

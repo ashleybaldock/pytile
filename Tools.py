@@ -24,6 +24,7 @@ import os, sys
 import pygame
 import random
 from World import World
+World = World()
 
 # Pre-compute often used multiples
 p = 64
@@ -59,20 +60,44 @@ class TGrid(object):
     def get_array(self):
         return self.array
     # Return the height of the tile
-    def get_height(self):
+    def height(self):
         return self.height
     # Set the height of the tile
     def set_height(self, h):
         self.height = h
     # Terrain modification functions
     def raise_face(self):
-        """"""
+        """Raise an entire face of a tile (all 4 vertices)"""
+        # Sort the correct tile type
+        if 2 in self:
+            self.height += 1
+            for k in range(len(self)):
+                self[k] -= 1
+                if self[k] < 0:
+                    self[k] = 0
+        elif 1 in self:
+            self.height += 1
+            self.array = [0,0,0,0]
+        else:
+            self.height += 1
     def raise_edge(self):
         """"""
     def raise_vertex(self):
         """"""
     def lower_face(self):
-        """"""
+        """Lower an entire face of a tile (all 4 vertices)"""
+        # Sort the correct tile type
+        if 2 in self:
+            for k in range(len(self)):
+                if self[k] == 2:
+                    self[k] = 1
+        elif 1 in self:
+            self.array = [0,0,0,0]
+        else:
+            self.height -= 1
+        # Tile must not be reduced to below 0
+        if self.height < 0:
+            self.height = 0
     def lower_edge(self):
         """"""
     def lower_vertex(self):
@@ -247,8 +272,8 @@ class Tool(object):
 
 class Test(Tool):
     """Testing tool"""
-    xdims = 1
-    ydims = 1
+    xdims = 2
+    ydims = 2
     def __init__(self, start):
         """New application of this tool, begins at startpos"""
         # Call init method of parent
@@ -290,9 +315,9 @@ class Test(Tool):
         invdiff = -diff
 
         if diff != 0:
-##            self.modify_tiles(self.tiles, 9, invdiff)
-            for t in self.tiles:
-                totalchange, realchange = self.modify_tile(t[0], self.subtile, invdiff)
+            self.modify_tiles(self.tiles, 9, invdiff)
+##            for t in self.tiles:
+##                totalchange, realchange = self.modify_tile(t[0], self.subtile, invdiff)
 
         return self.tiles
 
@@ -319,7 +344,9 @@ class Test(Tool):
                     for p in vertices:
                         if p[0] == maxval:
                             p[0] -= 1
-                            self.lower_face(p[1][0], p[1][1])
+                            tgrid = World.get_height(p[1])
+                            tgrid.lower_face()
+                            World.set_height(tgrid, p[1])
         # Raising terrain, find minimum value to start from
         else:
             for t in tiles:
@@ -332,7 +359,9 @@ class Test(Tool):
                 for p in vertices:
                     if p[0] == minval:
                         p[0] += 1
-                        self.raise_face(p[1][0], p[1][1])
+                        tgrid = World.get_height(p[1])
+                        tgrid.raise_face()
+                        World.set_height(tgrid, p[1])
 
 
     # All of these low-level raise/lower functions should return 1 if they modify the base height of the tile
