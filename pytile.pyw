@@ -31,7 +31,9 @@ import pygame
 import random, math
 from copy import copy
 
-from World import World
+import world
+World = world.World()
+
 import Tools
 
 import logger
@@ -1044,9 +1046,8 @@ type["0101"] = [[0,0,0,0,0,0,0,0],
 if __name__ == "__main__":
 ##    sys.stderr = debug
 ##    sys.stdout = debug
-    print "debug test"
     os.environ["SDL_VIDEO_CENTERED"] = "1"
-    world = World()
+##    world = World()
     MainWindow = DisplayMain(WINDOW_WIDTH, WINDOW_HEIGHT)
     MainWindow.MainLoop()
 

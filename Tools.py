@@ -23,8 +23,9 @@
 import os, sys
 import pygame
 import random
-from World import World
-World = World()
+
+import world
+World = world.World()
 
 # Pre-compute often used multiples
 p = 64
