@@ -204,7 +204,10 @@ class Tool(object):
 ##
 ##
 
-
+class ToolSettings(object):
+    """Global settings for tools, e.g. size of area of effect"""
+    xdims = 1
+    ydims = 1
 
 
 class Test(Tool):
@@ -218,7 +221,23 @@ class Test(Tool):
         self.start = start
         self.tile = None
         self.tiles = None
-        
+    def process_key(self, key):
+        """Process a keystroke during a drag operation"""
+        keyname = pygame.key.name(key)
+        if keyname == "[":
+            Test.xdims += 1
+        elif keyname == "]":
+            Test.xdims -= 1
+            if Test.xdims < 1:
+                Test.xdims = 1
+        if keyname == "o":
+            Test.ydims += 1
+        elif keyname == "p":
+            Test.ydims -= 1
+            if Test.ydims < 1:
+                Test.ydims = 1
+        print pygame.key.name(key)
+        return True
     def update(self, current, collisionlist):
         """Tool updated, current cursor position is newpos"""
         self.current = current
@@ -252,9 +271,10 @@ class Test(Tool):
         invdiff = -diff
 
         if diff != 0:
-            self.modify_tiles(self.tiles, 9, invdiff)
-##            for t in self.tiles:
-##                totalchange, realchange = self.modify_tile(t[0], self.subtile, invdiff)
+            if len(self.tiles) > 1:
+                self.modify_tiles(self.tiles, 9, invdiff)
+            else:
+                totalchange, realchange = self.modify_tile(t[0], self.subtile, invdiff)
 
         return self.tiles
 
@@ -304,47 +324,6 @@ class Test(Tool):
     # All of these low-level raise/lower functions should return 1 if they modify the base height of the tile
     # World object needs better access functions for setting the tile's properties
     # There will be an even lower level function (modify_vertex) called by the edge and vertex modifiers
-
-    def raise_face(self, x, y):
-        """Raise an entire face of a tile (all 4 vertices)"""
-        # Get properties of the tile to modify
-        grid = World.array[x][y][1]
-        t = World.array[x][y][0]
-        # Sort the correct tile type
-        if 2 in grid:
-            t += 1
-            for k in range(len(grid)):
-                grid[k] -= 1
-                if grid[k] < 0:
-                    grid[k] = 0
-        elif 1 in grid:
-            t += 1
-            grid = [0,0,0,0]
-        else:
-            t += 1
-        # Modify the World array to reflect changes
-        World.array[x][y][1] = grid
-        World.array[x][y][0] = t
-    def lower_face(self, x, y):
-        """Lower an entire face of a tile (all 4 vertices)"""
-        # Get properties of the tile to modify
-        grid = World.array[x][y][1]
-        t = World.array[x][y][0]
-        # Sort the correct tile type
-        if 2 in grid:
-            for k in range(len(grid)):
-                if grid[k] == 2:
-                    grid[k] = 1
-        elif 1 in grid:
-            grid = [0,0,0,0]
-        else:
-            t -= 1
-        # Tile must not be reduced to below 0
-        if t < 0:
-            t = 0
-        # Modify the World array to reflect changes
-        World.array[x][y][1] = grid
-        World.array[x][y][0] = t
 
     def raise_edge(self, x, y, v1, v2):
         """Raise edge denoted by v1->v2"""

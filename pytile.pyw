@@ -413,6 +413,11 @@ class DisplayMain(object):
                     if event.key == pygame.K_ESCAPE:
                         pygame.display.quit()
                         sys.exit()
+                    elif self.lmb_current_drag:
+                        if not self.lmb_current_drag.process_key(event.key):
+                            # process_key() will always return False if it hasn't processed the key,
+                            # so that keys can be used for other things if a tool doesn't want them
+                            pass
 
                 # Process events, all RMB events are motion commands, all LMB ones get fed into the active tool
                 if event.type == pygame.MOUSEBUTTONDOWN:
@@ -1047,7 +1052,6 @@ if __name__ == "__main__":
 ##    sys.stderr = debug
 ##    sys.stdout = debug
     os.environ["SDL_VIDEO_CENTERED"] = "1"
-##    world = World()
     MainWindow = DisplayMain(WINDOW_WIDTH, WINDOW_HEIGHT)
     MainWindow.MainLoop()
 
