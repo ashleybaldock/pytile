@@ -37,6 +37,47 @@ p16 = p / 16
 ph = 8
 
 
+class TGrid(object):
+    """Represents a tile's vertex height and can be used to modify that height"""
+    def __init__(self, height, vertices):
+        self.array = vertices
+        self.height = height
+        self.length = len(self.array)
+    def __len__(self):
+        return self.length
+    def __call__(self, vertices):
+        self.array = vertices
+    def __getitem__(self, index):
+        return self.array[index % self.length]
+    def __setitem__(self, index, value):
+        self.array[index % self.length] = value
+    def __contains__(self, item):
+        return item in self.array
+    def __str__(self):
+        return str(self.array)
+    # Return the basic array of the tile (vertex info)
+    def get_array(self):
+        return self.array
+    # Return the height of the tile
+    def get_height(self):
+        return self.height
+    # Set the height of the tile
+    def set_height(self, h):
+        self.height = h
+    # Terrain modification functions
+    def raise_face(self):
+        """"""
+    def raise_edge(self):
+        """"""
+    def raise_vertex(self):
+        """"""
+    def lower_face(self):
+        """"""
+    def lower_edge(self):
+        """"""
+    def lower_vertex(self):
+        """"""
+
 class tGrid:
     """Short array which can wrap-around"""
     def __init__(self, value):
