@@ -24,8 +24,6 @@ import os, sys
 import pygame
 import random
 
-import Tools
-
 # Pre-compute often used multiples
 p = 64
 p2 = p / 2
@@ -37,8 +35,73 @@ p16 = p / 16
 #tile height difference
 ph = 8
 
+class TGrid(object):
+    """Represents a tile's vertex height and can be used to modify that height"""
+    def __init__(self, height, vertices):
+        self.array = vertices
+        self.height = height
+        self.length = len(self.array)
+    def __len__(self):
+        return self.length
+    def __call__(self, vertices):
+        self.array = vertices
+    def __getitem__(self, index):
+        return self.array[index % self.length]
+    def __setitem__(self, index, value):
+        self.array[index % self.length] = value
+    def __contains__(self, item):
+        return item in self.array
+    def __str__(self):
+        return str(self.array)
+    # Return the basic array of the tile (vertex info)
+    def get_array(self):
+        return self.array
+    # Return the height of the tile
+    def height(self):
+        return self.height
+    # Set the height of the tile
+    def set_height(self, h):
+        self.height = h
+    # Terrain modification functions
+    def raise_face(self):
+        """Raise an entire face of a tile (all 4 vertices)"""
+        # Sort the correct tile type
+        if 2 in self:
+            self.height += 1
+            for k in range(len(self)):
+                self[k] -= 1
+                if self[k] < 0:
+                    self[k] = 0
+        elif 1 in self:
+            self.height += 1
+            self.array = [0,0,0,0]
+        else:
+            self.height += 1
+    def raise_edge(self):
+        """"""
+    def raise_vertex(self):
+        """"""
+    def lower_face(self):
+        """Lower an entire face of a tile (all 4 vertices)"""
+        # Sort the correct tile type
+        if 2 in self:
+            for k in range(len(self)):
+                if self[k] == 2:
+                    self[k] = 1
+        elif 1 in self:
+            self.array = [0,0,0,0]
+        else:
+            self.height -= 1
+        # Tile must not be reduced to below 0
+        if self.height < 0:
+            self.height = 0
+    def lower_edge(self):
+        """"""
+    def lower_vertex(self):
+        """"""
 
-class World:
+
+class World(object):
     """Holds all world-related variables and methods"""
 
     # Constants
@@ -459,7 +522,7 @@ class World:
         """Get height of a tile, return as TGrid object"""
         if y is None:
             x, y = x
-        return Tools.TGrid(self.array[x][y][0], self.array[x][y][1])
+        return TGrid(self.array[x][y][0], self.array[x][y][1])
 
     def modify_tiles(self, array, tiles, action, softedges):
         """array=world array, tiles=list of tiles to alter, action=raise,lower,smooth, softedges=True,False"""
