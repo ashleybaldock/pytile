@@ -404,18 +404,18 @@ class DisplayMain(object):
         
         while True:
             self.clock.tick(0)
-            self.dirty = []
             # If there's a quit event, don't bother parsing the event queue
             if pygame.event.peek(pygame.QUIT):
                 pygame.display.quit()
                 sys.exit()
-            rmb_drags = []
 
+            # Clear the stack of dirty tiles
+            self.dirty = []
             # Clear all the old highlighted tiles
             for t in self.highlight:
                 self.dirty.append(self.orderedSpritesDict[t[0]][0].change_highlight(0))
-            if not self.lmb_current_drag:
-                self.highlight = []
+##            if not self.lmb_tool.active():
+##                self.highlight = []
 
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
@@ -427,7 +427,6 @@ class DisplayMain(object):
                             # process_key() will always return False if it hasn't processed the key,
                             # so that keys can be used for other things if a tool doesn't want them
                             pass
-
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     # LMB
@@ -454,43 +453,6 @@ class DisplayMain(object):
 ##                    else:
 ##                        pass
 
-##                # Process events, all RMB events are motion commands, all LMB ones get fed into the active tool
-##                if event.type == pygame.MOUSEBUTTONDOWN:
-##                    if event.button == 1:
-##                        # LMB down - start a new LMB drag
-##                        if self.lmb_current_drag:
-##                            self.lmb_current_drag.end(event.pos)
-##                        self.lmb_current_drag = self.active_tool(event.pos)
-##                        self.highlight_tiles = self.lmb_current_drag.update(event.pos, self.orderedSprites)
-##                    if event.button == 3:
-##                        # RMB down - start a new RMB drag and stop current LMB drag (if present)
-##                        rmb_current_drag = [event.pos, event.pos]
-##                        if self.lmb_current_drag:
-##                            self.lmb_current_drag.end(event.pos)
-##                            self.lmb_current_drag = False
-##                if event.type == pygame.MOUSEBUTTONUP:
-##                    if event.button == 1:
-##                        # LMB up - end current LMB drag (if present, could've been ended in other ways)
-##                        if self.lmb_current_drag:
-##                            self.highlight_tiles = self.lmb_current_drag.end(event.pos)
-##                            self.lmb_current_drag = False
-##                    if event.button == 3:
-##                        # RMB up - end current RMB drag
-##                        rmb_drags.append(rmb_current_drag)
-##                        rmb_current_drag = False
-##                if event.type == pygame.MOUSEMOTION:
-##                    self.last_mouse_position = event.pos
-##                    if event.buttons[2] == 1:
-##                        # RMB pressed, change rmb_drag endpoint
-##                        rmb_current_drag[1] = event.pos
-##                    elif event.buttons[0] == 1:
-##                        # LMB pressed, change lmb_drag endpoint
-##                        if self.lmb_current_drag:
-##                            self.highlight_tiles = self.lmb_current_drag.update(event.pos, self.orderedSprites)
-##                    else:
-##                        # No buttons pressed
-##                        pass
-
 
 
 ##            # Must then end any currently active drags, but leave the mouse button states open for the next
@@ -510,12 +472,6 @@ class DisplayMain(object):
 ##                if rmb_current_drag:
 ##                    rmb_current_drag[0] = rmb_current_drag[1]
 ##
-
-##            if not self.lmb_current_drag and self.highlight_tiles == []:
-##                t = self.CollideLocate(self.last_mouse_position, self.orderedSprites)
-##                if t:
-##                    subtileposition = self.SubTilePosition(self.last_mouse_position, self.orderedSpritesDict[(t.xWorld, t.yWorld)][0])
-##                    self.highlight_tiles = [[(t.xWorld, t.yWorld), subtileposition]]
 
 
             if self.lmb_tool.active():
@@ -546,8 +502,6 @@ class DisplayMain(object):
 
             # If land height has been altered, or the screen has been moved
             # we need to refresh the entire screen
-##            self.refresh_screen = 1
-##            self.paint_world()
             if self.refresh_screen == 1:
                 pygame.display.update()
                 self.screen.fill((0,0,0))
@@ -555,55 +509,6 @@ class DisplayMain(object):
             else:
                 pygame.display.update(self.dirty)
 
-
-
-    def SubTilePosition(self, mousepos, tile):
-        """Find the sub-tile position of the cursor"""
-        x = tile.xWorld
-        y = tile.yWorld
-        # Find where this tile would've been drawn on the screen, and subtract the mouse's position
-        mousex, mousey = mousepos
-        posx = World.WorldWidth2 - (x * (p2)) + (y * (p2)) - p2
-        posy = (x * (p4)) + (y * (p4)) - (World.array[x][y][0] * ph)
-        offx = mousex - (posx - World.dxoff)
-        offy = mousey - (posy - World.dyoff)
-        # Then compare these offsets to the table of values for this particular kind of tile
-        # to find which overlay selection sprite should be drawn
-        # Height in 16th incremenets, width in 8th increments
-        offx8 = offx / p8
-        offy16 = offy / p16
-        # Then lookup the mask number based on this, this should be drawn on the screen
-        try:
-            tilesubposition = type[tile.type][offy16][offx8]
-            return tilesubposition
-        except IndexError:
-            print "offy16: %s, offx8: %s, tile type: %s" % (offy16, offx8, tile.type)
-            return None
-
-    def CollideLocate(self, mousepos, collideagainst):
-        """Locates the sprite(s) that the mouse position intersects with"""
-        # Draw mouseSprite at cursor position
-        if self.mouseSprite:
-            self.mouseSprite.sprite.update(mousepos)
-        else:
-            self.mouseSprite = pygame.sprite.GroupSingle(MouseSprite(mousepos))
-        # Find sprites that the mouseSprite intersects with
-        collision_list1 = pygame.sprite.spritecollide(self.mouseSprite.sprite, collideagainst, False)#, pygame.sprite.collide_mask)
-        if collision_list1:
-            collision_list = pygame.sprite.spritecollide(self.mouseSprite.sprite, collision_list1, False, pygame.sprite.collide_mask)
-            if collision_list:
-                collision_list.reverse()
-                for t in collision_list:
-                    if t.exclude == False:
-                        return t
-                    else:
-                        # None of the collided sprites has collision enabled
-                        return None
-            else:
-                # No collision means nothing to select
-                return None
-        else:
-            return None
 
     def array_to_string(self, array):
         """Convert a heightfield array to a string"""
@@ -741,348 +646,6 @@ class DisplayMain(object):
         self.paint_world()
 
 
-
-
-
-# Hitboxes for subtile selection
-# 0 = Nothing
-# 1 = Left vertex
-# 2 = Bottom vertex
-# 3 = Right vertex
-# 4 = Top vertex
-# 5 = Bottom-left edge
-# 6 = Bottom-right edge
-# 7 = Top-right edge
-# 8 = Top-left edge
-# 9 = Face
-
-type_lookup = [[0,0,0,0],[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1],[1,1,0,0],[0,1,1,0],[0,0,1,1],[1,0,0,1],[1,1,1,1]]
-
-type = {}
-
-# Flat tile
-type["0000"] = [[0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,4,4,0,0,0],
-                [0,0,8,4,4,7,0,0],
-                [0,8,8,9,9,7,7,0],
-                [1,1,9,9,9,9,3,3],
-                [1,1,9,9,9,9,3,3],
-                [0,5,5,9,9,6,6,0],
-                [0,0,5,2,2,6,0,0],
-                [0,0,0,2,2,0,0,0],]
-# Left vertex
-type["1000"] = [[0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,8,4,4,0,0,0],
-                [1,1,8,4,4,7,0,0],
-                [1,1,8,9,9,7,7,0],
-                [1,1,9,9,9,9,3,3],
-                [0,5,5,9,9,9,3,3],
-                [0,0,5,9,9,6,6,0],
-                [0,0,0,2,2,6,0,0],
-                [0,0,0,2,2,0,0,0],]
-# Bottom vertex
-type["0100"] = [[0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,4,4,0,0,0],
-                [0,0,8,4,4,7,0,0],
-                [0,8,8,9,9,7,7,0],
-                [1,1,9,9,9,9,3,3],
-                [1,1,5,2,2,6,3,3],
-                [0,5,5,2,2,6,6,0],
-                [0,0,5,2,2,6,0,0],
-                [0,0,0,2,2,0,0,0],]
-# Right vertex
-type["0010"] = [[0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,4,4,7,0,0],
-                [0,0,8,4,4,7,3,3],
-                [0,8,8,9,9,7,3,3],
-                [1,1,9,9,9,9,3,3],
-                [1,1,9,9,9,6,6,0],
-                [0,5,5,9,9,6,0,0],
-                [0,0,5,2,2,0,0,0],
-                [0,0,0,2,2,0,0,0],]
-# Top vertex
-type["0001"] = [[0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,4,4,0,0,0],
-                [0,0,8,4,4,7,0,0],
-                [0,0,8,4,4,7,0,0],
-                [0,1,8,9,9,7,3,0],
-                [1,1,8,9,9,7,3,3],
-                [1,1,9,9,9,9,3,3],
-                [1,1,9,9,9,9,3,3],
-                [0,5,5,9,9,6,6,0],
-                [0,0,5,2,2,6,0,0],
-                [0,0,0,2,2,0,0,0],]
-# Bottom-Left edge
-type["1100"] = [[0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,8,4,4,0,0,0],
-                [1,1,8,4,4,7,0,0],
-                [1,1,8,9,9,7,7,0],
-                [1,1,5,9,9,9,3,3],
-                [0,5,5,2,2,6,3,3],
-                [0,5,5,2,2,6,6,0],
-                [0,0,5,2,2,6,0,0],
-                [0,0,0,2,2,0,0,0],]
-# Bottom-Right edge
-type["0110"] = [[0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,4,4,7,0,0],
-                [0,0,8,4,4,7,3,3],
-                [0,8,8,9,9,7,3,3],
-                [1,1,9,9,9,6,3,3],
-                [1,1,5,2,2,6,6,0],
-                [0,5,5,2,2,6,6,0],
-                [0,0,5,2,2,6,0,0],
-                [0,0,0,2,2,0,0,0],]
-# Top-Right edge
-type["0011"] = [[0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,4,4,0,0,0],
-                [0,0,8,4,4,7,0,0],
-                [0,0,8,4,4,7,0,0],
-                [0,0,8,9,9,7,3,3],
-                [0,8,8,9,9,9,3,3],
-                [1,1,9,9,9,9,3,3],
-                [1,1,9,9,9,6,6,0],
-                [0,5,5,9,9,6,6,0],
-                [0,0,5,2,2,6,0,0],
-                [0,0,0,2,2,0,0,0],]
-# Top-Left edge
-type["1001"] = [[0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,4,4,0,0,0],
-                [0,0,8,4,4,7,0,0],
-                [0,0,8,4,4,7,0,0],
-                [1,1,8,9,9,7,0,0],
-                [1,1,9,9,9,7,7,0],
-                [1,1,9,9,9,9,3,3],
-                [0,5,5,9,9,9,3,3],
-                [0,5,5,9,9,6,6,0],
-                [0,0,5,2,2,6,0,0],
-                [0,0,0,2,2,0,0,0],]
-# Right vertex down
-type["1101"] = [[0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,4,4,0,0,0],
-                [0,0,8,4,4,7,0,0],
-                [0,8,8,9,9,7,7,0],
-                [1,1,9,9,9,7,3,3],
-                [1,1,9,9,9,9,3,3],
-                [1,1,5,9,9,6,3,3],
-                [0,5,5,2,2,6,3,3],
-                [0,0,5,2,2,6,0,0],
-                [0,0,0,2,2,0,0,0],
-                [0,0,0,0,0,0,0,0],]
-# Top vertex down
-type["1110"] = [[0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,4,4,0,0,0],
-                [0,8,8,4,4,7,7,0],
-                [1,8,8,4,4,7,7,3],
-                [1,1,8,4,4,7,3,3],
-                [1,1,9,9,9,9,3,3],
-                [1,1,5,9,9,6,3,3],
-                [0,5,5,2,2,6,6,0],
-                [0,0,5,2,2,6,0,0],
-                [0,0,0,2,2,0,0,0],
-                [0,0,0,0,0,0,0,0],]
-# Left vertex down
-type["0111"] = [[0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,4,4,0,0,0],
-                [0,0,8,4,4,7,0,0],
-                [0,8,8,9,9,7,7,0],
-                [1,1,8,9,9,9,3,3],
-                [1,1,9,9,9,9,3,3],
-                [1,1,5,9,9,6,3,3],
-                [1,1,5,2,2,6,6,0],
-                [0,0,5,2,2,6,0,0],
-                [0,0,0,2,2,0,0,0],
-                [0,0,0,0,0,0,0,0],]
-# Bottom vertex down
-type["1011"] = [[0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,4,4,0,0,0],
-                [0,0,8,4,4,7,0,0],
-                [0,8,8,9,9,7,7,0],
-                [1,1,9,9,9,9,3,3],
-                [1,1,9,9,9,9,3,3],
-                [1,1,9,9,9,9,3,3],
-                [0,5,5,9,9,6,6,0],
-                [0,5,5,2,2,6,6,0],
-                [0,0,5,2,2,6,0,0],
-                [0,0,0,2,2,0,0,0],]
-# Left vertex two-up
-type["2101"] = [[0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,8,4,4,0,0,0],
-                [1,1,8,4,4,7,7,0],
-                [1,1,8,4,4,7,7,3],
-                [1,1,8,4,4,7,3,3],
-                [1,1,5,9,9,9,3,3],
-                [0,5,5,9,9,6,3,3],
-                [0,5,5,2,2,6,6,0],
-                [0,0,5,2,2,6,0,0],
-                [0,0,0,2,2,0,0,0],
-                [0,0,0,0,0,0,0,0],]
-# Bottom vertex two-up
-type["1210"] = [[0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,4,4,0,0,0],
-                [0,8,8,4,4,7,7,0],
-                [1,8,8,4,4,7,7,3],
-                [1,1,8,4,4,7,3,3],
-                [1,1,5,9,9,6,3,3],
-                [1,1,5,2,2,6,3,3],
-                [0,5,5,2,2,6,6,0],
-                [0,0,5,2,2,6,0,0],
-                [0,0,0,2,2,0,0,0],
-                [0,0,0,0,0,0,0,0],]
-# Right vertex two-up
-type["0121"] = [[0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,4,4,7,0,0],
-                [0,8,8,4,4,7,3,3],
-                [1,8,8,4,4,7,3,3],
-                [1,1,8,4,4,7,3,3],
-                [1,1,9,9,9,6,3,3],
-                [1,1,5,9,9,6,6,0],
-                [0,5,5,2,2,6,6,0],
-                [0,0,5,2,2,6,0,0],
-                [0,0,0,2,2,0,0,0],
-                [0,0,0,0,0,0,0,0],]
-# Top vertex two-up
-type["1012"] = [[0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,4,4,0,0,0],
-                [0,0,0,4,4,0,0,0],
-                [0,0,8,4,4,7,0,0],
-                [0,0,8,4,4,7,0,0],
-                [0,8,8,9,9,7,7,0],
-                [1,1,8,9,9,7,3,3],
-                [1,1,9,9,9,9,3,3],
-                [1,1,9,9,9,9,3,3],
-                [1,1,9,9,9,9,3,3],
-                [0,5,5,9,9,6,6,0],
-                [0,5,5,2,2,6,6,0],
-                [0,0,5,2,2,6,0,0],
-                [0,0,0,2,2,0,0,0],]
-# Left & Right vertices up
-type["1010"] = [[0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,8,4,4,7,0,0],
-                [1,1,8,4,4,7,3,3],
-                [1,1,8,9,9,7,3,3],
-                [1,1,9,9,9,9,3,3],
-                [0,5,5,9,9,6,6,0],
-                [0,0,5,9,9,6,0,0],
-                [0,0,0,2,2,0,0,0],
-                [0,0,0,2,2,0,0,0],]
-# Bottom & Top vertices up
-type["0101"] = [[0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,0,0,0,0,0],
-                [0,0,0,4,4,0,0,0],
-                [0,0,8,4,4,7,0,0],
-                [0,0,8,4,4,7,0,0],
-                [0,1,8,9,9,7,3,0],
-                [1,1,8,9,9,7,3,3],
-                [1,1,9,9,9,9,3,3],
-                [1,1,5,2,2,6,3,3],
-                [0,5,5,2,2,6,6,0],
-                [0,0,5,2,2,6,0,0],
-                [0,0,0,2,2,0,0,0],]
 
 if __name__ == "__main__":
     sys.stderr = debug
