@@ -220,7 +220,7 @@ class Test(Tool):
         # Call init method of parent
         super(Test, self).__init__()
         self.tile = None
-        self.tiles = None
+        self.tiles = []
     def process_key(self, key):
         """Process a keystroke during a drag operation"""
         keyname = pygame.key.name(key)
@@ -252,10 +252,16 @@ class Test(Tool):
     def end(self, final):
         """End of application of tool"""
         self.current = final
-        self.tiles = None
+        self.tiles = []
         self.start = None
         # This should return a list of tiles to highlight
         return []
+    def get_aoe(self):
+        """Return the current area of effect for this tool"""
+        return self.tiles
+    def get_highlight(self):
+        """Return the current highlight area for this tool"""
+        return self.tiles
     def find_aoe(self, x, y, subtile):
         """Find the total area of effect of the tool, based on tool dimensions
         Return a list of tiles to modify in [(x,y), subtile] form"""

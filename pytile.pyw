@@ -399,8 +399,6 @@ class DisplayMain(object):
 ##        self.rmb_tool = Tools.MoveScreen()
 
         # Array of tiles which should have highlighting applied to them
-        self.highlight_tiles = []
-        self.highlight = []
         
         while True:
             self.clock.tick(0)
@@ -412,7 +410,7 @@ class DisplayMain(object):
             # Clear the stack of dirty tiles
             self.dirty = []
             # Clear all the old highlighted tiles
-            for t in self.highlight:
+            for t in self.lmb_tool.get_highlight():
                 self.dirty.append(self.orderedSpritesDict[t[0]][0].change_highlight(0))
 ##            if not self.lmb_tool.active():
 ##                self.highlight = []
@@ -430,21 +428,21 @@ class DisplayMain(object):
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     # LMB
                     if event.button == 1:
-                        self.highlight = self.lmb_tool.begin(event.pos)
+                        self.lmb_tool.begin(event.pos)
                     # RMB
 ##                    if event.button == 3:
 ##                        self.rmb_tool.begin(event.pos)
                 if event.type == pygame.MOUSEBUTTONUP:
                     # LMB
                     if event.button == 1:
-                        self.highlight = self.lmb_tool.end(event.pos)
+                        self.lmb_tool.end(event.pos)
                     # RMB
 ##                    if event.button == 3:
 ##                        self.rmb_tool.end(event.pos)
                 if event.type == pygame.MOUSEMOTION:
                     # LMB is pressed
 ##                    if event.buttons[0] == 1:
-                    self.highlight = self.lmb_tool.update(event.pos, self.orderedSprites)
+                    self.lmb_tool.update(event.pos, self.orderedSprites)
                     # RMB is pressed
 ##                    if event.buttons[2] == 1:
 ##                        self.highlight = self.rmb_tool.update(event.pos)
@@ -475,10 +473,10 @@ class DisplayMain(object):
 
             if self.lmb_tool.active():
                 # Update the screen to reflect changes made by tools
-                self.update_world(self.highlight)
+                self.update_world(self.lmb_tool.get_aoe())
 
             # Add all highlighted tiles to the dirty sprites list to redraw them
-            for t in self.highlight:
+            for t in self.lmb_tool.get_highlight():
                 self.dirty.append(self.orderedSpritesDict[t[0]][0].change_highlight(t[1]))
 
 
@@ -486,8 +484,9 @@ class DisplayMain(object):
             self.fps_elapsed += self.clock.get_time()
             if self.fps_elapsed >= self.fps_refresh:
                 self.fps_elapsed = 0
-                if self.highlight:
-                    ii = self.orderedSpritesDict[self.highlight[0][0]][0]
+                hl = self.lmb_tool.get_highlight()
+                if hl:
+                    ii = self.orderedSpritesDict[hl[0][0]][0]
                     layer = self.orderedSprites.get_layer_of_sprite(ii)
                     pygame.display.set_caption("FPS: %i | Tile: (%s,%s) of type: %s, layer: %s | dxoff: %s dyoff: %s" %
                                                (self.clock.get_fps(), ii.xWorld, ii.yWorld, ii.type, layer, World.dxoff, World.dyoff))
