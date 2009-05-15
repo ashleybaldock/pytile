@@ -422,11 +422,10 @@ class DisplayMain(object):
                     if event.key == pygame.K_ESCAPE:
                         pygame.display.quit()
                         sys.exit()
-                    elif self.lmb_current_drag:
-                        if not self.lmb_current_drag.process_key(event.key):
-                            # process_key() will always return False if it hasn't processed the key,
-                            # so that keys can be used for other things if a tool doesn't want them
-                            pass
+                    if not self.lmb_tool.process_key(event.key):
+                        # process_key() will always return False if it hasn't processed the key,
+                        # so that keys can be used for other things if a tool doesn't want them
+                        pass
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     # LMB
