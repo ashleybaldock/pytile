@@ -412,10 +412,10 @@ class DisplayMain(object):
             rmb_drags = []
 
             # Clear all the old highlighted tiles
-            for t in self.highlight_tiles:
+            for t in self.highlight:
                 self.dirty.append(self.orderedSpritesDict[t[0]][0].change_highlight(0))
             if not self.lmb_current_drag:
-                self.highlight_tiles = []
+                self.highlight = []
 
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
