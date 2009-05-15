@@ -214,11 +214,11 @@ class Test(Tool):
     """Testing tool"""
     xdims = 2
     ydims = 2
-    def __init__(self, start):
+    start = None
+    def __init__(self, start=None):
         """New application of this tool, begins at startpos"""
         # Call init method of parent
         super(Test, self).__init__()
-        self.start = start
         self.tile = None
         self.tiles = None
     def process_key(self, key):
@@ -238,52 +238,61 @@ class Test(Tool):
                 Test.ydims = 1
         print pygame.key.name(key)
         return True
+    def begin(self, start):
+        """Reset the start position for a new operation"""
+        self.start = start
+        return []
+    def end(self, final):
+        """End of application of tool"""
+        self.current = final
+        # This should return a list of tiles to highlight
+        return []
     def update(self, current, collisionlist):
         """Tool updated, current cursor position is newpos"""
-        self.current = current
-        addback = 0
-        # This should return a list of tiles to highlight
-        # First time update is called store the tile we're interacting with by doing a collision detection search,
-        # also store subtile so we know which corner we're modifying
-        if not self.tiles:
-            self.tile = self.collide_locate(self.current, collisionlist)
-            if self.tile and not self.tile.exclude:
-                self.subtile = self.subtile_position(self.current, self.tile)
-                x = self.tile.xWorld
-                y = self.tile.yWorld
-                self.tiles = []
-                for xx in range(Test.xdims):
-                    for yy in range(Test.ydims):
-                        self.tiles.append([(x + xx, y + yy), self.subtile])
-                # Tiles now contains a list of all tiles to modify
-            else:
-                return []
+        # If start is None, then there's no dragging operation ongoing
+        if self.start == None:
+            return []
+        # Otherwise a drag operation is on-going, do usual tool behaviour
+        else:
+            self.current = current
+            addback = 0
+            # This should return a list of tiles to highlight
+            # First time update is called store the tile we're interacting with by doing a collision detection search,
+            # also store subtile so we know which corner we're modifying
+            if not self.tiles:
+                self.tile = self.collide_locate(self.current, collisionlist)
+                if self.tile and not self.tile.exclude:
+                    self.subtile = self.subtile_position(self.current, self.tile)
+                    x = self.tile.xWorld
+                    y = self.tile.yWorld
+                    self.tiles = []
+                    for xx in range(Test.xdims):
+                        for yy in range(Test.ydims):
+                            self.tiles.append([(x + xx, y + yy), self.subtile])
+                    # Tiles now contains a list of all tiles to modify
+                else:
+                    return []
             
 
-        diff = (self.current[1] - self.start[1]) / ph
-        diffrem = (self.current[1] - self.start[1]) % ph
-        self.start = (self.start[0], self.start[1] + diff * ph)
+            diff = (self.current[1] - self.start[1]) / ph
+            diffrem = (self.current[1] - self.start[1]) % ph
+            self.start = (self.start[0], self.start[1] + diff * ph)
 
 ##        if diff != 0:
 ##            invdiff = - diff
 ##            totalchange, realchange = self.modify_tile(self.tile, self.subtile, invdiff)
 ##            print "invdiff: %s, realchange: %s, totalchange: %s, addback: %s" % (invdiff, realchange, totalchange, addback)
 
-        invdiff = -diff
+            invdiff = -diff
 
-        if diff != 0:
-            if len(self.tiles) > 1:
-                self.modify_tiles(self.tiles, 9, invdiff)
-            else:
-                totalchange, realchange = self.modify_tile(self.tiles[0][0], self.subtile, invdiff)
+            if diff != 0:
+                if len(self.tiles) > 1:
+                    self.modify_tiles(self.tiles, 9, invdiff)
+                else:
+                    totalchange, realchange = self.modify_tile(self.tiles[0][0], self.subtile, invdiff)
 
-        return self.tiles
+            return self.tiles
 
-    def end(self, endpos):
-        """End of application of tool"""
-        self.currentpos = endpos
-        # This should return a list of tiles to highlight
-        return []
 
     def modify_tiles(self, tiles, subtile, amount):
         """Raise or lower a region of tiles"""

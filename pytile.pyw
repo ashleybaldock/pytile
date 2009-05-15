@@ -388,7 +388,15 @@ class DisplayMain(object):
         rmb_current_drag = False
 
         # Tool currently selected for use
-        active_tool = Tools.Test
+        self.active_tool = Tools.Test
+
+        # Tools have some global settings/properties, like x/ydims (which determine working area)
+        # When tool isn't actually being used it's still updated, to provide highlighting info
+        # Most basic tool is the "inspection tool", this will highlight whatever it's over including tiles
+        # Terrain raise/lower tool, live preview of affected area
+        # Terrain leveling tool, click and drag to select area
+        self.lmb_tool = self.active_tool()
+##        self.rmb_tool = Tools.MoveScreen()
 
         # Array of tiles which should have highlighting applied to them
         self.highlight_tiles = []
@@ -419,13 +427,35 @@ class DisplayMain(object):
                             # so that keys can be used for other things if a tool doesn't want them
                             pass
 
+
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    # LMB
+                    if event.button == 1:
+                    # RMB
+                    if event.button == 3:
+                if event.type == pygame.MOUSEBUTTONUP:
+                    # LMB
+                    if event.button == 1:
+                    # RMB
+                    if event.button == 3:
+                if event.type == pygame.MOUSEMOTION:
+                    # For dragging motions, right-mouse events should take precedence over left-mouse ones
+                    # This only tests if a button is down, several can be at once
+                    # RMB is pressed
+                    if event.buttons[2] == 1:
+                    # LMB is pressed
+                    elif event.buttons[1] == 1:
+                    # No buttons are pressed
+                    else:
+                        pass
+
                 # Process events, all RMB events are motion commands, all LMB ones get fed into the active tool
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     if event.button == 1:
                         # LMB down - start a new LMB drag
                         if self.lmb_current_drag:
                             self.lmb_current_drag.end(event.pos)
-                        self.lmb_current_drag = Tools.Test(event.pos)
+                        self.lmb_current_drag = self.active_tool(event.pos)
                         self.highlight_tiles = self.lmb_current_drag.update(event.pos, self.orderedSprites)
                     if event.button == 3:
                         # RMB down - start a new RMB drag and stop current LMB drag (if present)
@@ -452,7 +482,9 @@ class DisplayMain(object):
                         # LMB pressed, change lmb_drag endpoint
                         if self.lmb_current_drag:
                             self.highlight_tiles = self.lmb_current_drag.update(event.pos, self.orderedSprites)
-
+                    else:
+                        # No buttons pressed
+                        pass
 
 
 
