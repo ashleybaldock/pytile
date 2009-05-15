@@ -386,18 +386,13 @@ class DisplayMain(object):
         self.fps_elapsed = 0
         # Associated with user input
         self.last_mouse_position = pygame.mouse.get_pos()
-        self.lmb_current_drag = False
-        rmb_current_drag = False
-
-        # Tool currently selected for use
-        self.active_tool = Tools.Test
 
         # Tools have some global settings/properties, like x/ydims (which determine working area)
         # When tool isn't actually being used it's still updated, to provide highlighting info
         # Most basic tool is the "inspection tool", this will highlight whatever it's over including tiles
         # Terrain raise/lower tool, live preview of affected area
         # Terrain leveling tool, click and drag to select area
-        self.lmb_tool = self.active_tool()
+        self.lmb_tool = Tools.Test()
         self.rmb_tool = Tools.Move()
 
         # Array of tiles which should have highlighting applied to them
@@ -440,17 +435,15 @@ class DisplayMain(object):
                     if event.button == 3:
                         self.rmb_tool.end(event.pos)
                 if event.type == pygame.MOUSEMOTION:
-                    # LMB is pressed
+                    # LMB is pressed, update all the time to keep highlight working
 ##                    if event.buttons[0] == 1:
                     self.lmb_tool.update(event.pos, self.orderedSprites)
-                    # RMB is pressed
+                    # RMB is pressed, only update while RMB pressed
                     if event.buttons[2] == 1:
                         self.rmb_tool.update(event.pos)
                     # No buttons are pressed
 ##                    else:
 ##                        pass
-
-
 
 
             if self.lmb_tool.active():
@@ -484,8 +477,7 @@ class DisplayMain(object):
                     pygame.display.set_caption("FPS: %i | dxoff: %s dyoff: %s" %
                                                (self.clock.get_fps(), World.dxoff, World.dyoff))
 
-
-
+            # Draw the sprite group to the screen (doesn't necessarily refresh the screen)
             rectlist = self.orderedSprites.draw(self.screen)
 
             # If land height has been altered, or the screen has been moved
@@ -503,11 +495,31 @@ class DisplayMain(object):
         return "%s%s%s%s" % (array[0], array[1], array[2], array[3])
 
     def update_world(self, tiles):
-        """Instead of completely regenerating the entire world, just update certain tiles
-        Returns dirty rects"""
+        """Instead of completely regenerating the entire world, just update certain tiles"""
+        checked_nearby = []
+        print tiles
+        # Add all the items in tiles to the checked_nearby hash table
+        # There must be a more elegant way to do this!
         for t in tiles:
-            x = t[0][0]
-            y = t[0][1]
+            checked_nearby.append(t[0])
+        tiles2 = []
+        for t in tiles:
+            x, y = t[0]
+            # Also need to look up tiles at (x-1,y) and (x,y-1) and have them re-evaluate their cliffs too
+            # This needs to check that a) that tile hasn't already been re-evaluated and that
+            # b) that tile isn't one of the ones which we're checking, i.e. not in tiles
+            tiles2.append(t)
+            if not (x-1,y) in checked_nearby:
+                checked_nearby.append((x-1,y))
+                tiles2.append([(x-1,y), 2])
+            if not (x,y-1) in checked_nearby:
+                checked_nearby.append((x,y-1))
+                tiles2.append([(x,y-1), 2])
+        tiles = tiles2
+        print checked_nearby
+        print tiles
+        for t in tiles:
+            x, y = t[0]
             t = self.orderedSpritesDict[(x,y)][0]
             self.dirty.append(t.rect)
 
@@ -515,6 +527,7 @@ class DisplayMain(object):
             
             # Look the tile up in the group using the position, this will give us the tile and all its cliffs
             tileset = self.orderedSpritesDict[(x, y)]
+
             t = tileset[0]
             # Update the tile
             t.update_type()
@@ -621,18 +634,6 @@ class DisplayMain(object):
 ##        if x >= (World.WorldX) or y >= (World.WorldY):
 ##            return (0,0)
         return (x,y)
-
-    def move_screen(self, drag):
-        """Move the screen on mouse input"""
-        start_x, start_y = drag[0]
-        end_x, end_y = drag[1]
-        rel_x = start_x - end_x
-        rel_y = start_y - end_y
-        World.dxoff += rel_x
-        World.dyoff += rel_y
-
-        self.paint_world()
-
 
 
 if __name__ == "__main__":
