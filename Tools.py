@@ -210,13 +210,49 @@ class ToolSettings(object):
     ydims = 1
 
 
+class Move(Tool):
+    """Screen movement tool"""
+    def __init__(self):
+        """First time the Move tool is used"""
+        self.start = None
+    def active(self):
+        """Return true if tool currently being used and screen needs updating"""
+        if self.start:
+            return True
+        else:
+            return False
+    def begin(self, start):
+        """"""
+        self.start = start
+    def end(self, final):
+        """"""
+        self.current = final
+        self.start = None
+    def update(self, current):
+        """"""
+        self.current = current
+        if self.start:
+            self.move_screen(self.start, self.current)
+        self.start = self.current
+        World.blah = "eh"
+
+    def move_screen(self, start, end):
+        """Move the screen on mouse input"""
+        start_x, start_y = start
+        end_x, end_y = end
+        rel_x = start_x - end_x
+        rel_y = start_y - end_y
+        World.set_offset(World.dxoff + rel_x, World.dyoff + rel_y)
+        print rel_x, World.dxoff, rel_y, World.dyoff
+
+
 class Test(Tool):
     """Testing tool"""
     xdims = 2
     ydims = 2
     start = None
-    def __init__(self, start=None):
-        """New application of this tool, begins at startpos"""
+    def __init__(self):
+        """First time the Test tool is used"""
         # Call init method of parent
         super(Test, self).__init__()
         self.tile = None
@@ -239,7 +275,7 @@ class Test(Tool):
         print pygame.key.name(key)
         return True
     def active(self):
-        """Returns True if tool is currently being used, False otherwise"""
+        """Return true if tool currently being used and screen needs updating"""
         # Used to test whether the tiles being returned need to be updated
         if self.start:
             return True

@@ -32,10 +32,12 @@ import pygame
 import random, math
 from copy import copy
 
+
 import world
 World = world.World()
 
 import Tools
+
 
 import logger
 debug = logger.Log()
@@ -396,7 +398,7 @@ class DisplayMain(object):
         # Terrain raise/lower tool, live preview of affected area
         # Terrain leveling tool, click and drag to select area
         self.lmb_tool = self.active_tool()
-##        self.rmb_tool = Tools.MoveScreen()
+        self.rmb_tool = Tools.Move()
 
         # Array of tiles which should have highlighting applied to them
         
@@ -412,8 +414,6 @@ class DisplayMain(object):
             # Clear all the old highlighted tiles
             for t in self.lmb_tool.get_highlight():
                 self.dirty.append(self.orderedSpritesDict[t[0]][0].change_highlight(0))
-##            if not self.lmb_tool.active():
-##                self.highlight = []
 
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
@@ -430,50 +430,40 @@ class DisplayMain(object):
                     if event.button == 1:
                         self.lmb_tool.begin(event.pos)
                     # RMB
-##                    if event.button == 3:
-##                        self.rmb_tool.begin(event.pos)
+                    if event.button == 3:
+                        self.rmb_tool.begin(event.pos)
                 if event.type == pygame.MOUSEBUTTONUP:
                     # LMB
                     if event.button == 1:
                         self.lmb_tool.end(event.pos)
                     # RMB
-##                    if event.button == 3:
-##                        self.rmb_tool.end(event.pos)
+                    if event.button == 3:
+                        self.rmb_tool.end(event.pos)
                 if event.type == pygame.MOUSEMOTION:
                     # LMB is pressed
 ##                    if event.buttons[0] == 1:
                     self.lmb_tool.update(event.pos, self.orderedSprites)
                     # RMB is pressed
-##                    if event.buttons[2] == 1:
-##                        self.highlight = self.rmb_tool.update(event.pos)
+                    if event.buttons[2] == 1:
+                        self.rmb_tool.update(event.pos)
                     # No buttons are pressed
 ##                    else:
 ##                        pass
 
 
 
-##            # Must then end any currently active drags, but leave the mouse button states open for the next
-##            # frame (e.g. take a snapshot of the current drag progress, but don't delete it
-##            if rmb_current_drag:
-##                rmb_drags.append(rmb_current_drag)
-##            if rmb_drags:
-##                # Do screen movement
-##                total_drag = [rmb_drags[0][0], rmb_drags[-1][1]]
-##                if total_drag[0][0] != total_drag[1][0] or total_drag[0][1] != total_drag[1][1]:
-##                    self.move_screen(total_drag)
-##                # As this part of the current drag has been processed, set the start point of the next
-##                # bit to the end point of this bit
-##                # Remove this to enable constant drag scrolling (though using it this way would require
-##                # some kind of modifier based on the framerate, to ensure that it scrolls at a consistent
-##                # speed on all speeds of platform)
-##                if rmb_current_drag:
-##                    rmb_current_drag[0] = rmb_current_drag[1]
-##
-
 
             if self.lmb_tool.active():
                 # Update the screen to reflect changes made by tools
                 self.update_world(self.lmb_tool.get_aoe())
+
+            if self.rmb_tool.active():
+                # Repaint the entire screen for now until something better is implemented
+                print "is active"
+                print World.get_offset()
+                print World.blah
+                self.paint_world()
+                self.refresh_screen = 1
 
             # Add all highlighted tiles to the dirty sprites list to redraw them
             for t in self.lmb_tool.get_highlight():

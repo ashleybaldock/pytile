@@ -107,8 +107,9 @@ class World(object):
     # Constants
     SEA_LEVEL = 0
                     # Display variables (need moving to world class?)
-    dxoff = 0       # Horizontal offset position of displayed area
-    dyoff = 0       # Vertical offset (from top)
+    dxoff = None       # Horizontal offset position of displayed area
+    dyoff = None       # Vertical offset (from top)
+    blah = None
 
     # Hitboxes for subtile selection
     # 0 = Nothing
@@ -451,11 +452,16 @@ class World(object):
                     [0,0,0,2,2,0,0,0],]
 
 
-
+    array = None
     def __init__(self):
-        World.dxoff = 0
-        World.dyoff = 0
-        World.array = self.MakeArray()
+        if World.dxoff == None:
+            World.dxoff = 0
+        if World.dyoff == None:
+            World.dyoff = 0
+        if World.blah == None:
+            World.blah = "meh"
+        if World.array == None:
+            World.array = self.MakeArray()
         World.WorldX = len(self.array)
         World.WorldY = len(self.array[0])
 
@@ -511,18 +517,29 @@ class World(object):
 
 # Functions in World are hooked into by functions in the GUI of the main program
 
+    def set_offset(self, x, y=None):
+        """Sets the offset of the display"""
+        if y is None:
+            x, y = x
+        World.dxoff = x
+        World.dyoff = y
+
+    def get_offset(self):
+        """Return the offset of the display"""
+        return (World.dxoff, World.dyoff)
+
     def set_height(self, tgrid, x, y=None):
         """Sets the height of a tile"""
         if y is None:
             x, y = x
-        self.array[x][y][0] = tgrid.height
-        self.array[x][y][1] = tgrid.array
+        World.array[x][y][0] = tgrid.height
+        World.array[x][y][1] = tgrid.array
 
     def get_height(self, x, y=None):
         """Get height of a tile, return as TGrid object"""
         if y is None:
             x, y = x
-        return TGrid(self.array[x][y][0], self.array[x][y][1])
+        return TGrid(World.array[x][y][0], World.array[x][y][1])
 
     def modify_tiles(self, array, tiles, action, softedges):
         """array=world array, tiles=list of tiles to alter, action=raise,lower,smooth, softedges=True,False"""
