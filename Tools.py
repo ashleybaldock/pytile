@@ -253,16 +253,40 @@ class Test(Tool):
         """End of application of tool"""
         self.current = final
         self.tiles = None
+        self.start = None
         # This should return a list of tiles to highlight
         return []
+    def find_aoe(self, x, y, subtile):
+        """Find the total area of effect of the tool, based on tool dimensions
+        Return a list of tiles to modify in [(x,y), subtile] form"""
+        tiles = []
+        for xx in range(Test.xdims):
+            for yy in range(Test.ydims):
+                tiles.append([(x + xx, y + yy), subtile])
+        return tiles
+    def find_highlight(self, x, y, subtile):
+        """Find the primary area of effect of the tool, based on tool dimensions
+        Return a list of tiles to modify in [(x,y), subtile] form
+        Used to specify region which will be highlighted"""
+        tiles = []
+        for xx in range(Test.xdims):
+            for yy in range(Test.ydims):
+                tiles.append([(x + xx, y + yy), subtile])
+        return tiles
     def update(self, current, collisionlist):
         """Tool updated, current cursor position is newpos"""
         # If start is None, then there's no dragging operation ongoing
+        self.current = current
         if self.start == None:
-            return []
+            self.tile = self.collide_locate(self.current, collisionlist)
+            if self.tile and not self.tile.exclude:
+                self.subtile = self.subtile_position(self.current, self.tile)
+                self.tiles = self.find_aoe(self.tile.xWorld, self.tile.yWorld, self.subtile)
+                return self.tiles
+            else:
+                return []
         # Otherwise a drag operation is on-going, do usual tool behaviour
         else:
-            self.current = current
             addback = 0
             # This should return a list of tiles to highlight
             # First time update is called store the tile we're interacting with by doing a collision detection search,
@@ -271,12 +295,7 @@ class Test(Tool):
                 self.tile = self.collide_locate(self.current, collisionlist)
                 if self.tile and not self.tile.exclude:
                     self.subtile = self.subtile_position(self.current, self.tile)
-                    x = self.tile.xWorld
-                    y = self.tile.yWorld
-                    self.tiles = []
-                    for xx in range(Test.xdims):
-                        for yy in range(Test.ydims):
-                            self.tiles.append([(x + xx, y + yy), self.subtile])
+                    self.tiles = self.find_aoe(self.tile.xWorld, self.tile.yWorld, self.subtile)
                     # Tiles now contains a list of all tiles to modify
                 else:
                     return []

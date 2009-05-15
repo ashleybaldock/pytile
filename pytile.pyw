@@ -445,14 +445,14 @@ class DisplayMain(object):
 ##                        self.rmb_tool.end(event.pos)
                 if event.type == pygame.MOUSEMOTION:
                     # LMB is pressed
-                    if event.buttons[0] == 1:
-                        self.highlight = self.lmb_tool.update(event.pos, self.orderedSprites)
+##                    if event.buttons[0] == 1:
+                    self.highlight = self.lmb_tool.update(event.pos, self.orderedSprites)
                     # RMB is pressed
 ##                    if event.buttons[2] == 1:
 ##                        self.highlight = self.rmb_tool.update(event.pos)
                     # No buttons are pressed
-                    else:
-                        pass
+##                    else:
+##                        pass
 
 ##                # Process events, all RMB events are motion commands, all LMB ones get fed into the active tool
 ##                if event.type == pygame.MOUSEBUTTONDOWN:
