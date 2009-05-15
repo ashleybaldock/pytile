@@ -23,6 +23,7 @@
 
 # Issues
 # BUG - clicking on cliff tile causes crash (needs checks for non-interactable tile type) - Fixed
+# BUG - crash when nothing is on screen?
 
 
 
