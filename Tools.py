@@ -238,6 +238,13 @@ class Test(Tool):
                 Test.ydims = 1
         print pygame.key.name(key)
         return True
+    def active(self):
+        """Returns True if tool is currently being used, False otherwise"""
+        # Used to test whether the tiles being returned need to be updated
+        if self.start:
+            return True
+        else:
+            return False
     def begin(self, start):
         """Reset the start position for a new operation"""
         self.start = start
@@ -245,6 +252,7 @@ class Test(Tool):
     def end(self, final):
         """End of application of tool"""
         self.current = final
+        self.tiles = None
         # This should return a list of tiles to highlight
         return []
     def update(self, current, collisionlist):

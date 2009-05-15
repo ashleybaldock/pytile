@@ -400,6 +400,7 @@ class DisplayMain(object):
 
         # Array of tiles which should have highlighting applied to them
         self.highlight_tiles = []
+        self.highlight = []
         
         while True:
             self.clock.tick(0)
@@ -431,95 +432,98 @@ class DisplayMain(object):
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     # LMB
                     if event.button == 1:
+                        self.highlight = self.lmb_tool.begin(event.pos)
                     # RMB
-                    if event.button == 3:
+##                    if event.button == 3:
+##                        self.rmb_tool.begin(event.pos)
                 if event.type == pygame.MOUSEBUTTONUP:
                     # LMB
                     if event.button == 1:
+                        self.highlight = self.lmb_tool.end(event.pos)
                     # RMB
-                    if event.button == 3:
+##                    if event.button == 3:
+##                        self.rmb_tool.end(event.pos)
                 if event.type == pygame.MOUSEMOTION:
-                    # For dragging motions, right-mouse events should take precedence over left-mouse ones
-                    # This only tests if a button is down, several can be at once
-                    # RMB is pressed
-                    if event.buttons[2] == 1:
                     # LMB is pressed
-                    elif event.buttons[1] == 1:
+                    if event.buttons[0] == 1:
+                        self.highlight = self.lmb_tool.update(event.pos, self.orderedSprites)
+                    # RMB is pressed
+##                    if event.buttons[2] == 1:
+##                        self.highlight = self.rmb_tool.update(event.pos)
                     # No buttons are pressed
                     else:
                         pass
 
-                # Process events, all RMB events are motion commands, all LMB ones get fed into the active tool
-                if event.type == pygame.MOUSEBUTTONDOWN:
-                    if event.button == 1:
-                        # LMB down - start a new LMB drag
-                        if self.lmb_current_drag:
-                            self.lmb_current_drag.end(event.pos)
-                        self.lmb_current_drag = self.active_tool(event.pos)
-                        self.highlight_tiles = self.lmb_current_drag.update(event.pos, self.orderedSprites)
-                    if event.button == 3:
-                        # RMB down - start a new RMB drag and stop current LMB drag (if present)
-                        rmb_current_drag = [event.pos, event.pos]
-                        if self.lmb_current_drag:
-                            self.lmb_current_drag.end(event.pos)
-                            self.lmb_current_drag = False
-                if event.type == pygame.MOUSEBUTTONUP:
-                    if event.button == 1:
-                        # LMB up - end current LMB drag (if present, could've been ended in other ways)
-                        if self.lmb_current_drag:
-                            self.highlight_tiles = self.lmb_current_drag.end(event.pos)
-                            self.lmb_current_drag = False
-                    if event.button == 3:
-                        # RMB up - end current RMB drag
-                        rmb_drags.append(rmb_current_drag)
-                        rmb_current_drag = False
-                if event.type == pygame.MOUSEMOTION:
-                    self.last_mouse_position = event.pos
-                    if event.buttons[2] == 1:
-                        # RMB pressed, change rmb_drag endpoint
-                        rmb_current_drag[1] = event.pos
-                    elif event.buttons[0] == 1:
-                        # LMB pressed, change lmb_drag endpoint
-                        if self.lmb_current_drag:
-                            self.highlight_tiles = self.lmb_current_drag.update(event.pos, self.orderedSprites)
-                    else:
-                        # No buttons pressed
-                        pass
+##                # Process events, all RMB events are motion commands, all LMB ones get fed into the active tool
+##                if event.type == pygame.MOUSEBUTTONDOWN:
+##                    if event.button == 1:
+##                        # LMB down - start a new LMB drag
+##                        if self.lmb_current_drag:
+##                            self.lmb_current_drag.end(event.pos)
+##                        self.lmb_current_drag = self.active_tool(event.pos)
+##                        self.highlight_tiles = self.lmb_current_drag.update(event.pos, self.orderedSprites)
+##                    if event.button == 3:
+##                        # RMB down - start a new RMB drag and stop current LMB drag (if present)
+##                        rmb_current_drag = [event.pos, event.pos]
+##                        if self.lmb_current_drag:
+##                            self.lmb_current_drag.end(event.pos)
+##                            self.lmb_current_drag = False
+##                if event.type == pygame.MOUSEBUTTONUP:
+##                    if event.button == 1:
+##                        # LMB up - end current LMB drag (if present, could've been ended in other ways)
+##                        if self.lmb_current_drag:
+##                            self.highlight_tiles = self.lmb_current_drag.end(event.pos)
+##                            self.lmb_current_drag = False
+##                    if event.button == 3:
+##                        # RMB up - end current RMB drag
+##                        rmb_drags.append(rmb_current_drag)
+##                        rmb_current_drag = False
+##                if event.type == pygame.MOUSEMOTION:
+##                    self.last_mouse_position = event.pos
+##                    if event.buttons[2] == 1:
+##                        # RMB pressed, change rmb_drag endpoint
+##                        rmb_current_drag[1] = event.pos
+##                    elif event.buttons[0] == 1:
+##                        # LMB pressed, change lmb_drag endpoint
+##                        if self.lmb_current_drag:
+##                            self.highlight_tiles = self.lmb_current_drag.update(event.pos, self.orderedSprites)
+##                    else:
+##                        # No buttons pressed
+##                        pass
 
 
 
-            # Must then end any currently active drags, but leave the mouse button states open for the next
-            # frame (e.g. take a snapshot of the current drag progress, but don't delete it
-            if rmb_current_drag:
-                rmb_drags.append(rmb_current_drag)
-            if rmb_drags:
-                # Do screen movement
-                total_drag = [rmb_drags[0][0], rmb_drags[-1][1]]
-                if total_drag[0][0] != total_drag[1][0] or total_drag[0][1] != total_drag[1][1]:
-                    self.move_screen(total_drag)
-                # As this part of the current drag has been processed, set the start point of the next
-                # bit to the end point of this bit
-                # Remove this to enable constant drag scrolling (though using it this way would require
-                # some kind of modifier based on the framerate, to ensure that it scrolls at a consistent
-                # speed on all speeds of platform)
-                if rmb_current_drag:
-                    rmb_current_drag[0] = rmb_current_drag[1]
+##            # Must then end any currently active drags, but leave the mouse button states open for the next
+##            # frame (e.g. take a snapshot of the current drag progress, but don't delete it
+##            if rmb_current_drag:
+##                rmb_drags.append(rmb_current_drag)
+##            if rmb_drags:
+##                # Do screen movement
+##                total_drag = [rmb_drags[0][0], rmb_drags[-1][1]]
+##                if total_drag[0][0] != total_drag[1][0] or total_drag[0][1] != total_drag[1][1]:
+##                    self.move_screen(total_drag)
+##                # As this part of the current drag has been processed, set the start point of the next
+##                # bit to the end point of this bit
+##                # Remove this to enable constant drag scrolling (though using it this way would require
+##                # some kind of modifier based on the framerate, to ensure that it scrolls at a consistent
+##                # speed on all speeds of platform)
+##                if rmb_current_drag:
+##                    rmb_current_drag[0] = rmb_current_drag[1]
+##
+
+##            if not self.lmb_current_drag and self.highlight_tiles == []:
+##                t = self.CollideLocate(self.last_mouse_position, self.orderedSprites)
+##                if t:
+##                    subtileposition = self.SubTilePosition(self.last_mouse_position, self.orderedSpritesDict[(t.xWorld, t.yWorld)][0])
+##                    self.highlight_tiles = [[(t.xWorld, t.yWorld), subtileposition]]
 
 
-            if not self.lmb_current_drag and self.highlight_tiles == []:
-                t = self.CollideLocate(self.last_mouse_position, self.orderedSprites)
-                if t:
-                    subtileposition = self.SubTilePosition(self.last_mouse_position, self.orderedSpritesDict[(t.xWorld, t.yWorld)][0])
-                    self.highlight_tiles = [[(t.xWorld, t.yWorld), subtileposition]]
+            if self.lmb_tool.active():
+                # Update the screen to reflect changes made by tools
+                self.update_world(self.highlight)
 
-
-            if self.lmb_current_drag:
-                # Update the screen to reflect changes made by ground altering tools
-                self.update_world(self.highlight_tiles)
-
-            # Find position of cursor relative to the confines of the selected tile
-            # Use first item in the list
-            for t in self.highlight_tiles:
+            # Add all highlighted tiles to the dirty sprites list to redraw them
+            for t in self.highlight:
                 self.dirty.append(self.orderedSpritesDict[t[0]][0].change_highlight(t[1]))
 
 
@@ -527,8 +531,8 @@ class DisplayMain(object):
             self.fps_elapsed += self.clock.get_time()
             if self.fps_elapsed >= self.fps_refresh:
                 self.fps_elapsed = 0
-                if self.highlight_tiles:
-                    ii = self.orderedSpritesDict[self.highlight_tiles[0][0]][0]
+                if self.highlight:
+                    ii = self.orderedSpritesDict[self.highlight[0][0]][0]
                     layer = self.orderedSprites.get_layer_of_sprite(ii)
                     pygame.display.set_caption("FPS: %i | Tile: (%s,%s) of type: %s, layer: %s | dxoff: %s dyoff: %s" %
                                                (self.clock.get_fps(), ii.xWorld, ii.yWorld, ii.type, layer, World.dxoff, World.dyoff))
@@ -1081,8 +1085,8 @@ type["0101"] = [[0,0,0,0,0,0,0,0],
                 [0,0,0,2,2,0,0,0],]
 
 if __name__ == "__main__":
-##    sys.stderr = debug
-##    sys.stdout = debug
+    sys.stderr = debug
+    sys.stdout = debug
     os.environ["SDL_VIDEO_CENTERED"] = "1"
     MainWindow = DisplayMain(WINDOW_WIDTH, WINDOW_HEIGHT)
     MainWindow.MainLoop()
