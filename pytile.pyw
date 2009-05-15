@@ -452,9 +452,6 @@ class DisplayMain(object):
 
             if self.rmb_tool.active():
                 # Repaint the entire screen for now until something better is implemented
-                print "is active"
-                print World.get_offset()
-                print World.blah
                 self.paint_world()
                 self.refresh_screen = 1
 
@@ -497,7 +494,6 @@ class DisplayMain(object):
     def update_world(self, tiles):
         """Instead of completely regenerating the entire world, just update certain tiles"""
         checked_nearby = []
-        print tiles
         # Add all the items in tiles to the checked_nearby hash table
         # There must be a more elegant way to do this!
         for t in tiles:
@@ -516,8 +512,6 @@ class DisplayMain(object):
                 checked_nearby.append((x,y-1))
                 tiles2.append([(x,y-1), 2])
         tiles = tiles2
-        print checked_nearby
-        print tiles
         for t in tiles:
             x, y = t[0]
             t = self.orderedSpritesDict[(x,y)][0]
