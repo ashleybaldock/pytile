@@ -304,7 +304,15 @@ class Test(Tool):
         tiles = []
         for xx in range(Test.xdims):
             for yy in range(Test.ydims):
-                tiles.append([(x + xx, y + yy), subtile])
+                # If this is a multi-tile operation we don't care about the subtile
+                # Could be modified to draw a box around the tile area
+                # Would be even better if this was intelligent, and drew a line around any demarked area of the selection, e.g. where there are cliffs
+                # This function can then be put into the base Tool class to be used by any tool that requires it, can do highlighting based on lots
+                #  of different options...
+                if x > 1 or y > 1:
+                    tiles.append([(x + xx, y + yy), 9])
+                else:
+                    tiles.append([(x + xx, y + yy), subtile])
         return tiles
     def find_highlight(self, x, y, subtile):
         """Find the primary area of effect of the tool, based on tool dimensions
