@@ -470,10 +470,12 @@ class Test(Tool):
                         # Edge is already level, simply raise those vertices
                         tgrid, t = self.modify_vertex(tgrid, t, st1, step)
                         tgrid, t = self.modify_vertex(tgrid, t, st2, step)
-                # Vertex raise
+                # Vertex raise (new)
                 elif subtile in [1,2,3,4]:
-                    st = subtile - 1
-                    tgrid, t = self.modify_vertex(tgrid, t, st, step)
+                    tgrid = World.get_height((x,y))
+                    tgrid.raise_vertex(subtile - 1)
+                    World.set_height(tgrid, (x,y))
+                    skip = True
         else:
             step = -1
             for i in range(0, amount, step):

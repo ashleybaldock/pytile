@@ -79,8 +79,15 @@ class TGrid(object):
             self.height += 1
     def raise_edge(self):
         """"""
-    def raise_vertex(self):
-        """"""
+    def raise_vertex(self, v):
+        """Raise vertex, and if all vertices > 1 raise tile"""
+        v = v % 4
+        # First raise target vertex
+        self.array[v] += 1
+        # Then do a consistency check
+        self.correct_vertices(v)
+        # No restriction on tile height, so return True
+        return True
     def lower_face(self):
         """Lower an entire face of a tile (all 4 vertices)"""
         # Sort the correct tile type
@@ -98,30 +105,28 @@ class TGrid(object):
     def lower_edge(self):
         """"""
     def lower_vertex(self, v):
-        """"""
-        # Lower vertex, or if vertex is 0 lower entire tile then lower vertex
-        print "starting: h: %s,  a: %s" % (self.height, self.array)
-        if self.array[v % 4] != 0:
-            self.array[v % 4] -= 1
+        """Lower vertex, or if vertex is 0 lower entire tile then lower vertex"""
+        v = v % 4
+        if self.array[v] != 0:
+            self.array[v] -= 1
         elif self.height != 0:
             self.height -= 1
             for k in range(len(self.array)):
-                self.array[k % 4] += 1
-            self.array[v % 4] -= 1
+                self.array[k] += 1
+            self.array[v] -= 1
         else:
             return False
         self.correct_vertices(v)
-        print "completely finished: h: %s,  a: %s" % (self.height, self.array)
         return True
     def correct_vertices(self, v):
         """Ensure that vertices follow the rules, no more than 1 unit difference between neighbours
         Takes argument v, which is the vertex to keep fixed"""
         # Use % to ensure this stays within bounds of the array
-        a   = self.array[v % 4]
+        a   = self.array[v]
         b1  = self.array[(v-1) % 4]
         b2  = self.array[(v+1) % 4]
         c   = self.array[(v+2) % 4]
-        # First ensure that v is no greater than 2 and no less than 0
+        # First ensure that target vertex is no greater than 2 and no less than 0 (should not occur)
         while a > 2:
             a -= 1
             self.height += 1
@@ -146,14 +151,13 @@ class TGrid(object):
             c = b1 - 1
         elif b1_c > 1:
             c = b1 + 1
-
         b2_c = c - b2
         if b2_c < -1:
             c = b2 - 1
         elif b2_c > 1:
             c = b2 + 1
         # Write them back to the array
-        self.array[v % 4]       = a
+        self.array[v]           = a
         self.array[(v-1) % 4]   = b1
         self.array[(v+1) % 4]   = b2
         self.array[(v+2) % 4]   = c
@@ -162,6 +166,11 @@ class TGrid(object):
         for k in range(len(self.array)):
             if self.array[k] < 0:
                 self.array[k] = 0
+        # Check if there's a 0 in the array (if not, then all must be at least 1 and we can raise the tile)
+        if not 0 in self.array:
+            for k in range(len(self.array)):
+                self.array[k] -= 1
+            self.height += 1
         print self.array
 
 class World(object):
