@@ -442,34 +442,21 @@ class Test(Tool):
         if amount > 0:
             step = 1
             for i in range(0, amount, step):
-                # Whole tile raise
+                # Whole tile raise (new)
                 total += 1
                 if subtile == 9:
-                    if 2 in tgrid:
-                        t += 1
-                        for k in range(len(tgrid)):
-                            tgrid[k] -= 1
-                            if tgrid[k] < 0:
-                                tgrid[k] = 0
-                    elif 1 in tgrid:
-                        t += 1
-                        tgrid([0,0,0,0])
-                    else:
-                        t += 1
-                # Edge raise
+                    tgrid = World.get_height((x,y))
+                    tgrid.raise_face()
+                    World.set_height(tgrid, (x,y))
+                    skip = True
+                # Edge raise (new)
                 elif subtile in [5,6,7,8]:
                     st1 = subtile - 5
                     st2 = st1 + 1
-##                    print "st1: %s, tgrid[st1]: %s, st2: %s, tgrid[st2]: %s" % (st1, tgrid[st1], st2, tgrid[st2])
-                    if tgrid[st1] > tgrid[st2]:
-                        # Raise the one which is lower first
-                        tgrid, t = self.modify_vertex(tgrid, t, st2, step)
-                    elif tgrid[st1] < tgrid[st2]:
-                        tgrid, t = self.modify_vertex(tgrid, t, st1, step)
-                    else:
-                        # Edge is already level, simply raise those vertices
-                        tgrid, t = self.modify_vertex(tgrid, t, st1, step)
-                        tgrid, t = self.modify_vertex(tgrid, t, st2, step)
+                    tgrid = World.get_height((x,y))
+                    tgrid.raise_edge(st1, st2)
+                    World.set_height(tgrid, (x,y))
+                    skip = True
                 # Vertex raise (new)
                 elif subtile in [1,2,3,4]:
                     tgrid = World.get_height((x,y))
@@ -481,29 +468,20 @@ class Test(Tool):
             for i in range(0, amount, step):
                 if t > 0 or [1,2] in tgrid:
                     total -= 1
-                # Whole tile lower
+                # Whole tile lower (new)
                 if subtile == 9:
-                    if 2 in tgrid:
-                        for k in range(len(tgrid)):
-                            if tgrid[k] == 2:
-                                tgrid[k] = 1
-                    elif 1 in tgrid:
-                        tgrid([0,0,0,0])
-                    else:
-                        t -= 1
-                # Edge lower
+                    tgrid = World.get_height((x,y))
+                    tgrid.lower_face()
+                    World.set_height(tgrid, (x,y))
+                    skip = True
+                # Edge lower (new)
                 elif subtile in [5,6,7,8]:
                     st1 = subtile - 5
                     st2 = st1 + 1
-                    if tgrid[st1] > tgrid[st2]:
-                        # Lower the one which is higher first
-                        tgrid, t = self.modify_vertex(tgrid, t, st1, step)
-                    elif tgrid[st1] < tgrid[st2]:
-                        tgrid, t = self.modify_vertex(tgrid, t, st2, step)
-                    else:
-                        # Edge is already level, simply lower those vertices
-                        tgrid, t = self.modify_vertex(tgrid, t, st1, step)
-                        tgrid, t = self.modify_vertex(tgrid, t, st2, step)
+                    tgrid = World.get_height((x,y))
+                    tgrid.lower_edge(st1, st2)
+                    World.set_height(tgrid, (x,y))
+                    skip = True
                 # Vertex lower (new)
                 elif subtile in [1,2,3,4]:
                     tgrid = World.get_height((x,y))
@@ -512,7 +490,7 @@ class Test(Tool):
                     skip = True
 
         if skip:
-            return -1,-1
+            return (-1,-1)
         else:
             # Tile must not be reduced to below 0
             if t < 0:

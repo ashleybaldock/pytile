@@ -77,8 +77,18 @@ class TGrid(object):
             self.array = [0,0,0,0]
         else:
             self.height += 1
-    def raise_edge(self):
-        """"""
+    def raise_edge(self, v1, v2):
+        """Raise a tile edge, takes two vertices as arguments which define the edge"""
+        v1 = v1 % 4
+        v2 = v2 % 4
+        if self.array[v1] < self.array[v2]:
+            self.raise_vertex(v1)
+        elif self.array[v1] > self.array[v2]:
+            self.raise_vertex(v2)
+        else:
+            self.raise_vertex(v1)
+            self.raise_vertex(v2)
+        return True
     def raise_vertex(self, v):
         """Raise vertex, and if all vertices > 1 raise tile"""
         v = v % 4
@@ -102,8 +112,18 @@ class TGrid(object):
         # Tile must not be reduced to below 0
         if self.height < 0:
             self.height = 0
-    def lower_edge(self):
-        """"""
+    def lower_edge(self, v1, v2):
+        """Lower a tile edge, takes two vertices as arguments which define the edge"""
+        v1 = v1 % 4
+        v2 = v2 % 4
+        if self.array[v1] > self.array[v2]:
+            self.lower_vertex(v1)
+        elif self.array[v1] < self.array[v2]:
+            self.lower_vertex(v2)
+        else:
+            self.lower_vertex(v1)
+            self.lower_vertex(v2)
+        return True
     def lower_vertex(self, v):
         """Lower vertex, or if vertex is 0 lower entire tile then lower vertex"""
         v = v % 4
@@ -162,7 +182,6 @@ class TGrid(object):
         self.array[(v+1) % 4]   = b2
         self.array[(v+2) % 4]   = c
         # Ensure no negative numbers in array
-        print self.array
         for k in range(len(self.array)):
             if self.array[k] < 0:
                 self.array[k] = 0
@@ -171,7 +190,6 @@ class TGrid(object):
             for k in range(len(self.array)):
                 self.array[k] -= 1
             self.height += 1
-        print self.array
 
 class World(object):
     """Holds all world-related variables and methods"""
