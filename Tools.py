@@ -366,7 +366,7 @@ class Test(Tool):
                 if len(self.tiles) > 1:
                     self.modify_tiles(self.tiles, 9, invdiff)
                 else:
-                    totalchange, realchange = self.modify_tile(self.tiles[0][0], self.subtile, invdiff)
+                    self.modify_tile(self.tiles[0][0], self.subtile, invdiff)
 
             return self.tiles
 
@@ -407,101 +407,51 @@ class Test(Tool):
                         tgrid.raise_face()
                         World.set_height(tgrid, p[1])
 
-
-    # All of these low-level raise/lower functions should return 1 if they modify the base height of the tile
-    # World object needs better access functions for setting the tile's properties
-    # There will be an even lower level function (modify_vertex) called by the edge and vertex modifiers
-
-    def raise_edge(self, x, y, v1, v2):
-        """Raise edge denoted by v1->v2"""
-    def lower_edge(self, x, y, v1, v2):
-        """Lower edge denoted by v1->v2"""
-
-##    def raise_vertex(self, x, y, v):
-##        """Raise a single vertex"""
-##        # Vertices are 0:left, 1:bottom, 2:right, 3:top
-##        t = World.array[x][y][0]
-##        tgrid = tGrid(World.array[x][y][1])
-##        tgrid, t = self.modify_vertex(tgrid, t, v, 1)
-##    def lower_vertex(self, x, y, v):
-##        """Lower a single vertex"""
-##        t = World.array[x][y][0]
-##        tgrid = tGrid(World.array[x][y][1])
-##        tgrid, t = self.modify_vertex(tgrid, t, v, -1)
-
-
     def modify_tile(self, t, subtile, amount):
         """Raise (or lower) a tile based on the subtile"""
         x = t[0]
         y = t[1]
-        skip = False
-        t = World.array[x][y][0]
-        tgrid = tGrid(World.array[x][y][1])
-##        t = World.array[tile.xWorld][tile.yWorld][0]
-        total = 0
         if amount > 0:
             step = 1
             for i in range(0, amount, step):
-                # Whole tile raise (new)
-                total += 1
+                # Whole tile raise
                 if subtile == 9:
                     tgrid = World.get_height((x,y))
                     tgrid.raise_face()
                     World.set_height(tgrid, (x,y))
-                    skip = True
-                # Edge raise (new)
+                # Edge raise
                 elif subtile in [5,6,7,8]:
                     st1 = subtile - 5
                     st2 = st1 + 1
                     tgrid = World.get_height((x,y))
                     tgrid.raise_edge(st1, st2)
                     World.set_height(tgrid, (x,y))
-                    skip = True
-                # Vertex raise (new)
+                # Vertex raise
                 elif subtile in [1,2,3,4]:
                     tgrid = World.get_height((x,y))
                     tgrid.raise_vertex(subtile - 1)
                     World.set_height(tgrid, (x,y))
-                    skip = True
         else:
             step = -1
             for i in range(0, amount, step):
-                if t > 0 or [1,2] in tgrid:
-                    total -= 1
-                # Whole tile lower (new)
+                # Whole tile lower
                 if subtile == 9:
                     tgrid = World.get_height((x,y))
                     tgrid.lower_face()
                     World.set_height(tgrid, (x,y))
-                    skip = True
-                # Edge lower (new)
+                # Edge lower
                 elif subtile in [5,6,7,8]:
                     st1 = subtile - 5
                     st2 = st1 + 1
                     tgrid = World.get_height((x,y))
                     tgrid.lower_edge(st1, st2)
                     World.set_height(tgrid, (x,y))
-                    skip = True
-                # Vertex lower (new)
+                # Vertex lower
                 elif subtile in [1,2,3,4]:
                     tgrid = World.get_height((x,y))
                     tgrid.lower_vertex(subtile - 1)
                     World.set_height(tgrid, (x,y))
-                    skip = True
 
-        if skip:
-            return (-1,-1)
-        else:
-            # Tile must not be reduced to below 0
-            if t < 0:
-                t = 0
-            ct = World.array[x][y][0]
-            
-            World.array[x][y][1] = [tgrid[0],tgrid[1],tgrid[2],tgrid[3]]
-            World.array[x][y][0] = t
-            # Return the total amount of height change, and the real amount
-            return (total, ct - t)
-        
 
     def modify_vertex(self, tgrid, t, st, step):
         """Raise or lower one corner of a tile"""
