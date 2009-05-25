@@ -248,8 +248,8 @@ class Move(Tool):
 
 class Test(Tool):
     """Testing tool"""
-    xdims = 2
-    ydims = 2
+    xdims = 1
+    ydims = 1
     start = None
     def __init__(self):
         """First time the Test tool is used"""
@@ -417,23 +417,24 @@ class Test(Tool):
     def lower_edge(self, x, y, v1, v2):
         """Lower edge denoted by v1->v2"""
 
-    def raise_vertex(self, x, y, v):
-        """Raise a single vertex"""
-        # Vertices are 0:left, 1:bottom, 2:right, 3:top
-        t = World.array[x][y][0]
-        tgrid = tGrid(World.array[x][y][1])
-        tgrid, t = self.modify_vertex(tgrid, t, v, 1)
-    def lower_vertex(self, x, y, v):
-        """Lower a single vertex"""
-        t = World.array[x][y][0]
-        tgrid = tGrid(World.array[x][y][1])
-        tgrid, t = self.modify_vertex(tgrid, t, v, -1)
+##    def raise_vertex(self, x, y, v):
+##        """Raise a single vertex"""
+##        # Vertices are 0:left, 1:bottom, 2:right, 3:top
+##        t = World.array[x][y][0]
+##        tgrid = tGrid(World.array[x][y][1])
+##        tgrid, t = self.modify_vertex(tgrid, t, v, 1)
+##    def lower_vertex(self, x, y, v):
+##        """Lower a single vertex"""
+##        t = World.array[x][y][0]
+##        tgrid = tGrid(World.array[x][y][1])
+##        tgrid, t = self.modify_vertex(tgrid, t, v, -1)
 
 
     def modify_tile(self, t, subtile, amount):
         """Raise (or lower) a tile based on the subtile"""
         x = t[0]
         y = t[1]
+        skip = False
         t = World.array[x][y][0]
         tgrid = tGrid(World.array[x][y][1])
 ##        t = World.array[tile.xWorld][tile.yWorld][0]
@@ -501,20 +502,26 @@ class Test(Tool):
                         # Edge is already level, simply lower those vertices
                         tgrid, t = self.modify_vertex(tgrid, t, st1, step)
                         tgrid, t = self.modify_vertex(tgrid, t, st2, step)
-                # Vertex lower
+                # Vertex lower (new)
                 elif subtile in [1,2,3,4]:
-                    st = subtile - 1
-                    tgrid, t = self.modify_vertex(tgrid, t, st, step)
+                    tgrid = World.get_height((x,y))
+                    tgrid.lower_vertex(subtile - 1)
+                    World.set_height(tgrid, (x,y))
+                    skip = True
 
-        # Tile must not be reduced to below 0
-        if t < 0:
-            t = 0
-        ct = World.array[x][y][0]
+        if skip:
+            return -1,-1
+        else:
+            # Tile must not be reduced to below 0
+            if t < 0:
+                t = 0
+            ct = World.array[x][y][0]
+            
+            World.array[x][y][1] = [tgrid[0],tgrid[1],tgrid[2],tgrid[3]]
+            World.array[x][y][0] = t
+            # Return the total amount of height change, and the real amount
+            return (total, ct - t)
         
-        World.array[x][y][1] = [tgrid[0],tgrid[1],tgrid[2],tgrid[3]]
-        World.array[x][y][0] = t
-        # Return the total amount of height change, and the real amount
-        return (total, ct - t)
 
     def modify_vertex(self, tgrid, t, st, step):
         """Raise or lower one corner of a tile"""

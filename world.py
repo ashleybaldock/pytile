@@ -42,7 +42,7 @@ class TGrid(object):
         self.height = height
         self.length = len(self.array)
     def __len__(self):
-        return self.length
+        return len(self.array)
     def __call__(self, vertices):
         self.array = vertices
     def __getitem__(self, index):
@@ -97,9 +97,72 @@ class TGrid(object):
             self.height = 0
     def lower_edge(self):
         """"""
-    def lower_vertex(self):
+    def lower_vertex(self, v):
         """"""
+        # Lower vertex, or if vertex is 0 lower entire tile then lower vertex
+        print "starting: h: %s,  a: %s" % (self.height, self.array)
+        if self.array[v % 4] != 0:
+            self.array[v % 4] -= 1
+        elif self.height != 0:
+            self.height -= 1
+            for k in range(len(self.array)):
+                self.array[k % 4] += 1
+            self.array[v % 4] -= 1
+        else:
+            return False
+        self.correct_vertices(v)
+        print "completely finished: h: %s,  a: %s" % (self.height, self.array)
+        return True
+    def correct_vertices(self, v):
+        """Ensure that vertices follow the rules, no more than 1 unit difference between neighbours
+        Takes argument v, which is the vertex to keep fixed"""
+        # Use % to ensure this stays within bounds of the array
+        a   = self.array[v % 4]
+        b1  = self.array[(v-1) % 4]
+        b2  = self.array[(v+1) % 4]
+        c   = self.array[(v+2) % 4]
+        # First ensure that v is no greater than 2 and no less than 0
+        while a > 2:
+            a -= 1
+            self.height += 1
+        while a < 0:
+            a += 1
+            self.height -= 1
+        # Next check to ensure that there is no greater than 1 level gap between vertices
+        a_b1 = b1 - a
+        a_b2 = b2 - a
+        # Neighbour b1 less than 1 level below, set to one level below, or equal if a is 0
+        if a_b1 < -1:
+            b1 = a - 1
+        elif a_b1 > 1:
+            b1 = a + 1
+        if a_b2 < -1:
+            b2 = a - 1
+        elif a_b2 > 1:
+            b2 = a + 1
+        # And check both b1 and b2 against c
+        b1_c = c - b1
+        if b1_c < -1:
+            c = b1 - 1
+        elif b1_c > 1:
+            c = b1 + 1
 
+        b2_c = c - b2
+        if b2_c < -1:
+            c = b2 - 1
+        elif b2_c > 1:
+            c = b2 + 1
+        # Write them back to the array
+        self.array[v % 4]       = a
+        self.array[(v-1) % 4]   = b1
+        self.array[(v+1) % 4]   = b2
+        self.array[(v+2) % 4]   = c
+        # Ensure no negative numbers in array
+        print self.array
+        for k in range(len(self.array)):
+            if self.array[k] < 0:
+                self.array[k] = 0
+        print self.array
 
 class World(object):
     """Holds all world-related variables and methods"""
