@@ -414,12 +414,17 @@ class Test(Tool):
         x = t[0]
         y = t[1]
         tgrid = World.get_height(x, y)
-        checked = {}
-        checking = {}
+        # Raise the main tile we're concerned with
+        tgrid.raise_face()
+        World.set_height(tgrid, (x,y))
+        # Init the stack
         to_check = {}
-        checked[(t[0],t[1])] = tgrid
+        checking = {}
+        checked = {}
+        # Add initial tiles to the stack
+        to_check[(t[0],t[1])] = tgrid
+
         # Find any neighbours of this tile which have the same vertex height before we raise it
-##        tgrid_neighbours = []
         # Need to compare 4 corners and 4 edges
         # Corners:
         # x+1,y-1 -> 0:2
@@ -432,26 +437,54 @@ class Test(Tool):
         # x+1,y -> 0:3,1:2
         # x,y+1 -> 1:0,2:3
         # x-1,y -> 2:1,3:0
+##        c_x = [x+1, x+1, x-1, x-1, x,   x,   x+1, x+1, x,   x,   x-1, x-1]
+##        c_y = [y-1, y+1, y+1, y-1, y-1, y-1, y,   y,   y+1, y+1, y,   y  ]
+        c_x = [ 1,  1, -1, -1,  0,  0,  1,  1,  0,  0, -1, -1]
+        c_y = [-1,  1,  1, -1, -1, -1,  0,  0,  1,  1,  0,  0]
+        c_a = [ 0,  1,  2,  3,  3,  0,  0,  1,  1,  2,  2,  3]
+        c_b = [ 2,  3,  0,  1,  2,  1,  3,  2,  0,  3,  1,  0]
 
-        c_x = [x+1, x+1, x-1, x-1, x,   x,   x+1, x+1, x,   x,   x-1, x-1]
-        c_y = [y-1, y+1, y+1, y-1, y-1, y-1, y,   y,   y+1, y+1, y,   y  ]
-        c_a = [0,   1,   2,   3,   3,   0,   0,   1,   1,   2,   2,   3  ]
-        c_b = [2,   3,   0,   1,   2,   1,   3,   2,   0,   3,   1,   0  ]
+        while to_check:
+            # Checking should be empty from the end of the last loop
+            checking = to_check
+            print "checking: %s" % checking
+            # To check should be emptied at this point ready to add values this look
+            to_check = {}
+            print "checking.keys(): %s" % checking.keys()
+            for key in checking.keys():
+                # Find all neighbours which haven't already been added to to_check and which aren't already
+                for k in range(len(c_x)):
+                    potential = World.get_height(key[0] + c_x[k], key[1] + c_y[k])
+                    if self.compare_vertex_higher(checking[key], potential, c_a[k], c_b[k]):
+                        while self.compare_vertex_higher(checking[key], potential, c_a[k], c_b[k]):
+                            potential.raise_vertex(c_b[k])
+                        to_check[(key[0] + c_x[k], key[1] + c_y[k])] = potential
+                        World.set_height(potential, (key[0] + c_x[k], key[1] + c_y[k]))
+##                    else:
+##                        checked[(key[0] + c_x[k], key[1] + c_y[k])] = potential
+            # Add the last iteration's checked values to the checked stack
+            checked.update(checking)
+            print "checked: %s" % checked
+            # Clear the checking stack
+            checking = {}
 
-        for k in range(len(c_x)):
-            potential = World.get_height(c_x[k], c_y[k])
-            if self.compare_vertex(tgrid, potential, c_a[k], c_b[k]):
-                to_check[(c_x[k], c_y[k])] = potential
-                potential.raise_vertex(c_b[k])
-                World.set_height(potential, (c_x[k], c_y[k]))
-            else:
-                checked[(c_x[k], c_y[k])] = potential
 
-        # Now raise the main tile we're concerned with
-        tgrid.raise_face()
-        World.set_height(tgrid, (x,y))
+
 
         print to_check
+
+    def compare_vertex_higher(self, tgrid1, tgrid2, v1, v2):
+        """Return True if specified vertex of tgrid1 is higher than specified vertex of tgrid2"""
+        if tgrid1[v1] + tgrid1.height > tgrid2[v2] + tgrid2.height:
+            return True
+        else:
+            return False
+    def compare_vertex_lower(self, tgrid1, tgrid2, v1, v2):
+        """Return True if specified vertex of tgrid1 is lower than specified vertex of tgrid2"""
+        if tgrid1[v1] + tgrid1.height < tgrid2[v2] + tgrid2.height:
+            return True
+        else:
+            return False
 
     def compare_vertex(self, tgrid1, tgrid2, v1, v2):
         """Return True if v1 of tgrid1 is same as v2 of tgrid2, else False"""
