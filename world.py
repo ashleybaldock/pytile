@@ -631,6 +631,16 @@ class World(object):
             x, y = x
         return TGrid(World.array[x][y][0], World.array[x][y][1])
 
+    def get_neighbours(self, x, y=None):
+        """Return an array of tiles neighbouring the tile specified"""
+        if y is None:
+            x, y = x
+        out = []
+        for a in range(x-1, x+1):
+            for b in range(y-1, y+1):
+                out.append(TGrid(World.array[a][b][0], World.array[a][b][1]))
+        return out
+
     def modify_tiles(self, array, tiles, action, softedges):
         """array=world array, tiles=list of tiles to alter, action=raise,lower,smooth, softedges=True,False"""
         # Multi-tile/single-tile are essentially the same internally

@@ -407,6 +407,60 @@ class Test(Tool):
                         tgrid.raise_face()
                         World.set_height(tgrid, p[1])
 
+
+
+    def raisetile_with_neighbours(self, t, subtile=None):
+        """Prototype of tile raising with smoothing to maintain terrain flow"""
+        x = t[0]
+        y = t[1]
+        tgrid = World.get_height(x, y)
+        checked = {}
+        checking = {}
+        to_check = {}
+        checked[(t[0],t[1])] = tgrid
+        # Find any neighbours of this tile which have the same vertex height before we raise it
+##        tgrid_neighbours = []
+        # Need to compare 4 corners and 4 edges
+        # Corners:
+        # x+1,y-1 -> 0:2
+        # x+1,y+1 -> 1:3
+        # x-1,y+1 -> 2:0
+        # x-1,y-1 -> 3:1
+        # Only one of the two comparisons for edges needs to be true, but only that one gets modified
+        # Edges:
+        # x,y-1 -> 3:2,0:1
+        # x+1,y -> 0:3,1:2
+        # x,y+1 -> 1:0,2:3
+        # x-1,y -> 2:1,3:0
+
+        c_x = [x+1, x+1, x-1, x-1, x,   x,   x+1, x+1, x,   x,   x-1, x-1]
+        c_y = [y-1, y+1, y+1, y-1, y-1, y-1, y,   y,   y+1, y+1, y,   y  ]
+        c_a = [0,   1,   2,   3,   3,   0,   0,   1,   1,   2,   2,   3  ]
+        c_b = [2,   3,   0,   1,   2,   1,   3,   2,   0,   3,   1,   0  ]
+
+        for k in range(len(c_x)):
+            potential = World.get_height(c_x[k], c_y[k])
+            if self.compare_vertex(tgrid, potential, c_a[k], c_b[k]):
+                to_check[(c_x[k], c_y[k])] = potential
+                potential.raise_vertex(c_b[k])
+                World.set_height(potential, (c_x[k], c_y[k]))
+            else:
+                checked[(c_x[k], c_y[k])] = potential
+
+        # Now raise the main tile we're concerned with
+        tgrid.raise_face()
+        World.set_height(tgrid, (x,y))
+
+        print to_check
+
+    def compare_vertex(self, tgrid1, tgrid2, v1, v2):
+        """Return True if v1 of tgrid1 is same as v2 of tgrid2, else False"""
+        if tgrid1[v1] + tgrid1.height == tgrid2[v2] + tgrid2.height:
+            return True
+        else:
+            return False
+
+
     def modify_tile(self, t, subtile, amount):
         """Raise (or lower) a tile based on the subtile"""
         x = t[0]
@@ -416,19 +470,20 @@ class Test(Tool):
             for i in range(0, amount, step):
                 # Whole tile raise
                 if subtile == 9:
-                    tgrid = World.get_height((x,y))
-                    tgrid.raise_face()
-                    World.set_height(tgrid, (x,y))
+                    self.raisetile_with_neighbours(t)
+##                    tgrid = World.get_height(x,y)
+##                    tgrid.raise_face()
+##                    World.set_height(tgrid, (x,y))
                 # Edge raise
                 elif subtile in [5,6,7,8]:
                     st1 = subtile - 5
                     st2 = st1 + 1
-                    tgrid = World.get_height((x,y))
+                    tgrid = World.get_height(x,y)
                     tgrid.raise_edge(st1, st2)
                     World.set_height(tgrid, (x,y))
                 # Vertex raise
                 elif subtile in [1,2,3,4]:
-                    tgrid = World.get_height((x,y))
+                    tgrid = World.get_height(x,y)
                     tgrid.raise_vertex(subtile - 1)
                     World.set_height(tgrid, (x,y))
         else:
@@ -436,19 +491,19 @@ class Test(Tool):
             for i in range(0, amount, step):
                 # Whole tile lower
                 if subtile == 9:
-                    tgrid = World.get_height((x,y))
+                    tgrid = World.get_height(x,y)
                     tgrid.lower_face()
                     World.set_height(tgrid, (x,y))
                 # Edge lower
                 elif subtile in [5,6,7,8]:
                     st1 = subtile - 5
                     st2 = st1 + 1
-                    tgrid = World.get_height((x,y))
+                    tgrid = World.get_height(x,y)
                     tgrid.lower_edge(st1, st2)
                     World.set_height(tgrid, (x,y))
                 # Vertex lower
                 elif subtile in [1,2,3,4]:
-                    tgrid = World.get_height((x,y))
+                    tgrid = World.get_height(x,y)
                     tgrid.lower_vertex(subtile - 1)
                     World.set_height(tgrid, (x,y))
 
