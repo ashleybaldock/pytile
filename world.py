@@ -629,7 +629,11 @@ class World(object):
         """Get height of a tile, return as TGrid object"""
         if y is None:
             x, y = x
-        return TGrid(World.array[x][y][0], World.array[x][y][1])
+        # Bounds checks
+        if x > len(World.array) - 1 or y > len(World.array[0]) - 1 or x < 0 or y < 0:
+            return None
+        else:
+            return TGrid(World.array[x][y][0], World.array[x][y][1])
 
     def get_neighbours(self, x, y=None):
         """Return an array of tiles neighbouring the tile specified"""

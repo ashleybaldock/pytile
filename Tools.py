@@ -455,7 +455,7 @@ class Test(Tool):
                 # Find all neighbours which haven't already been added to to_check and which aren't already
                 for k in range(len(c_x)):
                     potential = World.get_height(key[0] + c_x[k], key[1] + c_y[k])
-                    if self.compare_vertex_higher(checking[key], potential, c_a[k], c_b[k]):
+                    if potential and self.compare_vertex_higher(checking[key], potential, c_a[k], c_b[k]):
                         while self.compare_vertex_higher(checking[key], potential, c_a[k], c_b[k]):
                             potential.raise_vertex(c_b[k])
                         to_check[(key[0] + c_x[k], key[1] + c_y[k])] = potential
