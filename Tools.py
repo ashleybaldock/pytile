@@ -431,7 +431,6 @@ class Test(Tool):
         # x+1,y+1 -> 1:3
         # x-1,y+1 -> 2:0
         # x-1,y-1 -> 3:1
-        # Only one of the two comparisons for edges needs to be true, but only that one gets modified
         # Edges:
         # x,y-1 -> 3:2,0:1
         # x+1,y -> 0:3,1:2
@@ -453,6 +452,7 @@ class Test(Tool):
             print "checking.keys(): %s" % checking.keys()
             for key in checking.keys():
                 # Find all neighbours which haven't already been added to to_check and which aren't already
+                # Needs to be changed so that it checks if this tile has already been checked (will be speedier)
                 for k in range(len(c_x)):
                     potential = World.get_height(key[0] + c_x[k], key[1] + c_y[k])
                     if potential and self.compare_vertex_higher(checking[key], potential, c_a[k], c_b[k]):
@@ -468,10 +468,6 @@ class Test(Tool):
             # Clear the checking stack
             checking = {}
 
-
-
-
-        print to_check
 
     def compare_vertex_higher(self, tgrid1, tgrid2, v1, v2):
         """Return True if specified vertex of tgrid1 is higher than specified vertex of tgrid2"""
