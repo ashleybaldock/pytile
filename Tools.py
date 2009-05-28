@@ -251,6 +251,7 @@ class Test(Tool):
     xdims = 1
     ydims = 1
     start = None
+    aoe = []
     def __init__(self):
         """First time the Test tool is used"""
         # Call init method of parent
@@ -294,7 +295,12 @@ class Test(Tool):
         return []
     def get_aoe(self):
         """Return the current area of effect for this tool"""
-        return self.tiles
+        print "AoE = %s" % self.aoe
+        return self.aoe
+    def clear_aoe(self):
+        """Clear the area of effect (e.g. after drawing the changes)"""
+        self.aoe = []
+        return True
     def get_highlight(self):
         """Return the current highlight area for this tool"""
         return self.tiles
@@ -424,6 +430,7 @@ class Test(Tool):
             tgrid.raise_face()
         elif lower_tile:
             tgrid.lower_face()
+        self.aoe.append([(x,y), 9])
         World.set_height(tgrid, (x,y))
         # Init the stack
         to_check = {}
@@ -503,6 +510,7 @@ class Test(Tool):
                     # Since we've modified this vertex, add it to the list to be checked next time around
                     if m == 1:
                         to_check[(x, y)] = potential
+                        self.aoe.append([(x,y), 9])
 
             # Add the last iteration's checked values to the checked stack
             checked.update(checking)

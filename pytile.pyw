@@ -523,8 +523,10 @@ class DisplayMain(object):
             tileset = self.orderedSpritesDict[(x, y)]
 
             t = tileset[0]
-            # Update the tile
+            # Update the tile type
             t.update_type()
+            # Update the tile image
+            t.update()
             self.dirty.append(t.update_xyz())
             
             self.orderedSprites.remove(tileset)
