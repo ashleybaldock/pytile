@@ -567,11 +567,13 @@ class Test(Tool):
                     tgrid = World.get_height(x,y)
                     tgrid.raise_edge(st1, st2)
                     World.set_height(tgrid, (x,y))
+                    self.aoe = [[(x,y), 9]]
                 # Vertex raise
                 elif subtile in [1,2,3,4]:
                     tgrid = World.get_height(x,y)
                     tgrid.raise_vertex(subtile - 1)
                     World.set_height(tgrid, (x,y))
+                    self.aoe = [[(x,y), 9]]
         else:
             step = -1
             for i in range(0, amount, step):
@@ -588,9 +590,11 @@ class Test(Tool):
                     tgrid = World.get_height(x,y)
                     tgrid.lower_edge(st1, st2)
                     World.set_height(tgrid, (x,y))
+                    self.aoe = [[(x,y), 9]]
                 # Vertex lower
                 elif subtile in [1,2,3,4]:
                     tgrid = World.get_height(x,y)
                     tgrid.lower_vertex(subtile - 1)
                     World.set_height(tgrid, (x,y))
+                    self.aoe = [[(x,y), 9]]
 

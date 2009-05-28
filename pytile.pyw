@@ -498,6 +498,7 @@ class DisplayMain(object):
         # Add all the items in tiles to the checked_nearby hash table
         # There must be a more elegant way to do this!
         for t in tiles:
+            print "t is: %s" % str(t)
             checked_nearby.append(t[0])
         tiles2 = []
         for t in tiles:
