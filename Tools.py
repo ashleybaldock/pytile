@@ -407,15 +407,23 @@ class Test(Tool):
                         tgrid.raise_face()
                         World.set_height(tgrid, p[1])
 
+    def soft_raise_tile(self, t):
+        """Raise a whole tile keeping neighouring tiles at the same level"""
+        self.modify_tile_with_neighbours(t, raise_tile=True)
+    def soft_lower_tile(self, t):
+        """Raise a whole tile keeping neighouring tiles at the same level"""
+        self.modify_tile_with_neighbours(t, lower_tile=True)
 
-
-    def raisetile_with_neighbours(self, t, subtile=None):
+    def modify_tile_with_neighbours(self, t, raise_tile=False, lower_tile=False):
         """Prototype of tile raising with smoothing to maintain terrain flow"""
         x = t[0]
         y = t[1]
         tgrid = World.get_height(x, y)
-        # Raise the main tile we're concerned with
-        tgrid.raise_face()
+        # Raise/lower the main tile we're concerned with
+        if raise_tile:
+            tgrid.raise_face()
+        elif lower_tile:
+            tgrid.lower_face()
         World.set_height(tgrid, (x,y))
         # Init the stack
         to_check = {}
@@ -454,12 +462,36 @@ class Test(Tool):
                 # Find all neighbours which haven't already been added to to_check and which aren't already
                 # Needs to be changed so that it checks if this tile has already been checked (will be speedier)
                 for k in range(len(c_x)):
-                    potential = World.get_height(key[0] + c_x[k], key[1] + c_y[k])
-                    if potential and self.compare_vertex_higher(checking[key], potential, c_a[k], c_b[k]):
+                    x = key[0] + c_x[k]
+                    y = key[1] + c_y[k]
+                    # Check if the potential tile has been checked before, if so use the existing object
+                    if checked.has_key((x,y)):
+                        potential = checked[(x,y)]
+                    elif checking.has_key((x,y)):
+                        potential = checking[(x,y)]
+                    elif to_check.has_key((x,y)):
+                        potential = to_check[(x,y)]
+                    # Otherwise create a new tile object for that tile
+                    else:
+                        potential = World.get_height(x, y)
+                    # If there is a tile to compare to (bounds check) and the comparison tile is lower
+                    if potential and raise_tile and self.compare_vertex_higher(checking[key], potential, c_a[k], c_b[k]):
+                        # Raise vertex to same height as the tile we're comparing against
                         while self.compare_vertex_higher(checking[key], potential, c_a[k], c_b[k]):
                             potential.raise_vertex(c_b[k])
-                        to_check[(key[0] + c_x[k], key[1] + c_y[k])] = potential
-                        World.set_height(potential, (key[0] + c_x[k], key[1] + c_y[k]))
+                        # Since we've modified this vertex, add it to the list to be checked next time around
+                        to_check[(x, y)] = potential
+                    elif potential and lower_tile and self.compare_vertex_lower(checking[key], potential, c_a[k], c_b[k]):
+                        # Raise vertex to same height as the tile we're comparing against
+                        while self.compare_vertex_lower(checking[key], potential, c_a[k], c_b[k]):
+                            potential.lower_vertex(c_b[k])
+                        # Since we've modified this vertex, add it to the list to be checked next time around
+                        to_check[(x, y)] = potential
+
+            # Finally modify the world to reflect changes made by this tool
+            for k in checked.keys():
+                World.set_height(checked[k], k)
+
 ##                    else:
 ##                        checked[(key[0] + c_x[k], key[1] + c_y[k])] = potential
             # Add the last iteration's checked values to the checked stack
@@ -499,7 +531,7 @@ class Test(Tool):
             for i in range(0, amount, step):
                 # Whole tile raise
                 if subtile == 9:
-                    self.raisetile_with_neighbours(t)
+                    self.soft_raise_tile(t)
 ##                    tgrid = World.get_height(x,y)
 ##                    tgrid.raise_face()
 ##                    World.set_height(tgrid, (x,y))
@@ -520,9 +552,10 @@ class Test(Tool):
             for i in range(0, amount, step):
                 # Whole tile lower
                 if subtile == 9:
-                    tgrid = World.get_height(x,y)
-                    tgrid.lower_face()
-                    World.set_height(tgrid, (x,y))
+                    self.soft_lower_tile(t)
+##                    tgrid = World.get_height(x,y)
+##                    tgrid.lower_face()
+##                    World.set_height(tgrid, (x,y))
                 # Edge lower
                 elif subtile in [5,6,7,8]:
                     st1 = subtile - 5
