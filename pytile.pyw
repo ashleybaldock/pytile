@@ -449,6 +449,7 @@ class DisplayMain(object):
             if self.lmb_tool.active():
                 # Update the screen to reflect changes made by tools
                 self.update_world(self.lmb_tool.get_aoe())
+            self.lmb_tool.clear_aoe()
 
             if self.rmb_tool.active():
                 # Repaint the entire screen for now until something better is implemented
@@ -514,27 +515,28 @@ class DisplayMain(object):
         tiles = tiles2
         for t in tiles:
             x, y = t[0]
-            t = self.orderedSpritesDict[(x,y)][0]
-            self.dirty.append(t.rect)
-
-            l = x + y
-            
             # Look the tile up in the group using the position, this will give us the tile and all its cliffs
-            tileset = self.orderedSpritesDict[(x, y)]
+            if self.orderedSpritesDict.has_key((x, y)):
+                tileset = self.orderedSpritesDict[(x, y)]
+                t = tileset[0]
+                # Add old positions to dirty rect list
+                self.dirty.append(t.rect)
 
-            t = tileset[0]
-            # Update the tile type
-            t.update_type()
-            # Update the tile image
-            t.update()
-            self.dirty.append(t.update_xyz())
-            
-            self.orderedSprites.remove(tileset)
-            # Recreate the cliffs
-            cliffs = self.make_cliffs(x, y)
-            cliffs.insert(0, t)
-            self.orderedSpritesDict[(x, y)] = cliffs
-            self.orderedSprites.add(cliffs, layer=l)
+                # Calculate layer
+                l = x + y
+
+                # Update the tile type
+                t.update_type()
+                # Update the tile image
+                t.update()
+                self.dirty.append(t.update_xyz())
+                
+                self.orderedSprites.remove(tileset)
+                # Recreate the cliffs
+                cliffs = self.make_cliffs(x, y)
+                cliffs.insert(0, t)
+                self.orderedSpritesDict[(x, y)] = cliffs
+                self.orderedSprites.add(cliffs, layer=l)
 
     def paint_world(self):
         """Paint the world as a series of sprites
