@@ -451,6 +451,11 @@ class Test(Tool):
         c_a = [ 0,  1,  2,  3,  3,  0,  0,  1,  1,  2,  2,  3]
         c_b = [ 2,  3,  0,  1,  2,  1,  3,  2,  0,  3,  1,  0]
 
+        c_x = [ 1,       1,        -1,       -1,        0,    1,     0,     -1   ]
+        c_y = [-1,       1,         1,       -1,       -1,    0,     1,      0   ]
+        c_a = [(0,None), (1,None), (2,None), (3,None), (3,0), (0,1), (1,2), (2,3)]
+        c_b = [(2,None), (3,None), (0,None), (1,None), (2,1), (3,2), (0,3), (1,0)]
+
         while to_check:
             # Checking should be empty from the end of the last loop
             checking = to_check
@@ -474,52 +479,64 @@ class Test(Tool):
                     # Otherwise create a new tile object for that tile
                     else:
                         potential = World.get_height(x, y)
+                    m = 0
                     # If there is a tile to compare to (bounds check) and the comparison tile is lower
-                    if potential and raise_tile and self.compare_vertex_higher(checking[key], potential, c_a[k], c_b[k]):
+                    if potential and raise_tile:
                         # Raise vertex to same height as the tile we're comparing against
-                        while self.compare_vertex_higher(checking[key], potential, c_a[k], c_b[k]):
-                            potential.raise_vertex(c_b[k])
-                        # Since we've modified this vertex, add it to the list to be checked next time around
-                        to_check[(x, y)] = potential
-                    elif potential and lower_tile and self.compare_vertex_lower(checking[key], potential, c_a[k], c_b[k]):
-                        # Raise vertex to same height as the tile we're comparing against
-                        while self.compare_vertex_lower(checking[key], potential, c_a[k], c_b[k]):
-                            potential.lower_vertex(c_b[k])
-                        # Since we've modified this vertex, add it to the list to be checked next time around
+                        # Do this twice for edges, only once for corners
+                        while self.compare_vertex_higher(checking[key], potential, c_a[k][0], c_b[k][0]):
+                            potential.raise_vertex(c_b[k][0])
+                            m = 1
+                        while self.compare_vertex_higher(checking[key], potential, c_a[k][1], c_b[k][1]):
+                            potential.raise_vertex(c_b[k][1])
+                            m = 1
+                    elif potential and lower_tile:
+                        # Lower vertex to same height as the tile we're comparing against
+                        while self.compare_vertex_lower(checking[key], potential, c_a[k][0], c_b[k][0]):
+                            potential.lower_vertex(c_b[k][0])
+                            m = 1
+                        while self.compare_vertex_lower(checking[key], potential, c_a[k][1], c_b[k][1]):
+                            potential.lower_vertex(c_b[k][1])
+                            m = 1
+##                    elif potential:
+##                        checked[(x, y)] = potential
+                    # Since we've modified this vertex, add it to the list to be checked next time around
+                    if m == 1:
                         to_check[(x, y)] = potential
 
-            # Finally modify the world to reflect changes made by this tool
-            for k in checked.keys():
-                World.set_height(checked[k], k)
-
-##                    else:
-##                        checked[(key[0] + c_x[k], key[1] + c_y[k])] = potential
             # Add the last iteration's checked values to the checked stack
             checked.update(checking)
             print "checked: %s" % checked
             # Clear the checking stack
             checking = {}
 
+        # Finally modify the world to reflect changes made by this tool
+        for k in checked.keys():
+            World.set_height(checked[k], k)
 
     def compare_vertex_higher(self, tgrid1, tgrid2, v1, v2):
         """Return True if specified vertex of tgrid1 is higher than specified vertex of tgrid2"""
+        if v1 == None or v2 == None:
+            return False
         if tgrid1[v1] + tgrid1.height > tgrid2[v2] + tgrid2.height:
             return True
         else:
             return False
     def compare_vertex_lower(self, tgrid1, tgrid2, v1, v2):
         """Return True if specified vertex of tgrid1 is lower than specified vertex of tgrid2"""
+        if v1 == None or v2 == None:
+            return False
         if tgrid1[v1] + tgrid1.height < tgrid2[v2] + tgrid2.height:
             return True
         else:
             return False
 
-    def compare_vertex(self, tgrid1, tgrid2, v1, v2):
-        """Return True if v1 of tgrid1 is same as v2 of tgrid2, else False"""
-        if tgrid1[v1] + tgrid1.height == tgrid2[v2] + tgrid2.height:
-            return True
-        else:
-            return False
+##    def compare_vertex(self, tgrid1, tgrid2, v1, v2):
+##        """Return True if v1 of tgrid1 is same as v2 of tgrid2, else False"""
+##        if tgrid1[v1] + tgrid1.height == tgrid2[v2] + tgrid2.height:
+##            return True
+##        else:
+##            return False
 
 
     def modify_tile(self, t, subtile, amount):
