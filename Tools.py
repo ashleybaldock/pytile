@@ -295,7 +295,6 @@ class Test(Tool):
         return []
     def get_aoe(self):
         """Return the current area of effect for this tool"""
-        print "AoE = %s" % self.aoe
         return self.aoe
     def clear_aoe(self):
         """Clear the area of effect (e.g. after drawing the changes)"""
@@ -466,10 +465,8 @@ class Test(Tool):
         while to_check:
             # Checking should be empty from the end of the last loop
             checking = to_check
-            print "checking: %s" % checking
             # To check should be emptied at this point ready to add values this look
             to_check = {}
-            print "checking.keys(): %s" % checking.keys()
             for key in checking.keys():
                 # Find all neighbours which haven't already been added to to_check and which aren't already
                 # Needs to be changed so that it checks if this tile has already been checked (will be speedier)
@@ -514,7 +511,6 @@ class Test(Tool):
 
             # Add the last iteration's checked values to the checked stack
             checked.update(checking)
-            print "checked: %s" % checked
             # Clear the checking stack
             checking = {}
 
