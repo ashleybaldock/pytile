@@ -446,7 +446,8 @@ class DisplayMain(object):
             if self.lmb_tool.has_aoe_changed():
                 # Update the screen to reflect changes made by tools
                 self.update_world(self.lmb_tool.get_aoe())
-##            self.lmb_tool.clear_aoe()
+                self.lmb_tool.set_aoe_changed(False)
+##                self.lmb_tool.clear_aoe()
 
             if self.rmb_tool.active():
                 # Repaint the entire screen for now until something better is implemented

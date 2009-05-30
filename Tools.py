@@ -296,14 +296,10 @@ class Test(Tool):
         return self.aoe
     def has_aoe_changed(self):
         """Return True if the area of effect of this tool has changed since the last call to this function"""
-        if self.aoe_changed:
-            self.aoe_changed = False
-            return True
-        else:
-            return False
-    def set_aoe_changed(self):
-        """When aoe changes, call this to tell tha main program that the area of effect on the screen must be updated"""
-        self.aoe_changed = True
+        return self.aoe_changed
+    def set_aoe_changed(self, v):
+        """When aoe changes, call this to tell the main program that the area of effect on the screen must be updated"""
+        self.aoe_changed = v
     def clear_aoe(self):
         """Clear the area of effect, changes will only be drawn if has_aoe_changed returns True"""
         self.aoe = []
@@ -328,14 +324,14 @@ class Test(Tool):
     def set_highlight_changed(self, v):
         """When highlight changes (e.g. mouse cursor moves) set this to have the appropriate bit of the screen refreshed"""
         self.highlight_changed = v
-    def find_highlight(self, x, y):
+    def find_highlight(self, x, y, subtile):
         """Find the primary area of effect of the tool, based on tool dimensions
         Return a list of tiles to modify in [(x,y), modifier] form
         Used to specify region which will be highlighted"""
         tiles = []
         for xx in range(Test.xdims):
             for yy in range(Test.ydims):
-                tiles.append([(x + xx, y + yy), 9])
+                tiles.append([(x + xx, y + yy), subtile])
         return tiles
 
 
@@ -359,14 +355,13 @@ class Test(Tool):
         """Tool updated, current cursor position is newpos"""
         # If start is None, then there's no dragging operation ongoing, just update the position of the highlight
         self.current = current
-        print self.start
         if self.start == None:
             tile = self.collide_locate(self.current, collisionlist)
             if tile and not tile.exclude:
                 subtile = self.subtile_position(self.current, tile)
                 # Only update the highlight if the cursor has changed enough to require it
                 if tile != self.tile or subtile != self.subtile:
-                    self.set_highlight(self.find_highlight(tile.xWorld, tile.yWorld))
+                    self.set_highlight(self.find_highlight(tile.xWorld, tile.yWorld, subtile))
                     self.set_highlight_changed(True)
                 else:
                     self.set_highlight_changed(False)
@@ -403,8 +398,7 @@ class Test(Tool):
                     self.modify_tiles(self.tiles, 9, invdiff)
                 else:
                     self.modify_tile(self.tiles[0], self.subtile, invdiff)
-
-            return self.tiles
+                self.set_aoe_changed(True)
 
 
     def modify_tiles(self, tiles, subtile, amount):
@@ -460,7 +454,7 @@ class Test(Tool):
             tgrid.raise_face()
         elif lower_tile:
             tgrid.lower_face()
-        self.aoe.append((x,y))
+        self.aoe = [(x,y)]
         World.set_height(tgrid, (x,y))
         # Init the stack
         to_check = {}
