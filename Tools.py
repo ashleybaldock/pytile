@@ -214,6 +214,7 @@ class Test(Tool):
     ydims = 1
     start = None
     aoe = []
+    smooth = False
     def __init__(self):
         """First time the Test tool is used"""
         # Call init method of parent
@@ -238,14 +239,17 @@ class Test(Tool):
             Test.xdims -= 1
             if Test.xdims < 1:
                 Test.xdims = 1
-        if keyname == "o":
+        elif keyname == "o":
             Test.ydims += 1
         elif keyname == "p":
             Test.ydims -= 1
             if Test.ydims < 1:
                 Test.ydims = 1
-        self.set_highlight(self.find_highlight(self.tile.xWorld, self.tile.yWorld, self.subtile))
-        self.set_highlight_changed(True)
+        elif keyname == "s":
+            Test.smooth = not(Test.smooth)
+        if keyname in ["o","p","[","]"]:
+            self.set_highlight(self.find_highlight(self.tile.xWorld, self.tile.yWorld, self.subtile))
+            self.set_highlight_changed(True)
         print pygame.key.name(key)
         return True
     def active(self):
@@ -293,9 +297,12 @@ class Test(Tool):
         Return a list of tiles to modify in [(x,y), modifier] form
         Used to specify region which will be highlighted"""
         tiles = []
-        for xx in range(Test.xdims):
-            for yy in range(Test.ydims):
-                tiles.append([(x + xx, y + yy), subtile])
+        if Test.xdims > 1 or Test.ydims > 1:
+            for xx in range(Test.xdims):
+                for yy in range(Test.ydims):
+                    tiles.append([(x + xx, y + yy), 9])
+        else:
+            tiles = [[(x, y), subtile]]
         return tiles
 
 
@@ -359,9 +366,9 @@ class Test(Tool):
 
             if diff != 0:
                 if len(self.tiles) > 1:
-                    self.modify_tiles(self.tiles, invdiff, soft=True)
+                    self.modify_tiles(self.tiles, invdiff, soft=Test.smooth)
                 else:
-                    self.modify_tile(self.tiles[0], self.subtile, invdiff, soft=True)
+                    self.modify_tile(self.tiles[0], self.subtile, invdiff, soft=Test.smooth)
                 # Set this so that the changed portion of the map is updated on screen
                 self.set_aoe_changed(True)
                 # Must also re-draw the highlight if we're changing the map
