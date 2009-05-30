@@ -359,14 +359,17 @@ class Test(Tool):
 
             if diff != 0:
                 if len(self.tiles) > 1:
-                    self.modify_tiles(self.tiles, 9, invdiff)
+                    self.modify_tiles(self.tiles, invdiff, soft=True)
                 else:
                     self.modify_tile(self.tiles[0], self.subtile, invdiff)
+                # Set this so that the changed portion of the map is updated on screen
                 self.set_aoe_changed(True)
+                # Must also re-draw the highlight if we're changing the map
                 self.set_highlight_changed(True)
 
-    def modify_tiles(self, tiles, subtile, amount):
+    def modify_tiles(self, tiles, amount, soft=False):
         """Raise or lower a region of tiles"""
+        self.aoe = []
         # This will always be a whole tile raise/lower
         vertices = []
         # Lowering terrain, find maximum value to start from
@@ -375,6 +378,7 @@ class Test(Tool):
                 x = t[0]
                 y = t[1]
                 vertices.append([World.array[x][y][0] + max(World.array[x][y][1]), (x, y)])
+                self.aoe.append((x,y))
             step = -1
             for i in range(0, amount, step):
                 maxval = max(vertices, key=lambda x: x[0])[0]
@@ -385,12 +389,16 @@ class Test(Tool):
                             tgrid = World.get_height(p[1])
                             tgrid.lower_face()
                             World.set_height(tgrid, p[1])
+            if soft:
+                # Soften around the modified tiles
+                self.soften(self.aoe, soften_down=True)
         # Raising terrain, find minimum value to start from
         else:
             for t in tiles:
                 x = t[0]
                 y = t[1]
                 vertices.append([World.array[x][y][0], (x, y)])
+                self.aoe.append((x,y))
             step = 1
             for i in range(0, amount, step):
                 minval = min(vertices, key=lambda x: x[0])[0]
@@ -400,6 +408,9 @@ class Test(Tool):
                         tgrid = World.get_height(p[1])
                         tgrid.raise_face()
                         World.set_height(tgrid, p[1])
+            if soft:
+                # Soften around the modified tiles
+                self.soften(self.aoe, soften_up=True)
 
     def soft_raise_tile(self, t):
         """Raise a whole tile keeping neighouring tiles at the same level"""
@@ -408,24 +419,17 @@ class Test(Tool):
         """Raise a whole tile keeping neighouring tiles at the same level"""
         self.modify_tile_with_neighbours(t, lower_tile=True)
 
-    def modify_tile_with_neighbours(self, t, raise_tile=False, lower_tile=False):
-        """Prototype of tile raising with smoothing to maintain terrain flow"""
-        x = t[0]
-        y = t[1]
-        tgrid = World.get_height(x, y)
-        # Raise/lower the main tile we're concerned with
-        if raise_tile:
-            tgrid.raise_face()
-        elif lower_tile:
-            tgrid.lower_face()
-        self.aoe = [(x,y)]
-        World.set_height(tgrid, (x,y))
-        # Init the stack
+    def soften(self, tiles, soften_up=False, soften_down=False):
+        """Soften the tiles around a given set of tiles, raising them to make a smooth slope
+        Can be set to either raise tiles to the same height or lower them"""
+        # Init stacks
         to_check = {}
         checking = {}
         checked = {}
-        # Add initial tiles to the stack
-        to_check[(t[0],t[1])] = tgrid
+        # Add all initial tiles to first stack
+        for t in tiles:
+            print t
+            to_check[t] = World.get_height(t)
 
         # Find any neighbours of this tile which have the same vertex height before we raise it
         # Need to compare 4 corners and 4 edges
@@ -470,7 +474,7 @@ class Test(Tool):
                         potential = World.get_height(x, y)
                     m = 0
                     # If there is a tile to compare to (bounds check) and the comparison tile is lower
-                    if potential and raise_tile:
+                    if potential and soften_up:
                         # Raise vertex to same height as the tile we're comparing against
                         # Do this twice for edges, only once for corners
                         while self.compare_vertex_higher(checking[key], potential, c_a[k][0], c_b[k][0]):
@@ -479,7 +483,7 @@ class Test(Tool):
                         while self.compare_vertex_higher(checking[key], potential, c_a[k][1], c_b[k][1]):
                             potential.raise_vertex(c_b[k][1])
                             m = 1
-                    elif potential and lower_tile:
+                    elif potential and soften_down:
                         # Lower vertex to same height as the tile we're comparing against
                         while self.compare_vertex_lower(checking[key], potential, c_a[k][0], c_b[k][0]):
                             potential.lower_vertex(c_b[k][0])
@@ -502,6 +506,8 @@ class Test(Tool):
         # Finally modify the world to reflect changes made by this tool
         for k in checked.keys():
             World.set_height(checked[k], k)
+
+
 
     def compare_vertex_higher(self, tgrid1, tgrid2, v1, v2):
         """Return True if specified vertex of tgrid1 is higher than specified vertex of tgrid2"""
