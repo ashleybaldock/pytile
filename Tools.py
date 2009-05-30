@@ -60,7 +60,6 @@ class MouseSprite(pygame.sprite.Sprite):
 
 class Tool(object):
     """Methods which all tools can access"""
-
     def __init__(self):
         """"""
         self.mouseSprite = False
@@ -176,6 +175,7 @@ class Move(Tool):
     """Screen movement tool"""
     def __init__(self):
         """First time the Move tool is used"""
+        super(Move, self).__init__()
         self.start = None
     def active(self):
         """Return true if tool currently being used and screen needs updating"""
@@ -363,7 +363,7 @@ class Test(Tool):
                 else:
                     self.modify_tile(self.tiles[0], self.subtile, invdiff)
                 self.set_aoe_changed(True)
-
+                self.set_highlight_changed(True)
 
     def modify_tiles(self, tiles, subtile, amount):
         """Raise or lower a region of tiles"""
@@ -457,11 +457,14 @@ class Test(Tool):
                     y = key[1] + c_y[k]
                     # Check if the potential tile has been checked before, if so use the existing object
                     if checked.has_key((x,y)):
-                        potential = checked[(x,y)]
+##                        potential = checked[(x,y)]
+                        potential = None
                     elif checking.has_key((x,y)):
-                        potential = checking[(x,y)]
+##                        potential = checking[(x,y)]
+                        potential = None
                     elif to_check.has_key((x,y)):
                         potential = to_check[(x,y)]
+##                        potential = None
                     # Otherwise create a new tile object for that tile
                     else:
                         potential = World.get_height(x, y)
@@ -484,8 +487,8 @@ class Test(Tool):
                         while self.compare_vertex_lower(checking[key], potential, c_a[k][1], c_b[k][1]):
                             potential.lower_vertex(c_b[k][1])
                             m = 1
-##                    elif potential:
-##                        checked[(x, y)] = potential
+                    elif potential:
+                        checked[(x, y)] = potential
                     # Since we've modified this vertex, add it to the list to be checked next time around
                     if m == 1:
                         to_check[(x, y)] = potential
