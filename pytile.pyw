@@ -440,10 +440,12 @@ class DisplayMain(object):
             if self.lmb_tool.has_highlight_changed():
                 # Remove the old highlight from the screen
                 for t in self.lmb_tool.get_last_highlight():
-                    self.dirty.append(self.orderedSpritesDict[t[0]][0].change_highlight(0))
+                    if self.orderedSpritesDict.has_key(t[0]):
+                        self.dirty.append(self.orderedSpritesDict[t[0]][0].change_highlight(0))
                 # Add the new highlight
                 for t in self.lmb_tool.get_highlight():
-                    self.dirty.append(self.orderedSpritesDict[t[0]][0].change_highlight(t[1]))
+                    if self.orderedSpritesDict.has_key(t[0]):
+                        self.dirty.append(self.orderedSpritesDict[t[0]][0].change_highlight(t[1]))
 
 
             # Write some useful info on the top bar

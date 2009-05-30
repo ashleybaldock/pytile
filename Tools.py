@@ -384,8 +384,10 @@ class Test(Tool):
             for t in tiles:
                 x = t[0]
                 y = t[1]
-                vertices.append([World.array[x][y][0] + max(World.array[x][y][1]), (x, y)])
-                self.aoe.append((x,y))
+                tgrid = World.get_height(x,y)
+                if tgrid:
+                    vertices.append([tgrid.height + max(tgrid.array), (x, y)])
+                    self.aoe.append((x,y))
             step = -1
             for i in range(0, amount, step):
                 maxval = max(vertices, key=lambda x: x[0])[0]
@@ -404,8 +406,10 @@ class Test(Tool):
             for t in tiles:
                 x = t[0]
                 y = t[1]
-                vertices.append([World.array[x][y][0], (x, y)])
-                self.aoe.append((x,y))
+                tgrid = World.get_height(x,y)
+                if tgrid:
+                    vertices.append([tgrid.height, (x, y)])
+                    self.aoe.append((x,y))
             step = 1
             for i in range(0, amount, step):
                 minval = min(vertices, key=lambda x: x[0])[0]
