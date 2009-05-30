@@ -406,9 +406,6 @@ class DisplayMain(object):
 
             # Clear the stack of dirty tiles
             self.dirty = []
-            # Clear all the old highlighted tiles
-            for t in self.lmb_tool.get_highlight():
-                self.dirty.append(self.orderedSpritesDict[t[0]][0].change_highlight(0))
 
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
@@ -446,10 +443,10 @@ class DisplayMain(object):
 ##                        pass
 
 
-            if self.lmb_tool.active():
+            if self.lmb_tool.has_aoe_changed():
                 # Update the screen to reflect changes made by tools
                 self.update_world(self.lmb_tool.get_aoe())
-            self.lmb_tool.clear_aoe()
+##            self.lmb_tool.clear_aoe()
 
             if self.rmb_tool.active():
                 # Repaint the entire screen for now until something better is implemented
@@ -457,8 +454,13 @@ class DisplayMain(object):
                 self.refresh_screen = 1
 
             # Add all highlighted tiles to the dirty sprites list to redraw them
-            for t in self.lmb_tool.get_highlight():
-                self.dirty.append(self.orderedSpritesDict[t[0]][0].change_highlight(t[1]))
+            if self.lmb_tool.has_highlight_changed():
+                # Remove the old highlight from the screen
+                for t in self.lmb_tool.get_last_highlight():
+                    self.dirty.append(self.orderedSpritesDict[t[0]][0].change_highlight(0))
+                # Add the new highlight
+                for t in self.lmb_tool.get_highlight():
+                    self.dirty.append(self.orderedSpritesDict[t[0]][0].change_highlight(t[1]))
 
 
             # Write some useful info on the top bar
@@ -502,7 +504,7 @@ class DisplayMain(object):
             checked_nearby.append(t[0])
         tiles2 = []
         for t in tiles:
-            x, y = t[0]
+            x, y = t
             # Also need to look up tiles at (x-1,y) and (x,y-1) and have them re-evaluate their cliffs too
             # This needs to check that a) that tile hasn't already been re-evaluated and that
             # b) that tile isn't one of the ones which we're checking, i.e. not in tiles
@@ -515,7 +517,7 @@ class DisplayMain(object):
                 tiles2.append([(x,y-1), 2])
         tiles = tiles2
         for t in tiles:
-            x, y = t[0]
+            x, y = t
             # Look the tile up in the group using the position, this will give us the tile and all its cliffs
             if self.orderedSpritesDict.has_key((x, y)):
                 tileset = self.orderedSpritesDict[(x, y)]

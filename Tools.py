@@ -256,8 +256,17 @@ class Test(Tool):
         """First time the Test tool is used"""
         # Call init method of parent
         super(Test, self).__init__()
+        # The tile found through collision detection
         self.tile = None
+        # The subtile of that tile
+        self.subtile = None
+        # tiles - all the tiles in the primary area of effect (ones which are modified first)
         self.tiles = []
+        # Whether to redraw areas of the screen for aoe/highlight
+        self.aoe_changed = False
+        self.highlight_changed = False
+        self.highlight = []
+        self.aoe = []
     def process_key(self, key):
         """Process a keystroke during a drag operation"""
         keyname = pygame.key.name(key)
@@ -282,79 +291,101 @@ class Test(Tool):
             return True
         else:
             return False
+    def get_aoe(self):
+        """Return the current area of effect for this tool"""
+        return self.aoe
+    def has_aoe_changed(self):
+        """Return True if the area of effect of this tool has changed since the last call to this function"""
+        if self.aoe_changed:
+            self.aoe_changed = False
+            return True
+        else:
+            return False
+    def set_aoe_changed(self):
+        """When aoe changes, call this to tell tha main program that the area of effect on the screen must be updated"""
+        self.aoe_changed = True
+    def clear_aoe(self):
+        """Clear the area of effect, changes will only be drawn if has_aoe_changed returns True"""
+        self.aoe = []
+        return True
+
+    # Highlight related access functions
+    # External
+    def get_highlight(self):
+        """Return the current highlight area for this tool"""
+        return self.highlight
+    def get_last_highlight(self):
+        """Return the previous highlight"""
+        return self.last_highlight
+    def has_highlight_changed(self):
+        """Return True if the area of effect of this tool has changed since last call to update()"""
+        return self.highlight_changed
+    # Internal
+    def set_highlight(self, value):
+        """Set the current highlight for this tool"""
+        self.last_highlight = self.highlight
+        self.highlight = value
+    def set_highlight_changed(self, v):
+        """When highlight changes (e.g. mouse cursor moves) set this to have the appropriate bit of the screen refreshed"""
+        self.highlight_changed = v
+    def find_highlight(self, x, y):
+        """Find the primary area of effect of the tool, based on tool dimensions
+        Return a list of tiles to modify in [(x,y), modifier] form
+        Used to specify region which will be highlighted"""
+        tiles = []
+        for xx in range(Test.xdims):
+            for yy in range(Test.ydims):
+                tiles.append([(x + xx, y + yy), 9])
+        return tiles
+
+
+    def find_rect_aoe(self, x, y):
+        """Return a list of tiles for the primary area of effect of the tool based on a box pattern"""
+        tiles = []
+        for xx in range(Test.xdims):
+            for yy in range(Test.ydims):
+                tiles.append((x + xx, y + yy))
+        return tiles
+
     def begin(self, start):
         """Reset the start position for a new operation"""
         self.start = start
-        return []
     def end(self, final):
         """End of application of tool"""
         self.current = final
         self.tiles = []
         self.start = None
-        # This should return a list of tiles to highlight
-        return []
-    def get_aoe(self):
-        """Return the current area of effect for this tool"""
-        return self.aoe
-    def clear_aoe(self):
-        """Clear the area of effect (e.g. after drawing the changes)"""
-        self.aoe = []
-        return True
-    def get_highlight(self):
-        """Return the current highlight area for this tool"""
-        return self.tiles
-    def find_aoe(self, x, y, subtile):
-        """Find the total area of effect of the tool, based on tool dimensions
-        Return a list of tiles to modify in [(x,y), subtile] form"""
-        tiles = []
-        for xx in range(Test.xdims):
-            for yy in range(Test.ydims):
-                # If this is a multi-tile operation we don't care about the subtile
-                # Could be modified to draw a box around the tile area
-                # Would be even better if this was intelligent, and drew a line around any demarked area of the selection, e.g. where there are cliffs
-                # This function can then be put into the base Tool class to be used by any tool that requires it, can do highlighting based on lots
-                #  of different options...
-                if x > 1 or y > 1:
-                    tiles.append([(x + xx, y + yy), 9])
-                else:
-                    tiles.append([(x + xx, y + yy), subtile])
-        return tiles
-    def find_highlight(self, x, y, subtile):
-        """Find the primary area of effect of the tool, based on tool dimensions
-        Return a list of tiles to modify in [(x,y), subtile] form
-        Used to specify region which will be highlighted"""
-        tiles = []
-        for xx in range(Test.xdims):
-            for yy in range(Test.ydims):
-                tiles.append([(x + xx, y + yy), subtile])
-        return tiles
     def update(self, current, collisionlist):
         """Tool updated, current cursor position is newpos"""
-        # If start is None, then there's no dragging operation ongoing
+        # If start is None, then there's no dragging operation ongoing, just update the position of the highlight
         self.current = current
+        print self.start
         if self.start == None:
-            self.tile = self.collide_locate(self.current, collisionlist)
-            if self.tile and not self.tile.exclude:
-                self.subtile = self.subtile_position(self.current, self.tile)
-                self.tiles = self.find_aoe(self.tile.xWorld, self.tile.yWorld, self.subtile)
-                return self.tiles
-            else:
-                return []
+            tile = self.collide_locate(self.current, collisionlist)
+            if tile and not tile.exclude:
+                subtile = self.subtile_position(self.current, tile)
+                # Only update the highlight if the cursor has changed enough to require it
+                if tile != self.tile or subtile != self.subtile:
+                    self.set_highlight(self.find_highlight(tile.xWorld, tile.yWorld))
+                    self.set_highlight_changed(True)
+                else:
+                    self.set_highlight_changed(False)
+                self.tile = tile
+                self.subtile = subtile
+                
         # Otherwise a drag operation is on-going, do usual tool behaviour
         else:
-            addback = 0
-            # This should return a list of tiles to highlight
-            # First time update is called store the tile we're interacting with by doing a collision detection search,
-            # also store subtile so we know which corner we're modifying
+##            addback = 0
+            # If we don't already have a list of tiles to use as the primary area of effect
             if not self.tiles:
-                self.tile = self.collide_locate(self.current, collisionlist)
-                if self.tile and not self.tile.exclude:
-                    self.subtile = self.subtile_position(self.current, self.tile)
-                    self.tiles = self.find_aoe(self.tile.xWorld, self.tile.yWorld, self.subtile)
-                    # Tiles now contains a list of all tiles to modify
-                else:
-                    return []
-            
+                tile = self.collide_locate(self.current, collisionlist)
+                if tile and not tile.exclude:
+                    subtile = self.subtile_position(self.current, tile)
+                    self.tiles = self.find_rect_aoe(tile.xWorld, tile.yWorld)
+                    # Tiles now contains the primary area of effect for this operation
+                    self.tile = tile
+                    self.subtile = subtile
+
 
             diff = (self.current[1] - self.start[1]) / ph
             diffrem = (self.current[1] - self.start[1]) % ph
@@ -371,7 +402,7 @@ class Test(Tool):
                 if len(self.tiles) > 1:
                     self.modify_tiles(self.tiles, 9, invdiff)
                 else:
-                    self.modify_tile(self.tiles[0][0], self.subtile, invdiff)
+                    self.modify_tile(self.tiles[0], self.subtile, invdiff)
 
             return self.tiles
 
@@ -383,8 +414,8 @@ class Test(Tool):
         # Lowering terrain, find maximum value to start from
         if amount < 0:
             for t in tiles:
-                x = t[0][0]
-                y = t[0][1]
+                x = t[0]
+                y = t[1]
                 vertices.append([World.array[x][y][0] + max(World.array[x][y][1]), (x, y)])
             step = -1
             for i in range(0, amount, step):
@@ -399,8 +430,8 @@ class Test(Tool):
         # Raising terrain, find minimum value to start from
         else:
             for t in tiles:
-                x = t[0][0]
-                y = t[0][1]
+                x = t[0]
+                y = t[1]
                 vertices.append([World.array[x][y][0], (x, y)])
             step = 1
             for i in range(0, amount, step):
@@ -429,7 +460,7 @@ class Test(Tool):
             tgrid.raise_face()
         elif lower_tile:
             tgrid.lower_face()
-        self.aoe.append([(x,y), 9])
+        self.aoe.append((x,y))
         World.set_height(tgrid, (x,y))
         # Init the stack
         to_check = {}
@@ -507,7 +538,7 @@ class Test(Tool):
                     # Since we've modified this vertex, add it to the list to be checked next time around
                     if m == 1:
                         to_check[(x, y)] = potential
-                        self.aoe.append([(x,y), 9])
+                        self.aoe.append((x,y))
 
             # Add the last iteration's checked values to the checked stack
             checked.update(checking)
@@ -563,13 +594,13 @@ class Test(Tool):
                     tgrid = World.get_height(x,y)
                     tgrid.raise_edge(st1, st2)
                     World.set_height(tgrid, (x,y))
-                    self.aoe = [[(x,y), 9]]
+                    self.aoe = [(x,y)]
                 # Vertex raise
                 elif subtile in [1,2,3,4]:
                     tgrid = World.get_height(x,y)
                     tgrid.raise_vertex(subtile - 1)
                     World.set_height(tgrid, (x,y))
-                    self.aoe = [[(x,y), 9]]
+                    self.aoe = [(x,y)]
         else:
             step = -1
             for i in range(0, amount, step):
@@ -586,11 +617,11 @@ class Test(Tool):
                     tgrid = World.get_height(x,y)
                     tgrid.lower_edge(st1, st2)
                     World.set_height(tgrid, (x,y))
-                    self.aoe = [[(x,y), 9]]
+                    self.aoe = [(x,y)]
                 # Vertex lower
                 elif subtile in [1,2,3,4]:
                     tgrid = World.get_height(x,y)
                     tgrid.lower_vertex(subtile - 1)
                     World.set_height(tgrid, (x,y))
-                    self.aoe = [[(x,y), 9]]
+                    self.aoe = [(x,y)]
 
