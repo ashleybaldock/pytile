@@ -57,24 +57,6 @@ FPS_REFRESH = 500
 WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 600
 
-class MouseSprite(pygame.sprite.Sprite):
-    """Small invisible sprite to use for mouse/sprite collision testing"""
-    # This sprite never gets drawn, so no need to worry about what it looks like
-    image = None
-    mask = None
-    def __init__(self, (mouseX, mouseY)):
-        pygame.sprite.Sprite.__init__(self)
-        if MouseSprite.image is None:
-            MouseSprite.image = pygame.Surface((1,1))
-        if MouseSprite.mask is None:
-            s = pygame.Surface((1,1))
-            s.fill((1,1,1))
-            MouseSprite.mask = pygame.mask.from_surface(s, 0)
-        self.mask = MouseSprite.mask
-        self.image = MouseSprite.image
-        self.rect = pygame.Rect(mouseX, mouseY, 1,1)
-    def update(self, (x, y)):
-        self.rect = pygame.Rect(x, y, 1,1)
 
 class HighlightSprite(pygame.sprite.Sprite):
     """Sprites for displaying ground selection highlight"""

@@ -38,38 +38,6 @@ p16 = p / 16
 #tile height difference
 ph = 8
 
-
-
-class tGrid:
-    """Short array which can wrap-around"""
-    def __init__(self, value):
-        self.array = value
-        self.length = len(self.array)
-    def __len__(self):
-        return self.length
-    def __call__(self, array):
-        self.array = array
-    def __getitem__(self, key):
-        while key < 0:
-            key += self.length
-        while key > self.length - 1:
-            key -= self.length
-        return self.array[key]
-    def __setitem__(self, key, value):
-        while key < 0:
-            key += self.length
-        while key > self.length - 1:
-            key -= self.length
-        self.array[key] = value
-        return
-    def __contains__(self, item):
-        if item in self.array:
-            return True
-        else:
-            return False
-    def __str__(self):
-        return str(self.array)
-
 class MouseSprite(pygame.sprite.Sprite):
     """Small invisible sprite to use for mouse/sprite collision testing"""
     # This sprite never gets drawn, so no need to worry about what it looks like
@@ -204,12 +172,6 @@ class Tool(object):
 ##
 ##
 
-class ToolSettings(object):
-    """Global settings for tools, e.g. size of area of effect"""
-    xdims = 1
-    ydims = 1
-
-
 class Move(Tool):
     """Screen movement tool"""
     def __init__(self):
@@ -282,6 +244,8 @@ class Test(Tool):
             Test.ydims -= 1
             if Test.ydims < 1:
                 Test.ydims = 1
+        self.set_highlight(self.find_highlight(self.tile.xWorld, self.tile.yWorld, self.subtile))
+        self.set_highlight_changed(True)
         print pygame.key.name(key)
         return True
     def active(self):
@@ -475,13 +439,6 @@ class Test(Tool):
         # x+1,y -> 0:3,1:2
         # x,y+1 -> 1:0,2:3
         # x-1,y -> 2:1,3:0
-##        c_x = [x+1, x+1, x-1, x-1, x,   x,   x+1, x+1, x,   x,   x-1, x-1]
-##        c_y = [y-1, y+1, y+1, y-1, y-1, y-1, y,   y,   y+1, y+1, y,   y  ]
-        c_x = [ 1,  1, -1, -1,  0,  0,  1,  1,  0,  0, -1, -1]
-        c_y = [-1,  1,  1, -1, -1, -1,  0,  0,  1,  1,  0,  0]
-        c_a = [ 0,  1,  2,  3,  3,  0,  0,  1,  1,  2,  2,  3]
-        c_b = [ 2,  3,  0,  1,  2,  1,  3,  2,  0,  3,  1,  0]
-
         c_x = [ 1,       1,        -1,       -1,        0,    1,     0,     -1   ]
         c_y = [-1,       1,         1,       -1,       -1,    0,     1,      0   ]
         c_a = [(0,None), (1,None), (2,None), (3,None), (3,0), (0,1), (1,2), (2,3)]
@@ -559,14 +516,6 @@ class Test(Tool):
             return True
         else:
             return False
-
-##    def compare_vertex(self, tgrid1, tgrid2, v1, v2):
-##        """Return True if v1 of tgrid1 is same as v2 of tgrid2, else False"""
-##        if tgrid1[v1] + tgrid1.height == tgrid2[v2] + tgrid2.height:
-##            return True
-##        else:
-##            return False
-
 
     def modify_tile(self, t, subtile, amount):
         """Raise (or lower) a tile based on the subtile"""
