@@ -1,11 +1,3 @@
-"""
-bezier.py - Calculates a bezier curve from control points. 
- 
-Depends on the 2d vector class found here: http://www.pygame.org/wiki/2DVectorClass
- 
-2007 Victor Blomqvist
-Released to the Public Domain
-"""
 import pygame
 from pygame.locals import *
  
@@ -69,81 +61,27 @@ def get_point_at_width(a, b, width):
     d = b + a_to_b.perpendicular_normal() * width
     return d
 
-def get_points_at_width((a1, b1, b2, a2), width):
-    a1_to_b1 = b1 - a1
-    a2_to_b2 = b2 - a2
-    ab1_pn = a1_to_b1.perpendicular_normal()
-    ab2_pn = a2_to_b2.perpendicular_normal()
-    c1 = a1 + ab1_pn * width
-    c2 = a2 + ab2_pn * -width
-    d1 = b1 + ab1_pn * width + a1_to_b1.normalized() * width
-    d2 = b2 + ab2_pn * -width + a2_to_b2.normalized() * -width
-    return [c1, d1, d2, c2]
-
 def draw_curve(points, colour, screen):
     b_points = calculate_bezier(points)
     pygame.draw.lines(screen, colour, False, b_points)
 
-def main():
-    pygame.init()
-    screen = pygame.display.set_mode((600, 500))
- 
-    ### Control points that are later used to calculate the curve
-    control_points = [vec2d(100,50), vec2d(150,450), vec2d(500,100), vec2d(450, 450)]
- 
-    ### The currently selected point
-    selected = None
-    
-    clock = pygame.time.Clock()
-    pts = None
-    running = True
-    while running:
-        for event in pygame.event.get():
-            if event.type in (QUIT, KEYDOWN):
-                running = False
-            elif event.type == MOUSEBUTTONDOWN and event.button == 1:
-                for p in control_points:
-                    if abs(p.x - event.pos[X]) < 10 and abs(p.y - event.pos[Y]) < 10 :
-                        selected = p
-            elif event.type == MOUSEBUTTONDOWN and event.button == 3:
-                x,y = pygame.mouse.get_pos()
-                control_points.append(vec2d(x,y))
-            elif event.type == MOUSEBUTTONUP and event.button == 1:
-                selected = None
-        
-        ### Draw stuff
-        screen.fill(darkgreen)
-                
-        if selected is not None:
-            selected.x, selected.y = pygame.mouse.get_pos()
-            pygame.draw.circle(screen, green, selected, 10)
-        
-        ### Draw control points
-        for p in control_points:
-            pygame.draw.circle(screen, blue, p, 4)
-        ### Draw control "lines"
-        pygame.draw.lines(screen, lightgray, False, [control_points[0],control_points[1]])
-        pygame.draw.lines(screen, lightgray, False, [control_points[2],control_points[3]])
-        # Use control points to generate series of curves to draw
-        # Need to transform the vectors of the control points
-        # Add 0+1 and 2+3
-        width = 15
+def find_midpoint(a, b):
+    """"""
+    a_to_b = b - a
+    return a + a_to_b / 2.0
 
-        # And now the better method (more accurate)
-        cps, tangents = calculate_bezier(control_points, 30)
-        pygame.draw.lines(screen, red, False, cps)
-
-
-        # Find total distance of all line segments being dealt with
-        # Divide this by the sleeper density
-        # Then draw sleepers at positions along the center line, at right angles to its current
-        # tangent gradient, at regular spacings
-        # Have to lookup the
-        sleeper_spacing = 15
-        sleeper_width = 5
-        sleeper_length = 25
+def draw_track(screen, control_points, component):
+    # Calculate bezier curve points and tangents
+    cps, tangents = calculate_bezier(control_points, 30)
+    # Setup constants
+    sleeper_spacing = 15
+    sleeper_width = 5
+    sleeper_length = 18
+    rail_spacing = 10
+    rail_width = 2
+    overflow = 0
+    if component == "sleepers":
         sleeper_points = []
-        overflow = 0
         for p in range(1, len(cps)):
             # Find gradient of a->b
             b = cps[p]
@@ -170,14 +108,139 @@ def main():
         for p in sleeper_points:
             pygame.draw.polygon(screen, brown, p, 0)
 
+    if component == "track":
         points2 = []
         for p in range(0, len(cps)):
-            points2.append(get_at_width(cps[p], tangents[p], width))
-        pygame.draw.lines(screen, silver, False, points2, 3)
+            points2.append(get_at_width(cps[p], tangents[p], rail_spacing))
+        pygame.draw.lines(screen, silver, False, points2, rail_width)
         points3 = []
         for p in range(0, len(cps)):
-            points3.append(get_at_width(cps[p], tangents[p], -width))
-        pygame.draw.lines(screen, silver, False, points3, 3)
+            points3.append(get_at_width(cps[p], tangents[p], -rail_spacing))
+        pygame.draw.lines(screen, silver, False, points3, rail_width)
+
+    if component == "controls":
+        # Draw bezier curve control points
+        for p in control_points:
+            pygame.draw.circle(screen, blue, p, 4)
+        pygame.draw.lines(screen, lightgray, False, [control_points[0],control_points[1]])
+        pygame.draw.lines(screen, lightgray, False, [control_points[2],control_points[3]])
+        # Draw the base bezier curve
+        pygame.draw.lines(screen, red, False, cps)
+
+def main():
+    pygame.init()
+    screen = pygame.display.set_mode((600, 500))
+
+    box = [vec2d(300,300), vec2d(100,300), vec2d(100,100), vec2d(300,100)]
+##    box = [vec2d(300,200), vec2d(100,200), vec2d(100,100), vec2d(300,100)]
+    # endpoints addressed by box endpoints, in range 0-23
+    # top, top-right, right, bottom-right, bottom, bottom-left, left, top-left
+    # Endpoints calculated automatically later
+    # Endpoints calculated from the_box
+    # top, right, bottom, left are the midpoints of the box's sides
+    # others are midpoint of the lines between the box's midpoints
+    # Get all the box midpoints
+    track_spacing = 25
+    box_midpoints = []
+    box_allmidpoints = []
+    for p in range(len(box)):
+        box_midpoints.append(find_midpoint(box[p-1], box[p]))
+##        box_allmidpoints.append([find_midpoint(box[p-1], box[p]), (box[p] - box[p-1]).normalized()])
+    for p in range(len(box_midpoints)):
+        box_allmidpoints.append([box_midpoints[p-1], (box[p-1] - box[p-2]).normalized()])
+        box_allmidpoints.append([find_midpoint(box_midpoints[p-1], box_midpoints[p]), (box_midpoints[p] - box_midpoints[p-1]).normalized()])
+    box_endpoints = []
+    for p in range(len(box_allmidpoints)):
+        box_endpoints.append([box_allmidpoints[p][0] - box_allmidpoints[p][1] * track_spacing, box_allmidpoints[p][1].perpendicular()])
+        box_endpoints.append([box_allmidpoints[p][0], box_allmidpoints[p][1].perpendicular()])
+        box_endpoints.append([box_allmidpoints[p][0] + box_allmidpoints[p][1] * track_spacing, box_allmidpoints[p][1].perpendicular()])
+    ### Control points that are later used to calculate the curve
+    control_points = [vec2d(350,50), vec2d(400,250), vec2d(500,200), vec2d(450, 450)]
+ 
+    ### The currently selected point
+    selected = None
+
+    paths = [
+             [14, 0],
+             [14, 3],
+##             [12, 5],
+##             [12, 2],
+##             [15, 5],
+##             [17, 3],
+##             [17, 0],
+##             [15, 2],
+            ]
+    start_point = None
+    instructions = ["Click on a pair of red dots to draw a track between them",
+                    "Drag blue control points to alter the free-form track curve"]
+    clock = pygame.time.Clock()
+    pts = None
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type in (QUIT, KEYDOWN):
+                running = False
+            elif event.type == MOUSEBUTTONDOWN and event.button == 1:
+                for p in control_points:
+                    if abs(p.x - event.pos[X]) < 10 and abs(p.y - event.pos[Y]) < 10 :
+                        selected = p
+                for p in box_endpoints:
+                    if abs(p[0].x - event.pos[X]) < 5 and abs(p[0].y - event.pos[Y]) < 5 :
+                        if start_point == None:
+                            start_point = box_endpoints.index(p)
+                        elif box_endpoints.index(p) != start_point:
+                            new_path = [start_point, box_endpoints.index(p)]
+                            if new_path not in paths:
+                                paths.append(new_path)
+                            start_point = None
+##            elif event.type == MOUSEBUTTONDOWN and event.button == 3:
+##                x,y = pygame.mouse.get_pos()
+##                control_points.append(vec2d(x,y))
+            elif event.type == MOUSEBUTTONUP and event.button == 1:
+                selected = None
+
+        font = pygame.font.SysFont("Arial", 12)
+        ### Draw stuff
+        screen.fill(darkgreen)
+        # Draw tile box
+        pygame.draw.lines(screen, True, black, box)
+        pygame.draw.lines(screen, True, darkblue, box_midpoints)
+        if start_point != None:
+            pygame.draw.circle(screen, green, box_endpoints[start_point][0], 7)
+        for p in box_endpoints:
+            pygame.draw.circle(screen, red, p[0], 3)
+            pygame.draw.line(screen, darkblue, p[0], p[0] + 20 * p[1])
+            screen.blit(font.render(str(box_endpoints.index(p)), False, black), p[0] - p[1] * 16)
+
+        font = pygame.font.SysFont("Arial", 18)
+        for t in range(len(instructions)):
+            screen.blit(font.render(instructions[t], False, black), (20,420 + t*20))
+
+
+        curve_factor = 60
+        # Draw a track for every entry in paths
+        paths_to_draw = []
+        for p in paths:
+            a = box_endpoints[p[0]][0]
+            b = box_endpoints[p[0]][0] + box_endpoints[p[0]][1] * curve_factor
+            c = box_endpoints[p[1]][0] + box_endpoints[p[1]][1] * curve_factor
+            d = box_endpoints[p[1]][0]
+            paths_to_draw.append([a,b,c,d])
+        for p in paths_to_draw:
+            draw_track(screen, p, "sleepers")
+        for p in paths_to_draw:
+            draw_track(screen, p, "track")
+##        for p in paths_to_draw:
+##            draw_track(screen, p, "controls")
+
+        if selected is not None:
+            selected.x, selected.y = pygame.mouse.get_pos()
+            pygame.draw.circle(screen, green, selected, 10)
+
+
+        draw_track(screen, control_points, "sleepers")
+        draw_track(screen, control_points, "track")
+        draw_track(screen, control_points, "controls")
 
         # Draw bezier box hints
 ##        for p in range(0, len(points2), 1):
