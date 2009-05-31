@@ -16,6 +16,7 @@ silver = (224,216,216)
 X,Y,Z = 0,1,2
 black = (0,0,0)
 white = (255,255,255)
+yellow = (255,255,0)
  
 def calculate_bezier(p, steps = 30):
     """
@@ -72,7 +73,7 @@ def find_midpoint(a, b):
 
 def draw_track(screen, control_points, component):
     # Calculate bezier curve points and tangents
-    cps, tangents = calculate_bezier(control_points, 30)
+    cps, tangents = calculate_bezier(control_points, 10)
     # Setup constants
     sleeper_spacing = 15
     sleeper_width = 5
@@ -80,6 +81,8 @@ def draw_track(screen, control_points, component):
     rail_spacing = 10
     rail_width = 2
     overflow = 0
+    # It's like it's drawing one less per segment than it should?? Maybe something to do with the lengths being calculated?
+    # It's drawing one less segment because it's calculating the number of intervals between sleepers, but the number of sleepers is one more than this!
     if component == "sleepers":
         sleeper_points = []
         for p in range(1, len(cps)):
@@ -89,24 +92,23 @@ def draw_track(screen, control_points, component):
             a_to_b = b - a
             ab_n = a_to_b.normalized()
             # Vector to add to start vector, to get offset start location
-            if overflow > 0:
-                start_vector = (overflow) * ab_n
-            else:
-                start_vector = overflow * ab_n
+            start_vector = overflow * ab_n
+            
             # Number of sleepers to draw in this section
-            n_sleepers = (a_to_b + start_vector).get_length() / (ab_n * sleeper_spacing).get_length()
-            # Loop through n_sleepers
-            for n in range(n_sleepers):
-                sleeper_points.append([get_at_width(a - start_vector + n*ab_n*sleeper_spacing - ab_n*0.5*sleeper_width, a_to_b, -sleeper_length),
-                                       get_at_width(a - start_vector + n*ab_n*sleeper_spacing - ab_n*0.5*sleeper_width, a_to_b, sleeper_length),
-                                       get_at_width(a - start_vector + n*ab_n*sleeper_spacing + ab_n*0.5*sleeper_width, a_to_b, sleeper_length),
-                                       get_at_width(a - start_vector + n*ab_n*sleeper_spacing + ab_n*0.5*sleeper_width, a_to_b, -sleeper_length)])
+            n_sleepers = (a_to_b - start_vector).get_length() / (ab_n * sleeper_spacing).get_length()
+            # Loop through n_sleepers, draw a sleeper at the start of each sleeper spacing interval
+            for n in range(n_sleepers+1):
+                sleeper_points.append([get_at_width(a + start_vector + n*ab_n*sleeper_spacing - ab_n*0.5*sleeper_width, a_to_b, -sleeper_length),
+                                       get_at_width(a + start_vector + n*ab_n*sleeper_spacing - ab_n*0.5*sleeper_width, a_to_b, sleeper_length),
+                                       get_at_width(a + start_vector + n*ab_n*sleeper_spacing + ab_n*0.5*sleeper_width, a_to_b, sleeper_length),
+                                       get_at_width(a + start_vector + n*ab_n*sleeper_spacing + ab_n*0.5*sleeper_width, a_to_b, -sleeper_length)])
             # Finally calculate overflow for the next loop
-            overflow = (a_to_b + start_vector).get_length() % (ab_n * sleeper_spacing).get_length()
+            overflow = sleeper_spacing - ((a_to_b - start_vector).get_length() % (ab_n * sleeper_spacing).get_length())
 
         # Finally draw all the sleeper points
         for p in sleeper_points:
             pygame.draw.polygon(screen, brown, p, 0)
+        pygame.draw.polygon(screen, yellow, sleeper_points[0], 0)
 
     if component == "track":
         points2 = []
@@ -126,6 +128,12 @@ def draw_track(screen, control_points, component):
         pygame.draw.lines(screen, lightgray, False, [control_points[2],control_points[3]])
         # Draw the base bezier curve
         pygame.draw.lines(screen, red, False, cps)
+
+    if component == "hints":
+        # Draw hints as to the curve sections
+        for p in cps:
+            pygame.draw.circle(screen, green, p, 3)
+##        pygame.draw.circle(screen, yellow, cps[0], 8)
 
 def main():
     pygame.init()
@@ -241,6 +249,7 @@ def main():
         draw_track(screen, control_points, "sleepers")
         draw_track(screen, control_points, "track")
         draw_track(screen, control_points, "controls")
+        draw_track(screen, control_points, "hints")
 
         # Draw bezier box hints
 ##        for p in range(0, len(points2), 1):
