@@ -108,7 +108,7 @@ def draw_track(screen, control_points, component):
         # Finally draw all the sleeper points
         for p in sleeper_points:
             pygame.draw.polygon(screen, brown, p, 0)
-        pygame.draw.polygon(screen, yellow, sleeper_points[0], 0)
+##        pygame.draw.polygon(screen, yellow, sleeper_points[0], 0)
 
     if component == "track":
         points2 = []
