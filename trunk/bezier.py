@@ -161,10 +161,16 @@ def main():
 
     box_size = 200
     box_position = (50,50)
-    box = [vec2d(box_position[0]+box_size, box_position[1]+box_size),
-           vec2d(box_position[0], box_position[1]+box_size),
-           vec2d(box_position[0], box_position[1]),
-           vec2d(box_position[0]+box_size, box_position[1])]
+##    box = [vec2d(box_position[0]+box_size, box_position[1]+box_size),
+##           vec2d(box_position[0], box_position[1]+box_size),
+##           vec2d(box_position[0], box_position[1]),
+##           vec2d(box_position[0]+box_size, box_position[1])]
+    box = [vec2d(box_size, box_size),
+           vec2d(0, box_size),
+           vec2d(0, 0),
+           vec2d(box_size, 0)]
+
+    box_surface = pygame.Surface((box_size,box_size))
 
     # endpoints addressed by box endpoints, in range 0-23
     # top, top-right, right, bottom-right, bottom, bottom-left, left, top-left
@@ -178,7 +184,6 @@ def main():
     box_allmidpoints = []
     for p in range(len(box)):
         box_midpoints.append(find_midpoint(box[p-1], box[p]))
-##        box_allmidpoints.append([find_midpoint(box[p-1], box[p]), (box[p] - box[p-1]).normalized()])
     for p in range(len(box_midpoints)):
         box_allmidpoints.append([box_midpoints[p-1], (box[p-1] - box[p-2]).normalized()])
         box_allmidpoints.append([find_midpoint(box_midpoints[p-1], box_midpoints[p]), (box_midpoints[p] - box_midpoints[p-1]).normalized()])
@@ -187,10 +192,15 @@ def main():
         box_endpoints.append([box_allmidpoints[p][0] - box_allmidpoints[p][1] * track_spacing, box_allmidpoints[p][1].perpendicular()])
         box_endpoints.append([box_allmidpoints[p][0], box_allmidpoints[p][1].perpendicular()])
         box_endpoints.append([box_allmidpoints[p][0] + box_allmidpoints[p][1] * track_spacing, box_allmidpoints[p][1].perpendicular()])
-    ### Control points that are later used to calculate the curve
+
+    box_collidepoints = []
+    for p in box_endpoints:
+        box_collidepoints.append([p[0]+box_position[0], p[1]+box_position[1]])
+
+    # Control points that are later used to calculate the curve
     control_points = [vec2d(350,50), vec2d(400,250), vec2d(500,200), vec2d(450, 450)]
  
-    ### The currently selected point
+    # The currently selected point
     selected = None
 
     paths = [
@@ -217,12 +227,12 @@ def main():
                 for p in control_points:
                     if abs(p.x - event.pos[X]) < 10 and abs(p.y - event.pos[Y]) < 10 :
                         selected = p
-                for p in box_endpoints:
-                    if abs(p[0].x - event.pos[X]) < 5 and abs(p[0].y - event.pos[Y]) < 5 :
+                for p in box_collidepoints:
+                    if abs(p[0].x - event.pos[X]) < 10 and abs(p[0].y - event.pos[Y]) < 10 :
                         if start_point == None:
-                            start_point = box_endpoints.index(p)
-                        elif box_endpoints.index(p) != start_point:
-                            new_path = [start_point, box_endpoints.index(p)]
+                            start_point = box_collidepoints.index(p)
+                        elif box_collidepoints.index(p) != start_point:
+                            new_path = [start_point, box_collidepoints.index(p)]
                             if new_path not in paths:
                                 paths.append(new_path)
                             start_point = None
@@ -234,17 +244,25 @@ def main():
 
         font = pygame.font.SysFont("Arial", 12)
         ### Draw stuff
-        screen.fill(darkgreen)
-        # Draw tile box
-        pygame.draw.lines(screen, True, black, box)
-        pygame.draw.lines(screen, True, darkblue, box_midpoints)
-        if start_point != None:
-            pygame.draw.circle(screen, green, box_endpoints[start_point][0], 7)
-        for p in box_endpoints:
-            pygame.draw.circle(screen, red, p[0], 3)
-            pygame.draw.line(screen, darkblue, p[0], p[0] + 20 * p[1])
-            screen.blit(font.render(str(box_endpoints.index(p)), False, black), p[0] - p[1] * 16)
+        screen.fill(black)
 
+        # Draw tile box
+        box_surface.fill(darkgreen)
+        pygame.draw.lines(box_surface, True, black, box)
+        pygame.draw.lines(box_surface, True, darkblue, box_midpoints)
+        if start_point != None:
+            pygame.draw.circle(box_surface, green, box_endpoints[start_point][0], 7)
+        for p in box_endpoints:
+            pygame.draw.circle(box_surface, red, p[0], 3)
+##            pygame.draw.line(box_surface, darkblue, p[0], p[0] + 20 * p[1])
+            s = font.render(str(box_endpoints.index(p)), False, black)
+            x,y = s.get_size()
+            x = x/2
+            y = y/2
+            box_surface.blit(s, p[0] + 5 * p[1] - (x,y))
+
+
+        # Draw instructions to screen
         font = pygame.font.SysFont("Arial", 18)
         for t in range(len(instructions)):
             screen.blit(font.render(instructions[t], False, black), (20,420 + t*20))
@@ -260,13 +278,20 @@ def main():
             d = box_endpoints[p[1]][0]
             paths_to_draw.append([a,b,c,d])
         for p in paths_to_draw:
-            draw_track(screen, p, "ballast")
+            draw_track(box_surface, p, "ballast")
         for p in paths_to_draw:
-            draw_track(screen, p, "sleepers")
+            draw_track(box_surface, p, "sleepers")
         for p in paths_to_draw:
-            draw_track(screen, p, "track")
+            draw_track(box_surface, p, "track")
 ##        for p in paths_to_draw:
-##            draw_track(screen, p, "controls")
+##            draw_track(box_surface, p, "controls")
+
+
+
+        # Draw tile box to screen
+        screen.blit(box_surface, box_position)
+##        box_surface_half = pygame.transform.smoothscale(box_surface, (box_size, box_size/2))
+##        screen.blit(box_surface_half, (box_position[0], box_position[1] + box_size + 20))
 
         if selected is not None:
             selected.x, selected.y = pygame.mouse.get_pos()
