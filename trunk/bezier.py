@@ -151,8 +151,7 @@ def draw_track(screen, control_points, component):
     if component == "hints":
         # Draw hints as to the curve sections
         for p in cps:
-            pygame.draw.circle(screen, green, p, 3)
-##        pygame.draw.circle(screen, yellow, cps[0], 8)
+            pygame.draw.circle(screen, green, (int(p[0]),int(p[1])), 3)
 
 
 class Tile(pygame.sprite.Sprite):
@@ -226,7 +225,7 @@ class Tile(pygame.sprite.Sprite):
 ##        if start_point != None:
 ##            pygame.draw.circle(box_surface, green, box_endpoints[start_point][0], 7)
             for p in self.box_endpoints:
-                pygame.draw.circle(self.image, red, p[0], 3)
+                pygame.draw.circle(self.image, red, (int(p[0][0]),int(p[0][1])), 3)
                 pygame.draw.line(self.image, darkblue, p[0], p[0] + 20 * p[1])
                 s = Tile.font.render(str(self.box_endpoints.index(p)), False, green)
                 x,y = s.get_size()
