@@ -114,7 +114,6 @@ def draw_track(screen, control_points, component):
         # Finally draw all the sleeper points
         for p in sleeper_points:
             pygame.draw.polygon(screen, brown, p, 0)
-##        pygame.draw.polygon(screen, yellow, sleeper_points[0], 0)
 
     if component == "ballast":
         # Draw the ballast under the track, this will be a polygon in the rough shape of the trackwork which will then be replaced with a texture
@@ -127,7 +126,6 @@ def draw_track(screen, control_points, component):
         for p in range(0, len(cps)):
             ballast_points.append(get_at_width(cps[p], tangents[p], -ballast_width))
         pygame.draw.polygon(screen, grey, ballast_points, 0)
-
 
     if component == "track":
         points2 = []
@@ -276,7 +274,6 @@ class Tile(pygame.sprite.Sprite):
             # Finally draw all the sleeper points
             for p in sleeper_points:
                 pygame.draw.polygon(self.image, brown, p, 0)
-    ##        pygame.draw.polygon(screen, yellow, sleeper_points[0], 0)
 
         if component == "ballast":
             # Draw the ballast under the track, this will be a polygon in the rough shape of the trackwork which will then be replaced with a texture
@@ -290,7 +287,6 @@ class Tile(pygame.sprite.Sprite):
                 ballast_points.append(get_at_width(cps[p], tangents[p], -ballast_width))
             # Draw out to the image
             pygame.draw.polygon(self.image, grey, ballast_points, 0)
-
 
         if component == "rails":
             points2 = []
@@ -393,7 +389,6 @@ def main():
         screen.fill(darkgreen)
 
 
-
         # Draw instructions to screen
         font = pygame.font.SysFont("Arial", 18)
         for t in range(len(instructions)):
@@ -419,7 +414,6 @@ def main():
         screen.fill(black)
         clock.tick(100)
         #print clock.get_fps()
-##        running = False
     
 if __name__ == '__main__':
     main()
