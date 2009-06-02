@@ -73,18 +73,19 @@ def find_midpoint(a, b):
 
 def draw_track(screen, control_points, component):
     # Calculate bezier curve points and tangents
-    cps, tangents = calculate_bezier(control_points, 10)
+    cps, tangents = calculate_bezier(control_points, 30)
     # Setup constants
     sleeper_spacing = 15
     sleeper_width = 5
     sleeper_length = 18
     rail_spacing = 10
     rail_width = 2
-    overflow = 0
+    overflow = - sleeper_spacing / 2.0
     # It's like it's drawing one less per segment than it should?? Maybe something to do with the lengths being calculated?
     # It's drawing one less segment because it's calculating the number of intervals between sleepers, but the number of sleepers is one more than this!
     if component == "sleepers":
         sleeper_points = []
+        start = True
         for p in range(1, len(cps)):
             # Find gradient of a->b
             b = cps[p]
@@ -95,15 +96,20 @@ def draw_track(screen, control_points, component):
             start_vector = overflow * ab_n
             
             # Number of sleepers to draw in this section
-            n_sleepers = (a_to_b - start_vector).get_length() / (ab_n * sleeper_spacing).get_length()
+            n_sleepers = (a_to_b + start_vector).get_length() / (ab_n * sleeper_spacing).get_length()
             # Loop through n_sleepers, draw a sleeper at the start of each sleeper spacing interval
-            for n in range(n_sleepers+1):
-                sleeper_points.append([get_at_width(a + start_vector + n*ab_n*sleeper_spacing - ab_n*0.5*sleeper_width, a_to_b, -sleeper_length),
-                                       get_at_width(a + start_vector + n*ab_n*sleeper_spacing - ab_n*0.5*sleeper_width, a_to_b, sleeper_length),
-                                       get_at_width(a + start_vector + n*ab_n*sleeper_spacing + ab_n*0.5*sleeper_width, a_to_b, sleeper_length),
-                                       get_at_width(a + start_vector + n*ab_n*sleeper_spacing + ab_n*0.5*sleeper_width, a_to_b, -sleeper_length)])
+            if start:
+                s = 0
+                start = False
+            else:
+                s = 1
+            for n in range(s, n_sleepers+1):
+                sleeper_points.append([get_at_width(a - start_vector + n*ab_n*sleeper_spacing - ab_n*0.5*sleeper_width, a_to_b, -sleeper_length),
+                                       get_at_width(a - start_vector + n*ab_n*sleeper_spacing - ab_n*0.5*sleeper_width, a_to_b, sleeper_length),
+                                       get_at_width(a - start_vector + n*ab_n*sleeper_spacing + ab_n*0.5*sleeper_width, a_to_b, sleeper_length),
+                                       get_at_width(a - start_vector + n*ab_n*sleeper_spacing + ab_n*0.5*sleeper_width, a_to_b, -sleeper_length)])
             # Finally calculate overflow for the next loop
-            overflow = sleeper_spacing - ((a_to_b - start_vector).get_length() % (ab_n * sleeper_spacing).get_length())
+            overflow = (a_to_b + start_vector).get_length() % (ab_n * sleeper_spacing).get_length()
 
         # Finally draw all the sleeper points
         for p in sleeper_points:
