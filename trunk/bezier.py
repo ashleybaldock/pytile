@@ -155,22 +155,186 @@ def draw_track(screen, control_points, component):
             pygame.draw.circle(screen, green, p, 3)
 ##        pygame.draw.circle(screen, yellow, cps[0], 8)
 
+
+class Tile(pygame.sprite.Sprite):
+    """A tile containing tracks, drawn in layers"""
+##    image = None
+    font = pygame.font.SysFont("Arial", 18)
+    def __init__(self, size, position, type, track_spacing=25, curve_factor=60):
+        pygame.sprite.Sprite.__init__(self)
+        self.size = size
+        self.track_spacing = track_spacing
+        self.curve_factor = curve_factor
+        self.position = position
+        # Type determines which part of the image this sprite draws (rails, sleepers, ballast or hints)
+        self.type = type
+        # Init variables
+        self.paths = []
+
+        self.box = [vec2d(size, size),
+               vec2d(0, size),
+               vec2d(0, 0),
+               vec2d(size, 0)]
+
+        self.box_midpoints = []
+        self.box_allmidpoints = []
+        for p in range(len(self.box)):
+            self.box_midpoints.append(find_midpoint(self.box[p-1], self.box[p]))
+        for p in range(len(self.box_midpoints)):
+            self.box_allmidpoints.append([self.box_midpoints[p-1], (self.box[p-1] - self.box[p-2]).normalized()])
+            self.box_allmidpoints.append([find_midpoint(self.box_midpoints[p-1], self.box_midpoints[p]), (self.box_midpoints[p] - self.box_midpoints[p-1]).normalized()])
+        self.box_endpoints = []
+        for p in range(len(self.box_allmidpoints)):
+            self.box_endpoints.append([self.box_allmidpoints[p][0] - self.box_allmidpoints[p][1] * track_spacing, self.box_allmidpoints[p][1].perpendicular()])
+            self.box_endpoints.append([self.box_allmidpoints[p][0], self.box_allmidpoints[p][1].perpendicular()])
+            self.box_endpoints.append([self.box_allmidpoints[p][0] + self.box_allmidpoints[p][1] * track_spacing, self.box_allmidpoints[p][1].perpendicular()])
+
+        self.image = pygame.Surface((self.size, self.size))
+        self.image.fill(black)
+        self.image.set_colorkey(black, pygame.RLEACCEL)
+        self.rect = (position[0], position[1], self.size, self.size)
+    def add_path(self, path):
+        """Add another path to this tile"""
+        self.paths.append(path)
+    def update(self):
+        """Draw the image this tile represents"""
+        # Draw a track for every entry in paths
+        paths_to_draw = []
+        for p in self.paths:
+            a = self.box_endpoints[p[0]][0]
+            b = self.box_endpoints[p[0]][0] + self.box_endpoints[p[0]][1] * self.curve_factor
+            c = self.box_endpoints[p[1]][0] + self.box_endpoints[p[1]][1] * self.curve_factor
+            d = self.box_endpoints[p[1]][0]
+            paths_to_draw.append([a,b,c,d])
+        print self.type
+        if self.type == "rails":
+            for p in paths_to_draw:
+                self.draw_track(p, "rails")
+        elif self.type == "sleepers":
+            for p in paths_to_draw:
+                self.draw_track(p, "sleepers")
+        elif self.type == "ballast":
+            for p in paths_to_draw:
+                self.draw_track(p, "ballast")
+        elif self.type == "hints":
+            for p in paths_to_draw:
+                self.draw_track(p, "hints")
+        elif self.type == "box":
+            # Draw the outline of the box
+            pygame.draw.lines(self.image, True, black, self.box)
+            pygame.draw.lines(self.image, True, darkblue, self.box_midpoints)
+##        if start_point != None:
+##            pygame.draw.circle(box_surface, green, box_endpoints[start_point][0], 7)
+            for p in self.box_endpoints:
+                pygame.draw.circle(self.image, red, p[0], 3)
+                pygame.draw.line(self.image, darkblue, p[0], p[0] + 20 * p[1])
+                s = Tile.font.render(str(self.box_endpoints.index(p)), False, black)
+                x,y = s.get_size()
+                x = x/2
+                y = y/2
+                self.image.blit(s, p[0] + 5 * p[1] - (x,y))
+##        self.image.fill(blue)
+
+    def draw_track(self, control_points, component):
+        # Calculate bezier curve points and tangents
+        cps, tangents = calculate_bezier(control_points, 30)
+        # Setup constants
+        sleeper_spacing = 15
+        sleeper_width = 5
+        sleeper_length = 18
+        rail_spacing = 10
+        rail_width = 2
+        ballast_width = 30
+        overflow = - sleeper_spacing / 2.0
+        # It's like it's drawing one less per segment than it should?? Maybe something to do with the lengths being calculated?
+        # It's drawing one less segment because it's calculating the number of intervals between sleepers, but the number of sleepers is one more than this!
+        if component == "sleepers":
+            sleeper_points = []
+            start = True
+            for p in range(1, len(cps)):
+                # Find gradient of a->b
+                b = cps[p]
+                a = cps[p-1]
+                a_to_b = b - a
+                ab_n = a_to_b.normalized()
+                # Vector to add to start vector, to get offset start location
+                start_vector = overflow * ab_n
+                
+                # Number of sleepers to draw in this section
+                n_sleepers = (a_to_b + start_vector).get_length() / (ab_n * sleeper_spacing).get_length()
+                # Loop through n_sleepers, draw a sleeper at the start of each sleeper spacing interval
+                if start:
+                    s = 0
+                    start = False
+                else:
+                    s = 1
+                for n in range(s, n_sleepers+1):
+                    sleeper_points.append([get_at_width(a - start_vector + n*ab_n*sleeper_spacing - ab_n*0.5*sleeper_width, a_to_b, -sleeper_length),
+                                           get_at_width(a - start_vector + n*ab_n*sleeper_spacing - ab_n*0.5*sleeper_width, a_to_b, sleeper_length),
+                                           get_at_width(a - start_vector + n*ab_n*sleeper_spacing + ab_n*0.5*sleeper_width, a_to_b, sleeper_length),
+                                           get_at_width(a - start_vector + n*ab_n*sleeper_spacing + ab_n*0.5*sleeper_width, a_to_b, -sleeper_length)])
+                # Finally calculate overflow for the next loop
+                overflow = (a_to_b + start_vector).get_length() % (ab_n * sleeper_spacing).get_length()
+
+            # Finally draw all the sleeper points
+            for p in sleeper_points:
+                pygame.draw.polygon(self.image, brown, p, 0)
+    ##        pygame.draw.polygon(screen, yellow, sleeper_points[0], 0)
+
+        if component == "ballast":
+            # Draw the ballast under the track, this will be a polygon in the rough shape of the trackwork which will then be replaced with a texture
+            # Polygon defined by the two lines at either side of the track
+            ballast_points = []
+            # Add one side
+            for p in range(0, len(cps)):
+                ballast_points.append(get_at_width(cps[p], tangents[p], ballast_width))
+            ballast_points.reverse()
+            for p in range(0, len(cps)):
+                ballast_points.append(get_at_width(cps[p], tangents[p], -ballast_width))
+            # Draw out to the image
+            pygame.draw.polygon(self.image, grey, ballast_points, 0)
+
+
+        if component == "rails":
+            points2 = []
+            for p in range(0, len(cps)):
+                points2.append(get_at_width(cps[p], tangents[p], rail_spacing))
+            points3 = []
+            for p in range(0, len(cps)):
+                points3.append(get_at_width(cps[p], tangents[p], -rail_spacing))
+            # Draw out to the image
+            pygame.draw.lines(self.image, silver, False, points2, rail_width)
+            pygame.draw.lines(self.image, silver, False, points3, rail_width)
+
+        if component == "controls":
+            # Draw bezier curve control points
+            for p in control_points:
+                pygame.draw.circle(screen, blue, p, 4)
+            # Draw out to the image
+            pygame.draw.lines(self.image, lightgray, False, [control_points[0],control_points[1]])
+            pygame.draw.lines(self.image, lightgray, False, [control_points[2],control_points[3]])
+            # Draw the base bezier curve
+            pygame.draw.lines(self.image, red, False, cps)
+
+        if component == "hints":
+            # Draw hints as to the curve sections
+            for p in cps:
+                pygame.draw.circle(self.image, green, p, 3)
+    ##        pygame.draw.circle(screen, yellow, cps[0], 8)
+
+
 def main():
     pygame.init()
     screen = pygame.display.set_mode((600, 500))
 
     box_size = 200
     box_position = (50,50)
-##    box = [vec2d(box_position[0]+box_size, box_position[1]+box_size),
-##           vec2d(box_position[0], box_position[1]+box_size),
-##           vec2d(box_position[0], box_position[1]),
-##           vec2d(box_position[0]+box_size, box_position[1])]
-    box = [vec2d(box_size, box_size),
-           vec2d(0, box_size),
-           vec2d(0, 0),
-           vec2d(box_size, 0)]
+##    box = [vec2d(box_size, box_size),
+##           vec2d(0, box_size),
+##           vec2d(0, 0),
+##           vec2d(box_size, 0)]
 
-    box_surface = pygame.Surface((box_size,box_size))
+##    box_surface = pygame.Surface((box_size,box_size))
 
     # endpoints addressed by box endpoints, in range 0-23
     # top, top-right, right, bottom-right, bottom, bottom-left, left, top-left
@@ -179,23 +343,23 @@ def main():
     # top, right, bottom, left are the midpoints of the box's sides
     # others are midpoint of the lines between the box's midpoints
     # Get all the box midpoints
-    track_spacing = 25
-    box_midpoints = []
-    box_allmidpoints = []
-    for p in range(len(box)):
-        box_midpoints.append(find_midpoint(box[p-1], box[p]))
-    for p in range(len(box_midpoints)):
-        box_allmidpoints.append([box_midpoints[p-1], (box[p-1] - box[p-2]).normalized()])
-        box_allmidpoints.append([find_midpoint(box_midpoints[p-1], box_midpoints[p]), (box_midpoints[p] - box_midpoints[p-1]).normalized()])
-    box_endpoints = []
-    for p in range(len(box_allmidpoints)):
-        box_endpoints.append([box_allmidpoints[p][0] - box_allmidpoints[p][1] * track_spacing, box_allmidpoints[p][1].perpendicular()])
-        box_endpoints.append([box_allmidpoints[p][0], box_allmidpoints[p][1].perpendicular()])
-        box_endpoints.append([box_allmidpoints[p][0] + box_allmidpoints[p][1] * track_spacing, box_allmidpoints[p][1].perpendicular()])
-
-    box_collidepoints = []
-    for p in box_endpoints:
-        box_collidepoints.append([p[0]+box_position[0], p[1]+box_position[1]])
+##    track_spacing = 25
+##    box_midpoints = []
+##    box_allmidpoints = []
+##    for p in range(len(box)):
+##        box_midpoints.append(find_midpoint(box[p-1], box[p]))
+##    for p in range(len(box_midpoints)):
+##        box_allmidpoints.append([box_midpoints[p-1], (box[p-1] - box[p-2]).normalized()])
+##        box_allmidpoints.append([find_midpoint(box_midpoints[p-1], box_midpoints[p]), (box_midpoints[p] - box_midpoints[p-1]).normalized()])
+##    box_endpoints = []
+##    for p in range(len(box_allmidpoints)):
+##        box_endpoints.append([box_allmidpoints[p][0] - box_allmidpoints[p][1] * track_spacing, box_allmidpoints[p][1].perpendicular()])
+##        box_endpoints.append([box_allmidpoints[p][0], box_allmidpoints[p][1].perpendicular()])
+##        box_endpoints.append([box_allmidpoints[p][0] + box_allmidpoints[p][1] * track_spacing, box_allmidpoints[p][1].perpendicular()])
+##
+##    box_collidepoints = []
+##    for p in box_endpoints:
+##        box_collidepoints.append([p[0]+box_position[0], p[1]+box_position[1]])
 
     # Control points that are later used to calculate the curve
     control_points = [vec2d(350,50), vec2d(400,250), vec2d(500,200), vec2d(450, 450)]
@@ -219,6 +383,24 @@ def main():
     clock = pygame.time.Clock()
     pts = None
     running = True
+
+    rails_sprites = pygame.sprite.Group()
+    sleepers_sprites = pygame.sprite.Group()
+    ballast_sprites = pygame.sprite.Group()
+    hints_sprites = pygame.sprite.Group()
+    box_sprites = pygame.sprite.Group()
+
+    for x in range(1):
+        rails_sprites.add(Tile(box_size, box_position, "rails"))
+        sleepers_sprites.add(Tile(box_size, box_position, "sleepers"))
+        ballast_sprites.add(Tile(box_size, box_position, "ballast"))
+        hints_sprites.add(Tile(box_size, box_position, "hints"))
+        box_sprites.add(Tile(box_size, box_position, "box"))
+    sprite_groups = [box_sprites, ballast_sprites, sleepers_sprites, rails_sprites]#, hints_sprites]
+    for x in sprite_groups:
+        for y in x:
+            y.add_path([13,1])
+
     while running:
         for event in pygame.event.get():
             if event.type in (QUIT, KEYDOWN):
@@ -227,18 +409,15 @@ def main():
                 for p in control_points:
                     if abs(p.x - event.pos[X]) < 10 and abs(p.y - event.pos[Y]) < 10 :
                         selected = p
-                for p in box_collidepoints:
-                    if abs(p[0].x - event.pos[X]) < 10 and abs(p[0].y - event.pos[Y]) < 10 :
-                        if start_point == None:
-                            start_point = box_collidepoints.index(p)
-                        elif box_collidepoints.index(p) != start_point:
-                            new_path = [start_point, box_collidepoints.index(p)]
-                            if new_path not in paths:
-                                paths.append(new_path)
-                            start_point = None
-##            elif event.type == MOUSEBUTTONDOWN and event.button == 3:
-##                x,y = pygame.mouse.get_pos()
-##                control_points.append(vec2d(x,y))
+##                for p in box_collidepoints:
+##                    if abs(p[0].x - event.pos[X]) < 10 and abs(p[0].y - event.pos[Y]) < 10 :
+##                        if start_point == None:
+##                            start_point = box_collidepoints.index(p)
+##                        elif box_collidepoints.index(p) != start_point:
+##                            new_path = [start_point, box_collidepoints.index(p)]
+##                            if new_path not in paths:
+##                                paths.append(new_path)
+##                            start_point = None
             elif event.type == MOUSEBUTTONUP and event.button == 1:
                 selected = None
 
@@ -246,20 +425,6 @@ def main():
         ### Draw stuff
         screen.fill(black)
 
-        # Draw tile box
-        box_surface.fill(darkgreen)
-        pygame.draw.lines(box_surface, True, black, box)
-        pygame.draw.lines(box_surface, True, darkblue, box_midpoints)
-        if start_point != None:
-            pygame.draw.circle(box_surface, green, box_endpoints[start_point][0], 7)
-        for p in box_endpoints:
-            pygame.draw.circle(box_surface, red, p[0], 3)
-##            pygame.draw.line(box_surface, darkblue, p[0], p[0] + 20 * p[1])
-            s = font.render(str(box_endpoints.index(p)), False, black)
-            x,y = s.get_size()
-            x = x/2
-            y = y/2
-            box_surface.blit(s, p[0] + 5 * p[1] - (x,y))
 
 
         # Draw instructions to screen
@@ -267,31 +432,6 @@ def main():
         for t in range(len(instructions)):
             screen.blit(font.render(instructions[t], False, black), (20,420 + t*20))
 
-
-        curve_factor = 60
-        # Draw a track for every entry in paths
-        paths_to_draw = []
-        for p in paths:
-            a = box_endpoints[p[0]][0]
-            b = box_endpoints[p[0]][0] + box_endpoints[p[0]][1] * curve_factor
-            c = box_endpoints[p[1]][0] + box_endpoints[p[1]][1] * curve_factor
-            d = box_endpoints[p[1]][0]
-            paths_to_draw.append([a,b,c,d])
-        for p in paths_to_draw:
-            draw_track(box_surface, p, "ballast")
-        for p in paths_to_draw:
-            draw_track(box_surface, p, "sleepers")
-        for p in paths_to_draw:
-            draw_track(box_surface, p, "track")
-##        for p in paths_to_draw:
-##            draw_track(box_surface, p, "controls")
-
-
-
-        # Draw tile box to screen
-        screen.blit(box_surface, box_position)
-##        box_surface_half = pygame.transform.smoothscale(box_surface, (box_size, box_size/2))
-##        screen.blit(box_surface_half, (box_position[0], box_position[1] + box_size + 20))
 
         if selected is not None:
             selected.x, selected.y = pygame.mouse.get_pos()
@@ -305,18 +445,13 @@ def main():
         draw_track(screen, control_points, "controls")
 
 
-        # Produce the squished track graphic
+        # Flip screen
+        for x in sprite_groups:
+            x.update()
+            rectlist = x.draw(screen)
 
-
-        # Draw bezier box hints
-##        for p in range(0, len(points2), 1):
-##            pygame.draw.line(screen, black, points2[p], points3[p])
-##        for p in points2:
-##            pygame.draw.circle(screen, black, p, 2)
-##        for p in points3:
-##            pygame.draw.circle(screen, black, p, 2)
-        ### Flip screen
-        pygame.display.flip()
+        pygame.display.update()
+        screen.fill(black)
         clock.tick(100)
         #print clock.get_fps()
 ##        running = False
