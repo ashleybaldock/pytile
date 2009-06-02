@@ -3,7 +3,7 @@ from pygame.locals import *
  
 from vec2d import *
  
-gray = (100,100,100)
+grey = (100,100,100)
 lightgray = (200,200,200)
 red = (255,0,0)
 darkred = (192,0,0)
@@ -80,6 +80,7 @@ def draw_track(screen, control_points, component):
     sleeper_length = 18
     rail_spacing = 10
     rail_width = 2
+    ballast_width = 30
     overflow = - sleeper_spacing / 2.0
     # It's like it's drawing one less per segment than it should?? Maybe something to do with the lengths being calculated?
     # It's drawing one less segment because it's calculating the number of intervals between sleepers, but the number of sleepers is one more than this!
@@ -116,6 +117,19 @@ def draw_track(screen, control_points, component):
             pygame.draw.polygon(screen, brown, p, 0)
 ##        pygame.draw.polygon(screen, yellow, sleeper_points[0], 0)
 
+    if component == "ballast":
+        # Draw the ballast under the track, this will be a polygon in the rough shape of the trackwork which will then be replaced with a texture
+        # Polygon defined by the two lines at either side of the track
+        ballast_points = []
+        # Add one side
+        for p in range(0, len(cps)):
+            ballast_points.append(get_at_width(cps[p], tangents[p], ballast_width))
+        ballast_points.reverse()
+        for p in range(0, len(cps)):
+            ballast_points.append(get_at_width(cps[p], tangents[p], -ballast_width))
+        pygame.draw.polygon(screen, grey, ballast_points, 0)
+
+
     if component == "track":
         points2 = []
         for p in range(0, len(cps)):
@@ -145,8 +159,13 @@ def main():
     pygame.init()
     screen = pygame.display.set_mode((600, 500))
 
-    box = [vec2d(300,300), vec2d(100,300), vec2d(100,100), vec2d(300,100)]
-##    box = [vec2d(300,200), vec2d(100,200), vec2d(100,100), vec2d(300,100)]
+    box_size = 200
+    box_position = (50,50)
+    box = [vec2d(box_position[0]+box_size, box_position[1]+box_size),
+           vec2d(box_position[0], box_position[1]+box_size),
+           vec2d(box_position[0], box_position[1]),
+           vec2d(box_position[0]+box_size, box_position[1])]
+
     # endpoints addressed by box endpoints, in range 0-23
     # top, top-right, right, bottom-right, bottom, bottom-left, left, top-left
     # Endpoints calculated automatically later
@@ -241,6 +260,8 @@ def main():
             d = box_endpoints[p[1]][0]
             paths_to_draw.append([a,b,c,d])
         for p in paths_to_draw:
+            draw_track(screen, p, "ballast")
+        for p in paths_to_draw:
             draw_track(screen, p, "sleepers")
         for p in paths_to_draw:
             draw_track(screen, p, "track")
@@ -252,10 +273,15 @@ def main():
             pygame.draw.circle(screen, green, selected, 10)
 
 
+        draw_track(screen, control_points, "ballast")
         draw_track(screen, control_points, "sleepers")
         draw_track(screen, control_points, "track")
-        draw_track(screen, control_points, "controls")
         draw_track(screen, control_points, "hints")
+        draw_track(screen, control_points, "controls")
+
+
+        # Produce the squished track graphic
+
 
         # Draw bezier box hints
 ##        for p in range(0, len(points2), 1):
