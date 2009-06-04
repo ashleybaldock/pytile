@@ -32,12 +32,10 @@ import pygame
 import random, math
 from copy import copy
 
-
 import world
 World = world.World()
 
 import Tools
-
 
 import logger
 debug = logger.Log()
@@ -57,107 +55,6 @@ FPS_REFRESH = 500
 WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 600
 
-
-class HighlightSprite(pygame.sprite.Sprite):
-    """Sprites for displaying ground selection highlight"""
-    image = None
-    rect = None
-    def __init__(self):
-        pygame.sprite.Sprite.__init__(self)
-        if HighlightSprite.image is None:
-            groundImage = pygame.image.load("ground.png")
-            HighlightSprite.image = groundImage.convert()
-            # Tile images will be composited using rendering later, for now just read them in
-            HighlightSprite.tile_images = {}
-            # Each tile's highlight image composited from 1-4 edge images
-            # Set for bottom-left edge
-            HighlightSprite.tile_images["00XX"] = HighlightSprite.image.subsurface((0*p,4*p,p,p))
-            HighlightSprite.tile_images["01XX"] = HighlightSprite.image.subsurface((1*p,4*p,p,p))
-            HighlightSprite.tile_images["10XX"] = HighlightSprite.image.subsurface((2*p,4*p,p,p))
-            HighlightSprite.tile_images["11XX"] = HighlightSprite.image.subsurface((3*p,4*p,p,p))
-            HighlightSprite.tile_images["12XX"] = HighlightSprite.image.subsurface((4*p,4*p,p,p))
-            HighlightSprite.tile_images["21XX"] = HighlightSprite.image.subsurface((5*p,4*p,p,p))
-            HighlightSprite.tile_images["22XX"] = HighlightSprite.image.subsurface((6*p,4*p,p,p))
-            # Set for bottom-right edge
-            HighlightSprite.tile_images["X00X"] = HighlightSprite.image.subsurface((0*p,5*p,p,p))
-            HighlightSprite.tile_images["X01X"] = HighlightSprite.image.subsurface((1*p,5*p,p,p))
-            HighlightSprite.tile_images["X10X"] = HighlightSprite.image.subsurface((2*p,5*p,p,p))
-            HighlightSprite.tile_images["X11X"] = HighlightSprite.image.subsurface((3*p,5*p,p,p))
-            HighlightSprite.tile_images["X12X"] = HighlightSprite.image.subsurface((4*p,5*p,p,p))
-            HighlightSprite.tile_images["X21X"] = HighlightSprite.image.subsurface((5*p,5*p,p,p))
-            HighlightSprite.tile_images["X22X"] = HighlightSprite.image.subsurface((6*p,5*p,p,p))
-            # Set for top-right edge
-            HighlightSprite.tile_images["XX00"] = HighlightSprite.image.subsurface((0*p,6*p,p,p))
-            HighlightSprite.tile_images["XX01"] = HighlightSprite.image.subsurface((1*p,6*p,p,p))
-            HighlightSprite.tile_images["XX10"] = HighlightSprite.image.subsurface((2*p,6*p,p,p))
-            HighlightSprite.tile_images["XX11"] = HighlightSprite.image.subsurface((3*p,6*p,p,p))
-            HighlightSprite.tile_images["XX12"] = HighlightSprite.image.subsurface((4*p,6*p,p,p))
-            HighlightSprite.tile_images["XX21"] = HighlightSprite.image.subsurface((5*p,6*p,p,p))
-            HighlightSprite.tile_images["XX22"] = HighlightSprite.image.subsurface((6*p,6*p,p,p))
-            # Set for top-left edge
-            HighlightSprite.tile_images["0XX0"] = HighlightSprite.image.subsurface((0*p,7*p,p,p))
-            HighlightSprite.tile_images["1XX0"] = HighlightSprite.image.subsurface((1*p,7*p,p,p))
-            HighlightSprite.tile_images["0XX1"] = HighlightSprite.image.subsurface((2*p,7*p,p,p))
-            HighlightSprite.tile_images["1XX1"] = HighlightSprite.image.subsurface((3*p,7*p,p,p))
-            HighlightSprite.tile_images["2XX1"] = HighlightSprite.image.subsurface((4*p,7*p,p,p))
-            HighlightSprite.tile_images["1XX2"] = HighlightSprite.image.subsurface((5*p,7*p,p,p))
-            HighlightSprite.tile_images["2XX2"] = HighlightSprite.image.subsurface((6*p,7*p,p,p))
-            # Nothing
-            HighlightSprite.tile_images["None"] = HighlightSprite.image.subsurface((0,3*p,p,p))
-            for i in HighlightSprite.tile_images:
-                HighlightSprite.tile_images[i].convert()
-                HighlightSprite.tile_images[i].set_colorkey((231,255,255), pygame.RLEACCEL)
-        self.image = pygame.Surface((p,p))
-        self.image.set_colorkey((0,0,0))
-        self.exclude = True
-    def changepos(self, type, tiletype, xpos, ypos, xoff, yoff, xWorld, yWorld):
-        """Set highlight to appear on a different tile"""
-        self.image.fill((0,0,0))
-        if type == 0:
-            # Empty Image
-            pass
-        # Corner bits, made up of two images
-        elif type == 1:
-            self.image.blit(HighlightSprite.tile_images["%sXX%s" % (tiletype[0], tiletype[3])], (0,0), (0,0,p4,p))
-            self.image.blit(HighlightSprite.tile_images["%s%sXX" % (tiletype[0], tiletype[1])], (0,0), (0,0,p4,p))
-        elif type == 2:
-            self.image.blit(HighlightSprite.tile_images["%s%sXX" % (tiletype[0], tiletype[1])], (p4,0), (p4,0,p2,p))
-            self.image.blit(HighlightSprite.tile_images["X%s%sX" % (tiletype[1], tiletype[2])], (p4,0), (p4,0,p2,p))
-        elif type == 3:
-            self.image.blit(HighlightSprite.tile_images["X%s%sX" % (tiletype[1], tiletype[2])], (p4x3,0), (p4x3,0,p4,p))
-            self.image.blit(HighlightSprite.tile_images["XX%s%s" % (tiletype[2], tiletype[3])], (p4x3,0), (p4x3,0,p4,p))
-        elif type == 4:
-            self.image.blit(HighlightSprite.tile_images["XX%s%s" % (tiletype[2], tiletype[3])], (p4,0), (p4,0,p2,p))
-            self.image.blit(HighlightSprite.tile_images["%sXX%s" % (tiletype[0], tiletype[3])], (p4,0), (p4,0,p2,p))
-        # Edge bits, made up of one image
-        elif type == 5:
-            self.image.blit(HighlightSprite.tile_images["%s%sXX" % (tiletype[0], tiletype[1])], (0,0))
-        elif type == 6:
-            self.image.blit(HighlightSprite.tile_images["X%s%sX" % (tiletype[1], tiletype[2])], (0,0))
-        elif type == 7:
-            self.image.blit(HighlightSprite.tile_images["XX%s%s" % (tiletype[2], tiletype[3])], (0,0))
-        elif type == 8:
-            self.image.blit(HighlightSprite.tile_images["%sXX%s" % (tiletype[0], tiletype[3])], (0,0))
-        else:
-            # Otherwise highlight whole tile (4 images)
-            self.image.fill((0,0,0))
-            self.image.blit(HighlightSprite.tile_images["%s%sXX" % (tiletype[0], tiletype[1])], (0,0))
-            self.image.blit(HighlightSprite.tile_images["X%s%sX" % (tiletype[1], tiletype[2])], (0,0))
-            self.image.blit(HighlightSprite.tile_images["XX%s%s" % (tiletype[2], tiletype[3])], (0,0))
-            self.image.blit(HighlightSprite.tile_images["%sXX%s" % (tiletype[0], tiletype[3])], (0,0))
-        self.xpos = xpos
-        self.ypos = ypos
-        if type == 0:
-            self.rect = (self.xpos - xoff, self.ypos - yoff, 1, 1)
-        else:
-            self.rect = (self.xpos - xoff, self.ypos - yoff, p, p)
-        self.type = type
-        self.xWorld = xWorld
-        self.yWorld = yWorld
-        self.layer = xWorld + yWorld
-    def update(self, xoff, yoff):
-        """Update position of sprite with new offsets"""
-        self.rect = (self.xpos - xoff, self.ypos - yoff, p, p)
 
 class TileSprite(pygame.sprite.Sprite):
     """Ground tiles"""

@@ -433,7 +433,6 @@ class Test(Tool):
         checked = {}
         # Add all initial tiles to first stack
         for t in tiles:
-            print t
             to_check[t] = World.get_height(t)
 
         # Find any neighbours of this tile which have the same vertex height before we raise it
