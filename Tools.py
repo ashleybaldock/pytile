@@ -458,12 +458,12 @@ class Test(Tool):
             checking = to_check
             # To check should be emptied at this point ready to add values this look
             to_check = {}
-            for key in checking.keys():
+            for key, value in checking.iteritems():
                 # Find all neighbours which haven't already been added to to_check and which aren't already
                 # Needs to be changed so that it checks if this tile has already been checked (will be speedier)
-                for k in range(len(c_x)):
-                    x = key[0] + c_x[k]
-                    y = key[1] + c_y[k]
+                for x, y, a, b in zip(c_x, c_y, c_a, c_b):
+                    x = key[0] + x
+                    y = key[1] + y
                     # Check if the potential tile has been checked before, if so use the existing object
                     if checked.has_key((x,y)):
 ##                        potential = checked[(x,y)]
@@ -482,20 +482,16 @@ class Test(Tool):
                     if potential and soften_up:
                         # Raise vertex to same height as the tile we're comparing against
                         # Do this twice for edges, only once for corners
-                        while self.compare_vertex_higher(checking[key], potential, c_a[k][0], c_b[k][0]):
-                            potential.raise_vertex(c_b[k][0])
-                            m = 1
-                        while self.compare_vertex_higher(checking[key], potential, c_a[k][1], c_b[k][1]):
-                            potential.raise_vertex(c_b[k][1])
-                            m = 1
+                        for aa, bb in zip(a, b):
+                            while self.compare_vertex_higher(value, potential, aa, bb):
+                                potential.raise_vertex(bb)
+                                m = 1
                     elif potential and soften_down:
                         # Lower vertex to same height as the tile we're comparing against
-                        while self.compare_vertex_lower(checking[key], potential, c_a[k][0], c_b[k][0]):
-                            potential.lower_vertex(c_b[k][0])
-                            m = 1
-                        while self.compare_vertex_lower(checking[key], potential, c_a[k][1], c_b[k][1]):
-                            potential.lower_vertex(c_b[k][1])
-                            m = 1
+                        for aa, bb in zip(a, b):
+                            while self.compare_vertex_lower(value, potential, aa, bb):
+                                potential.lower_vertex(bb)
+                                m = 1
                     elif potential:
                         checked[(x, y)] = potential
                     # Since we've modified this vertex, add it to the list to be checked next time around
