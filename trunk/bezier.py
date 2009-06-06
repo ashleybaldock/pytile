@@ -1,5 +1,7 @@
 import pygame
 from pygame.locals import *
+
+import os
  
 from vec2d import *
  
@@ -17,6 +19,10 @@ X,Y,Z = 0,1,2
 black = (0,0,0)
 white = (255,255,255)
 yellow = (255,255,0)
+
+WINDOW_WIDTH = 800
+WINDOW_HEIGHT = 600
+
  
 def calculate_bezier(p, steps = 30):
     """
@@ -71,7 +77,7 @@ def find_midpoint(a, b):
     a_to_b = b - a
     return a + a_to_b / 2.0
 
-def draw_track(screen, control_points, component):
+
     # Calculate bezier curve points and tangents
     cps, tangents = calculate_bezier(control_points, 30)
     # Setup constants
@@ -190,7 +196,7 @@ class Tile(pygame.sprite.Sprite):
         self.image = pygame.Surface((self.size, self.size))
         self.image.fill(black)
         self.image.set_colorkey(black, pygame.RLEACCEL)
-        self.rect = (position[0], position[1], self.size, self.size)
+        self.rect = (self.position[0], self.position[1], self.size, self.size)
     def add_path(self, path):
         """Add another path to this tile"""
         self.paths.append(path)
@@ -230,6 +236,7 @@ class Tile(pygame.sprite.Sprite):
                 x = x/2
                 y = y/2
                 self.image.blit(s, p[0] + 5 * p[1] - (x,y))
+        self.rect = (self.position[0], self.position[1], self.size, self.size)
     def draw_track(self, control_points, component):
         """Draw the varying track components onto the sprite's image"""
         # Calculate bezier curve points and tangents
@@ -242,8 +249,6 @@ class Tile(pygame.sprite.Sprite):
         rail_width = 2
         ballast_width = 30
         overflow = - sleeper_spacing / 2.0
-        # It's like it's drawing one less per segment than it should?? Maybe something to do with the lengths being calculated?
-        # It's drawing one less segment because it's calculating the number of intervals between sleepers, but the number of sleepers is one more than this!
         if component == "sleepers":
             sleeper_points = []
             start = True
@@ -316,104 +321,116 @@ class Tile(pygame.sprite.Sprite):
     ##        pygame.draw.circle(screen, yellow, cps[0], 8)
 
 
-def main():
-    pygame.init()
-    screen = pygame.display.set_mode((600, 500))
 
-    box_size = 200
-    box_position = (50,50)
+class DisplayMain(object):
+    """This handles the main initialisation
+    and startup for the display"""
+    def __init__(self, width, height):
+        # Initialize PyGame
+        pygame.init()
+        
+        # Set the window Size
+        self.screen_width = width
+        self.screen_height = height
+        
+        # Create the Screen
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))#, pygame.RESIZABLE)
 
-    # Control points that are later used to calculate the curve
-    control_points = [vec2d(350,50), vec2d(400,250), vec2d(500,200), vec2d(450, 450)]
- 
-    # The currently selected point
-    selected = None
+        #tell pygame to keep sending up keystrokes when they are held down
+        pygame.key.set_repeat(500, 30)
 
-    paths = [
-##             [14, 0],
-##             [14, 3],
-##             [12, 5],
-##             [12, 2],
-##             [15, 5],
-##             [17, 3],
-##             [17, 0],
-##             [15, 2],
-            ]
+        # Setup fonts
+        self.font = pygame.font.Font(None, 12)
+        self.font = pygame.font.SysFont("Arial", 16)
 
-    start_point = None
-    instructions = ["Click on a pair of red dots to draw a track between them",
-                    "Drag blue control points to alter the free-form track curve"]
-    clock = pygame.time.Clock()
-    pts = None
-    running = True
+        # Set up variables
+        self.refresh_screen = True
 
-    rails_sprites = pygame.sprite.Group()
-    sleepers_sprites = pygame.sprite.Group()
-    ballast_sprites = pygame.sprite.Group()
-    hints_sprites = pygame.sprite.Group()
-    box_sprites = pygame.sprite.Group()
+    def MainLoop(self):
+        """This is the Main Loop of the Game"""
+        # Initiate the clock
+        self.clock = pygame.time.Clock()
 
-    for x in range(1):
-        rails_sprites.add(Tile(box_size, box_position, "rails"))
-        sleepers_sprites.add(Tile(box_size, box_position, "sleepers"))
-        ballast_sprites.add(Tile(box_size, box_position, "ballast"))
-        hints_sprites.add(Tile(box_size, box_position, "hints"))
-        box_sprites.add(Tile(box_size, box_position, "box"))
-    sprite_groups = [box_sprites, ballast_sprites, sleepers_sprites, rails_sprites]#, hints_sprites]
-    for x in sprite_groups:
-        for y in x:
-            y.add_path([13,1])
+        self.box_size = 200
+        self.box_position = (50,50)
+     
+        # The currently selected point
+        self.selected = None
 
-    while running:
-        for event in pygame.event.get():
-            if event.type in (QUIT, KEYDOWN):
-                running = False
-            elif event.type == MOUSEBUTTONDOWN and event.button == 1:
-                for p in control_points:
-                    if abs(p.x - event.pos[X]) < 10 and abs(p.y - event.pos[Y]) < 10 :
-                        selected = p
-##                for p in box_collidepoints:
-##                    if abs(p[0].x - event.pos[X]) < 10 and abs(p[0].y - event.pos[Y]) < 10 :
-##                        if start_point == None:
-##                            start_point = box_collidepoints.index(p)
-##                        elif box_collidepoints.index(p) != start_point:
-##                            new_path = [start_point, box_collidepoints.index(p)]
-##                            if new_path not in paths:
-##                                paths.append(new_path)
-##                            start_point = None
-            elif event.type == MOUSEBUTTONUP and event.button == 1:
-                selected = None
+        self.instructions = ["D - Click on a pair of red dots to draw a track between them",
+                             "R - Click on a pair of red dots to remove the track between them"]
 
-        font = pygame.font.SysFont("Arial", 12)
-        ### Draw stuff
-        screen.fill(darkgreen)
+        self.rails_sprites = pygame.sprite.Group()
+        self.sleepers_sprites = pygame.sprite.Group()
+        self.ballast_sprites = pygame.sprite.Group()
+        self.hints_sprites = pygame.sprite.Group()
+        self.box_sprites = pygame.sprite.Group()
+
+        x_boxes = self.screen_width / self.box_size
+        y_boxes = self.screen_height / self.box_size
+
+        for x in range(x_boxes):
+            for y in range(y_boxes):
+                self.rails_sprites.add(Tile(self.box_size, (x*self.box_size, y*self.box_size), "rails"))
+                self.sleepers_sprites.add(Tile(self.box_size, (x*self.box_size, y*self.box_size), "sleepers"))
+                self.ballast_sprites.add(Tile(self.box_size, (x*self.box_size, y*self.box_size), "ballast"))
+                self.hints_sprites.add(Tile(self.box_size, (x*self.box_size, y*self.box_size), "hints"))
+                self.box_sprites.add(Tile(self.box_size, (x*self.box_size, y*self.box_size), "box"))
+        self.sprite_groups = [self.box_sprites, self.ballast_sprites, self.sleepers_sprites, self.rails_sprites]#, hints_sprites]
+        for x in self.sprite_groups:
+            for y in x:
+                y.add_path([13,1])
 
 
-        # Draw instructions to screen
-        font = pygame.font.SysFont("Arial", 18)
-        for t in range(len(instructions)):
-            screen.blit(font.render(instructions[t], False, black), (20,420 + t*20))
+        running = True
+        while running:
+            for event in pygame.event.get():
+                if event.type in (QUIT, KEYDOWN):
+                    running = False
+##                elif event.type == MOUSEBUTTONDOWN and event.button == 1:
+##                    for p in control_points:
+##                        if abs(p.x - event.pos[X]) < 10 and abs(p.y - event.pos[Y]) < 10 :
+##                            self.selected = p
+    ##                for p in box_collidepoints:
+    ##                    if abs(p[0].x - event.pos[X]) < 10 and abs(p[0].y - event.pos[Y]) < 10 :
+    ##                        if start_point == None:
+    ##                            start_point = box_collidepoints.index(p)
+    ##                        elif box_collidepoints.index(p) != start_point:
+    ##                            new_path = [start_point, box_collidepoints.index(p)]
+    ##                            if new_path not in paths:
+    ##                                paths.append(new_path)
+    ##                            start_point = None
+##                elif event.type == MOUSEBUTTONUP and event.button == 1:
+##                    self.selected = None
+
+            ### Draw stuff
+            self.screen.fill(darkgreen)
 
 
-        if selected is not None:
-            selected.x, selected.y = pygame.mouse.get_pos()
-            pygame.draw.circle(screen, green, selected, 10)
+            # Draw instructions to screen
+            for t in range(len(self.instructions)):
+                self.screen.blit(self.font.render(self.instructions[t], False, black), (20,420 + t*20))
 
-        draw_track(screen, control_points, "ballast")
-        draw_track(screen, control_points, "sleepers")
-        draw_track(screen, control_points, "track")
-        draw_track(screen, control_points, "hints")
-        draw_track(screen, control_points, "controls")
 
-        # Flip screen
-        for x in sprite_groups:
-            x.update()
-            rectlist = x.draw(screen)
+            # Update sprites in the sprite groups which need updating
+            for x in self.sprite_groups:
+                x.update()
+                rectlist = x.draw(self.screen)
 
-        pygame.display.update()
-        screen.fill(black)
-        clock.tick(100)
-        #print clock.get_fps()
+            # Refresh the screen if necessary, or just draw the updated bits
+            if self.refresh_screen:
+                pygame.display.update()
+                self.screen.fill((0,0,0))
+##                self.refresh_screen = False
+            else:
+                pygame.display.update(self.dirty)
+
+            self.clock.tick(100)
+            #print clock.get_fps()
     
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+##    sys.stderr = debug
+##    sys.stdout = debug
+    os.environ["SDL_VIDEO_CENTERED"] = "1"
+    MainWindow = DisplayMain(WINDOW_WIDTH, WINDOW_HEIGHT)
+    MainWindow.MainLoop()
