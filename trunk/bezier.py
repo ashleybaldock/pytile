@@ -26,7 +26,27 @@ WINDOW_HEIGHT = 800
 xWorld = 4
 yWorld = 4
 
- 
+
+class MouseSprite(pygame.sprite.Sprite):
+    """Small invisible sprite to use for mouse/sprite collision testing"""
+    # This sprite never gets drawn, so no need to worry about what it looks like
+    image = None
+    mask = None
+    def __init__(self, (mouseX, mouseY)):
+        pygame.sprite.Sprite.__init__(self)
+        if MouseSprite.image is None:
+            MouseSprite.image = pygame.Surface((1,1))
+        if MouseSprite.mask is None:
+            s = pygame.Surface((1,1))
+            s.fill((1,1,1))
+            MouseSprite.mask = pygame.mask.from_surface(s, 0)
+        self.mask = MouseSprite.mask
+        self.image = MouseSprite.image
+        self.rect = pygame.Rect(mouseX, mouseY, 1,1)
+    def update(self, (x, y)):
+        self.rect = pygame.Rect(x, y, 1,1)
+
+
 def calculate_bezier(p, steps = 30):
     """
     Calculate a bezier curve from 4 control points and return a 
@@ -177,6 +197,7 @@ class Tile(pygame.sprite.Sprite):
         self.type = type
         # Init variables
         self.paths = []
+        self.control_hint = None
 
         self.box = [vec2d(size, size),
                vec2d(0, size),
@@ -203,6 +224,22 @@ class Tile(pygame.sprite.Sprite):
     def add_path(self, path):
         """Add another path to this tile"""
         self.paths.append(path)
+    def set_control_hint(self, endpoint_number):
+        """Add a control hint to this sprite, used to indicate which endpoints are active"""
+        self.control_hint = endpoint_number
+    def find_control_points(self, position):
+        """Find the control points closest to the mouse cursor, relative to this tile"""
+        wx, wy = position
+        x = wx - self.xpos
+        y = wy - self.ypos
+        control_points = []
+        for n, c in enumerate(self.box_endpoints):
+            # If the position is within 10 pixels of the control point position, this is a valid control point
+            if abs(x - c[0][0]) < 10 and abs(y - c[0][1]) < 10:
+                control_points.append(n)
+        print "control_points: %s\nwx: %s, wy: %s, x: %s, y: %s" % (control_points,wx,wy,x,y)
+        return control_points
+                
     def calc_rect(self):
         """Calculate the current rect of this tile"""
         x = self.position[0]
@@ -242,8 +279,11 @@ class Tile(pygame.sprite.Sprite):
             # Draw the outline of the box
             pygame.draw.lines(self.image, True, darkblue, self.box)
             pygame.draw.lines(self.image, True, darkblue, self.box_midpoints)
-##        if start_point != None:
-##            pygame.draw.circle(box_surface, green, box_endpoints[start_point][0], 7)
+            # Draw control hints for this tile
+            if self.control_hint:
+                print "self.control_hint: %s" % self.control_hint
+                pygame.draw.circle(self.image, green, self.box_endpoints[self.control_hint][0], 7)
+            # Draw the remaining box endpoints
             for p in self.box_endpoints:
                 pygame.draw.circle(self.image, red, (int(p[0][0]),int(p[0][1])), 3)
                 pygame.draw.line(self.image, darkblue, p[0], p[0] + 20 * p[1])
@@ -362,6 +402,29 @@ class DisplayMain(object):
         # Set up variables
         self.refresh_screen = True
 
+        self.mouseSprite = None
+
+    def collide_locate(self, mousepos, collideagainst, start=None):
+        """Locates the sprite(s) that the mouse position intersects with"""
+        # Draw mouseSprite at cursor position
+        if self.mouseSprite:
+            self.mouseSprite.sprite.update(mousepos)
+        else:
+            self.mouseSprite = pygame.sprite.GroupSingle(MouseSprite(mousepos))
+        # Find sprites that the mouseSprite intersects with
+        collision_list1 = pygame.sprite.spritecollide(self.mouseSprite.sprite, collideagainst, False)
+        print "collision_list1 %s" % collision_list1
+        if collision_list1:
+            tilecontrols = []
+            for t in collision_list1:
+                # For each tile collided with, calculate which of its control points the mouse event is closest to (if any)
+                cp = t.find_control_points(mousepos)
+                if cp:
+                    tilecontrols.append([t, t.position, cp])
+            return tilecontrols
+        else:
+            return None
+
     def add_tile(self, size, position):
         """Add a track tile"""
 ##        self.rails_sprites.add(Tile(size, position, "rails"))
@@ -380,8 +443,9 @@ class DisplayMain(object):
         # The currently selected point
         self.selected = None
 
-        self.instructions = ["D - Click on a pair of red dots to draw a track between them",
-                             "R - Click on a pair of red dots to remove the track between them"]
+        self.instructions = ["Click on a pair of red dots to:",
+                             "D - draw a track between them",
+                             "R - remove the track between them"]
 
         self.rails_sprites = pygame.sprite.Group()
         self.sleepers_sprites = pygame.sprite.Group()
@@ -401,6 +465,7 @@ class DisplayMain(object):
             for y in x:
                 y.add_path([13,1])
 
+        self.start_positions = []
 
         while True:
             self.clock.tick(0)
@@ -417,21 +482,16 @@ class DisplayMain(object):
                     if event.key == pygame.K_ESCAPE:
                         pygame.display.quit()
                         sys.exit()
-##                elif event.type == MOUSEBUTTONDOWN and event.button == 1:
-##                    for p in control_points:
-##                        if abs(p.x - event.pos[X]) < 10 and abs(p.y - event.pos[Y]) < 10 :
-##                            self.selected = p
-##                    for p in box_collidepoints:
-##                        if abs(p[0].x - event.pos[X]) < 10 and abs(p[0].y - event.pos[Y]) < 10 :
-##                            if start_point == None:
-##                                start_point = box_collidepoints.index(p)
-##                            elif box_collidepoints.index(p) != start_point:
-##                                new_path = [start_point, box_collidepoints.index(p)]
-##                                if new_path not in paths:
-##                                    paths.append(new_path)
-##                                start_point = None
-##                elif event.type == MOUSEBUTTONUP and event.button == 1:
-##                    self.selected = None
+                elif event.type == MOUSEBUTTONUP and event.button == 1:
+                    if self.start_positions:
+                        end_positions = self.collide_locate(event.pos, self.box_sprites)
+                        print end_positions
+                    else:
+                        self.start_positions = self.collide_locate(event.pos, self.box_sprites)
+                        for t in self.start_positions:
+                            for k in t[2]:
+                                t[0].set_control_hint(k)
+                        print self.start_positions
 
             ### Draw stuff
             self.screen.fill(darkgreen)
@@ -439,7 +499,7 @@ class DisplayMain(object):
 
             # Draw instructions to screen
             for t in range(len(self.instructions)):
-                self.screen.blit(self.font.render(self.instructions[t], False, black), (20,420 + t*20))
+                self.screen.blit(self.font.render(self.instructions[t], False, black), (10,10 + t*20))
 
 
             # Update sprites in the sprite groups which need updating
