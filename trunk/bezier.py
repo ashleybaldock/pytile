@@ -1,7 +1,7 @@
 import pygame
 from pygame.locals import *
 
-import os
+import os, sys
  
 from vec2d import *
  
@@ -21,7 +21,10 @@ white = (255,255,255)
 yellow = (255,255,0)
 
 WINDOW_WIDTH = 800
-WINDOW_HEIGHT = 600
+WINDOW_HEIGHT = 800
+
+xWorld = 4
+yWorld = 4
 
  
 def calculate_bezier(p, steps = 30):
@@ -196,10 +199,23 @@ class Tile(pygame.sprite.Sprite):
         self.image = pygame.Surface((self.size, self.size))
         self.image.fill(black)
         self.image.set_colorkey(black, pygame.RLEACCEL)
-        self.rect = (self.position[0], self.position[1], self.size, self.size)
+        self.rect = self.calc_rect
     def add_path(self, path):
         """Add another path to this tile"""
         self.paths.append(path)
+    def calc_rect(self):
+        """Calculate the current rect of this tile"""
+        x = self.position[0]
+        y = self.position[1]
+        p = self.size
+        p2 = self.size / 2
+        # Global screen positions
+        self.xpos = xWorld*p2 - (x * p2) + (y * p2) - p2
+##        self.ypos = (x * p4) + (y * p4) - (z * ph)
+        self.ypos = (x * p2) + (y * p2)
+        # Rect position takes into account the offset
+        self.rect = (self.xpos, self.ypos, p, p)
+        return self.rect
     def update(self):
         """Draw the image this tile represents"""
         # Draw a track for every entry in paths
@@ -236,7 +252,7 @@ class Tile(pygame.sprite.Sprite):
                 x = x/2
                 y = y/2
                 self.image.blit(s, p[0] + 5 * p[1] - (x,y))
-        self.rect = (self.position[0], self.position[1], self.size, self.size)
+        self.rect = self.calc_rect()
     def draw_track(self, control_points, component):
         """Draw the varying track components onto the sprite's image"""
         # Calculate bezier curve points and tangents
@@ -346,13 +362,20 @@ class DisplayMain(object):
         # Set up variables
         self.refresh_screen = True
 
+    def add_tile(self, size, position):
+        """Add a track tile"""
+##        self.rails_sprites.add(Tile(size, position, "rails"))
+##        self.sleepers_sprites.add(Tile(size, position, "sleepers"))
+##        self.ballast_sprites.add(Tile(size, position, "ballast"))
+        self.hints_sprites.add(Tile(size, position, "hints"))
+        self.box_sprites.add(Tile(size, position, "box"))
+
     def MainLoop(self):
         """This is the Main Loop of the Game"""
         # Initiate the clock
         self.clock = pygame.time.Clock()
 
         self.box_size = 200
-        self.box_position = (50,50)
      
         # The currently selected point
         self.selected = None
@@ -368,38 +391,45 @@ class DisplayMain(object):
 
         x_boxes = self.screen_width / self.box_size
         y_boxes = self.screen_height / self.box_size
+        for x in range(xWorld):
+            for y in range(yWorld):
+                self.add_tile(self.box_size, (x, y))
 
-        for x in range(x_boxes):
-            for y in range(y_boxes):
-                self.rails_sprites.add(Tile(self.box_size, (x*self.box_size, y*self.box_size), "rails"))
-                self.sleepers_sprites.add(Tile(self.box_size, (x*self.box_size, y*self.box_size), "sleepers"))
-                self.ballast_sprites.add(Tile(self.box_size, (x*self.box_size, y*self.box_size), "ballast"))
-                self.hints_sprites.add(Tile(self.box_size, (x*self.box_size, y*self.box_size), "hints"))
-                self.box_sprites.add(Tile(self.box_size, (x*self.box_size, y*self.box_size), "box"))
+
         self.sprite_groups = [self.box_sprites, self.ballast_sprites, self.sleepers_sprites, self.rails_sprites]#, hints_sprites]
         for x in self.sprite_groups:
             for y in x:
                 y.add_path([13,1])
 
 
-        running = True
-        while running:
+        while True:
+            self.clock.tick(0)
+            # If there's a quit event, don't bother parsing the event queue
+            if pygame.event.peek(pygame.QUIT):
+                pygame.display.quit()
+                sys.exit()
+
+            # Clear the stack of dirty tiles
+            self.dirty = []
+
             for event in pygame.event.get():
-                if event.type in (QUIT, KEYDOWN):
-                    running = False
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        pygame.display.quit()
+                        sys.exit()
 ##                elif event.type == MOUSEBUTTONDOWN and event.button == 1:
 ##                    for p in control_points:
 ##                        if abs(p.x - event.pos[X]) < 10 and abs(p.y - event.pos[Y]) < 10 :
 ##                            self.selected = p
-    ##                for p in box_collidepoints:
-    ##                    if abs(p[0].x - event.pos[X]) < 10 and abs(p[0].y - event.pos[Y]) < 10 :
-    ##                        if start_point == None:
-    ##                            start_point = box_collidepoints.index(p)
-    ##                        elif box_collidepoints.index(p) != start_point:
-    ##                            new_path = [start_point, box_collidepoints.index(p)]
-    ##                            if new_path not in paths:
-    ##                                paths.append(new_path)
-    ##                            start_point = None
+##                    for p in box_collidepoints:
+##                        if abs(p[0].x - event.pos[X]) < 10 and abs(p[0].y - event.pos[Y]) < 10 :
+##                            if start_point == None:
+##                                start_point = box_collidepoints.index(p)
+##                            elif box_collidepoints.index(p) != start_point:
+##                                new_path = [start_point, box_collidepoints.index(p)]
+##                                if new_path not in paths:
+##                                    paths.append(new_path)
+##                                start_point = None
 ##                elif event.type == MOUSEBUTTONUP and event.button == 1:
 ##                    self.selected = None
 
@@ -425,8 +455,7 @@ class DisplayMain(object):
             else:
                 pygame.display.update(self.dirty)
 
-            self.clock.tick(100)
-            #print clock.get_fps()
+
     
 if __name__ == "__main__":
 ##    sys.stderr = debug
