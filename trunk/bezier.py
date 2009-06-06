@@ -224,6 +224,8 @@ class Tile(pygame.sprite.Sprite):
     def add_path(self, path):
         """Add another path to this tile"""
         self.paths.append(path)
+        self.update()
+
     def set_control_hint(self, endpoint_number):
         """Add a control hint to this sprite, used to indicate which endpoints are active"""
         self.control_hint = endpoint_number
@@ -238,7 +240,8 @@ class Tile(pygame.sprite.Sprite):
             if abs(x - c[0][0]) < 10 and abs(y - c[0][1]) < 10:
                 control_points.append(n)
         print "control_points: %s\nwx: %s, wy: %s, x: %s, y: %s" % (control_points,wx,wy,x,y)
-        return control_points
+        # Return only one control point
+        return control_points[0]
                 
     def calc_rect(self):
         """Calculate the current rect of this tile"""
@@ -413,7 +416,6 @@ class DisplayMain(object):
             self.mouseSprite = pygame.sprite.GroupSingle(MouseSprite(mousepos))
         # Find sprites that the mouseSprite intersects with
         collision_list1 = pygame.sprite.spritecollide(self.mouseSprite.sprite, collideagainst, False)
-        print "collision_list1 %s" % collision_list1
         if collision_list1:
             tilecontrols = []
             for t in collision_list1:
@@ -427,9 +429,9 @@ class DisplayMain(object):
 
     def add_tile(self, size, position):
         """Add a track tile"""
-##        self.rails_sprites.add(Tile(size, position, "rails"))
-##        self.sleepers_sprites.add(Tile(size, position, "sleepers"))
-##        self.ballast_sprites.add(Tile(size, position, "ballast"))
+        self.rails_sprites.add(Tile(size, position, "rails"))
+        self.sleepers_sprites.add(Tile(size, position, "sleepers"))
+        self.ballast_sprites.add(Tile(size, position, "ballast"))
         self.hints_sprites.add(Tile(size, position, "hints"))
         self.box_sprites.add(Tile(size, position, "box"))
 
@@ -461,9 +463,9 @@ class DisplayMain(object):
 
 
         self.sprite_groups = [self.box_sprites, self.ballast_sprites, self.sleepers_sprites, self.rails_sprites]#, hints_sprites]
-        for x in self.sprite_groups:
-            for y in x:
-                y.add_path([13,1])
+##        for x in self.sprite_groups:
+##            for y in x:
+##                y.add_path([13,1])
 
         self.start_positions = []
 
@@ -476,7 +478,7 @@ class DisplayMain(object):
 
             # Clear the stack of dirty tiles
             self.dirty = []
-
+            clear = False
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
@@ -485,13 +487,26 @@ class DisplayMain(object):
                 elif event.type == MOUSEBUTTONUP and event.button == 1:
                     if self.start_positions:
                         end_positions = self.collide_locate(event.pos, self.box_sprites)
-                        print end_positions
+                        for e in end_positions:
+                            for s in self.start_positions:
+                                print e, s
+                                if e[1] == s[1]:
+                                    s[0].set_control_hint(e[2])
+                                    s[0].add_path([s[2], e[2]])
+                                    # This doesn't work because the array only contains the sprites for the hints!
+                                    # Need either some kind of global store for all the tile information, which the individual tiles then grab
+                                    # Or to make each "tile" be a sprite group, containing X number of sprites which develop into that sprite
+                                    # Can then reference those through that group.
+                                    print "adding path: %s to %s to tile: %s" % (s[2], e[2],s[0])
+                                    clear = True
+
                     else:
                         self.start_positions = self.collide_locate(event.pos, self.box_sprites)
                         for t in self.start_positions:
-                            for k in t[2]:
-                                t[0].set_control_hint(k)
-                        print self.start_positions
+                            t[0].set_control_hint(t[2])
+
+            if clear:
+                self.start_positions = []
 
             ### Draw stuff
             self.screen.fill(darkgreen)
