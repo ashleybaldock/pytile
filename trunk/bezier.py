@@ -20,6 +20,7 @@ black = (0,0,0)
 white = (255,255,255)
 yellow = (255,255,0)
 
+FPS_REFRESH = 500
 WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 800
 
@@ -427,45 +428,46 @@ class DisplayMain(object):
         else:
             return None
 
-    def add_tile(self, size, position):
-        """Add a track tile"""
-        self.rails_sprites.add(Tile(size, position, "rails"))
-        self.sleepers_sprites.add(Tile(size, position, "sleepers"))
-        self.ballast_sprites.add(Tile(size, position, "ballast"))
-        self.hints_sprites.add(Tile(size, position, "hints"))
-        self.box_sprites.add(Tile(size, position, "box"))
-
     def MainLoop(self):
         """This is the Main Loop of the Game"""
         # Initiate the clock
         self.clock = pygame.time.Clock()
 
         self.box_size = 200
-     
+
+        # Settings for FPS counter
+        self.fps_refresh = FPS_REFRESH
+        self.fps_elapsed = 0
+
         # The currently selected point
         self.selected = None
 
         self.instructions = ["Click on a pair of red dots to:",
                              "D - draw a track between them",
-                             "R - remove the track between them"]
+##                             "R - remove the track between them",
+                             ]
 
-        self.rails_sprites = pygame.sprite.Group()
-        self.sleepers_sprites = pygame.sprite.Group()
-        self.ballast_sprites = pygame.sprite.Group()
-        self.hints_sprites = pygame.sprite.Group()
-        self.box_sprites = pygame.sprite.Group()
+        # Layers to draw, first listed drawn first
+        layers = ["box",
+                  "hints",
+                  "ballast",
+                  "sleepers",
+                  "rails"
+                  ]
 
-        x_boxes = self.screen_width / self.box_size
-        y_boxes = self.screen_height / self.box_size
+        # 2D array, [x][y]
+        self.sprite_lookup = []
+        self.sprites = pygame.sprite.LayeredUpdates()
+
         for x in range(xWorld):
+            a = []
             for y in range(yWorld):
-                self.add_tile(self.box_size, (x, y))
-
-
-        self.sprite_groups = [self.box_sprites, self.ballast_sprites, self.sleepers_sprites, self.rails_sprites]#, hints_sprites]
-##        for x in self.sprite_groups:
-##            for y in x:
-##                y.add_path([13,1])
+                d = {}
+                for c, b in enumerate(layers):
+                    d[b] = Tile(self.box_size, (x,y), b)
+                    self.sprites.add(d[b])
+                a.append(d)
+            self.sprite_lookup.append(a)
 
         self.start_positions = []
 
@@ -486,12 +488,12 @@ class DisplayMain(object):
                         sys.exit()
                 elif event.type == MOUSEBUTTONUP and event.button == 1:
                     if self.start_positions:
-                        end_positions = self.collide_locate(event.pos, self.box_sprites)
+                        end_positions = self.collide_locate(event.pos, self.sprites)
                         for e in end_positions:
                             for s in self.start_positions:
                                 print e, s
                                 if e[1] == s[1]:
-                                    s[0].set_control_hint(e[2])
+                                    s[0].set_control_hint(None)
                                     s[0].add_path([s[2], e[2]])
                                     # This doesn't work because the array only contains the sprites for the hints!
                                     # Need either some kind of global store for all the tile information, which the individual tiles then grab
@@ -499,11 +501,13 @@ class DisplayMain(object):
                                     # Can then reference those through that group.
                                     print "adding path: %s to %s to tile: %s" % (s[2], e[2],s[0])
                                     clear = True
+                                    self.refresh_screen = True
 
                     else:
-                        self.start_positions = self.collide_locate(event.pos, self.box_sprites)
+                        self.start_positions = self.collide_locate(event.pos, self.sprites)
                         for t in self.start_positions:
                             t[0].set_control_hint(t[2])
+                        self.refresh_screen = True
 
             if clear:
                 self.start_positions = []
@@ -517,16 +521,23 @@ class DisplayMain(object):
                 self.screen.blit(self.font.render(self.instructions[t], False, black), (10,10 + t*20))
 
 
+            # Write some useful info on the top bar
+            self.fps_elapsed += self.clock.get_time()
+            if self.fps_elapsed >= self.fps_refresh:
+                self.fps_elapsed = 0
+                pygame.display.set_caption("FPS: %i" %
+                                           (self.clock.get_fps()))
+
             # Update sprites in the sprite groups which need updating
-            for x in self.sprite_groups:
-                x.update()
-                rectlist = x.draw(self.screen)
+            if self.refresh_screen:
+                self.sprites.update()
+            rectlist = self.sprites.draw(self.screen)
 
             # Refresh the screen if necessary, or just draw the updated bits
             if self.refresh_screen:
                 pygame.display.update()
                 self.screen.fill((0,0,0))
-##                self.refresh_screen = False
+                self.refresh_screen = False
             else:
                 pygame.display.update(self.dirty)
 
