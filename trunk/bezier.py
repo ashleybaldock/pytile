@@ -27,6 +27,7 @@ WINDOW_HEIGHT = 800
 xWorld = 4
 yWorld = 4
 
+TILE_SIZE = 200
 
 class MouseSprite(pygame.sprite.Sprite):
     """Small invisible sprite to use for mouse/sprite collision testing"""
@@ -102,108 +103,45 @@ def find_midpoint(a, b):
     return a + a_to_b / 2.0
 
 
-    # Calculate bezier curve points and tangents
-    cps, tangents = calculate_bezier(control_points, 30)
-    # Setup constants
-    sleeper_spacing = 15
-    sleeper_width = 5
-    sleeper_length = 18
-    rail_spacing = 10
-    rail_width = 2
-    ballast_width = 30
-    overflow = - sleeper_spacing / 2.0
-    # It's like it's drawing one less per segment than it should?? Maybe something to do with the lengths being calculated?
-    # It's drawing one less segment because it's calculating the number of intervals between sleepers, but the number of sleepers is one more than this!
-    if component == "sleepers":
-        sleeper_points = []
-        start = True
-        for p in range(1, len(cps)):
-            # Find gradient of a->b
-            b = cps[p]
-            a = cps[p-1]
-            a_to_b = b - a
-            ab_n = a_to_b.normalized()
-            # Vector to add to start vector, to get offset start location
-            start_vector = overflow * ab_n
-            
-            # Number of sleepers to draw in this section
-            n_sleepers, overflow = divmod((a_to_b + start_vector).get_length(), (ab_n * sleeper_spacing).get_length())
-            n_sleepers = int(n_sleepers)
-            # Loop through n_sleepers, draw a sleeper at the start of each sleeper spacing interval
-            if start:
-                s = 0
-                start = False
-            else:
-                s = 1
-            for n in range(s, n_sleepers+1):
-                sleeper_points.append([get_at_width(a - start_vector + n*ab_n*sleeper_spacing - ab_n*0.5*sleeper_width, a_to_b, -sleeper_length),
-                                       get_at_width(a - start_vector + n*ab_n*sleeper_spacing - ab_n*0.5*sleeper_width, a_to_b, sleeper_length),
-                                       get_at_width(a - start_vector + n*ab_n*sleeper_spacing + ab_n*0.5*sleeper_width, a_to_b, sleeper_length),
-                                       get_at_width(a - start_vector + n*ab_n*sleeper_spacing + ab_n*0.5*sleeper_width, a_to_b, -sleeper_length)])
-
-        # Finally draw all the sleeper points
-        for p in sleeper_points:
-            pygame.draw.polygon(screen, brown, p, 0)
-
-    if component == "ballast":
-        # Draw the ballast under the track, this will be a polygon in the rough shape of the trackwork which will then be replaced with a texture
-        # Polygon defined by the two lines at either side of the track
-        ballast_points = []
-        # Add one side
-        for p in range(0, len(cps)):
-            ballast_points.append(get_at_width(cps[p], tangents[p], ballast_width))
-        ballast_points.reverse()
-        for p in range(0, len(cps)):
-            ballast_points.append(get_at_width(cps[p], tangents[p], -ballast_width))
-        pygame.draw.polygon(screen, grey, ballast_points, 0)
-
-    if component == "track":
-        points2 = []
-        for p in range(0, len(cps)):
-            points2.append(get_at_width(cps[p], tangents[p], rail_spacing))
-        pygame.draw.lines(screen, silver, False, points2, rail_width)
-        points3 = []
-        for p in range(0, len(cps)):
-            points3.append(get_at_width(cps[p], tangents[p], -rail_spacing))
-        pygame.draw.lines(screen, silver, False, points3, rail_width)
-
-    if component == "controls":
-        # Draw bezier curve control points
-        for p in control_points:
-            pygame.draw.circle(screen, blue, p, 4)
-        pygame.draw.lines(screen, lightgray, False, [control_points[0],control_points[1]])
-        pygame.draw.lines(screen, lightgray, False, [control_points[2],control_points[3]])
-        # Draw the base bezier curve
-        pygame.draw.lines(screen, red, False, cps)
-
-    if component == "hints":
-        # Draw hints as to the curve sections
-        for p in cps:
-            pygame.draw.circle(screen, green, (int(p[0]),int(p[1])), 3)
-
-
 class Tile(pygame.sprite.Sprite):
     """A tile containing tracks, drawn in layers"""
-##    image = None
-    font = None
-    def __init__(self, size, position, type, track_spacing=25, curve_factor=60):
+    init = False
+    def __init__(self, position, type, track_width=10, curve_factor=60):
         pygame.sprite.Sprite.__init__(self)
-        if Tile.font is None:
+        if not Tile.init:
+            Tile.init = True
+            Tile.size = TILE_SIZE
             Tile.font = pygame.font.SysFont("Arial", 12)
-        self.size = size
-        self.track_spacing = track_spacing
+            Tile.bezier_steps = 30
+            # Setup constants
+            track_width = Tile.size * 0.05
+            Tile.track_spacing = track_width * 2.0
+            Tile.sleeper_spacing = track_width * 0.75
+            Tile.sleeper_width = track_width * 0.3
+            Tile.sleeper_length = track_width * 1.5
+            Tile.rail_spacing = track_width
+            Tile.rail_width = track_width * 0.2
+            Tile.ballast_width = track_width * 2.3
+##            Tile.sleeper_spacing = 15
+##            Tile.sleeper_width = 5
+##            Tile.sleeper_length = 18
+##            Tile.rail_spacing = 10
+##            Tile.rail_width = 2
+##            Tile.ballast_width = 30
         self.curve_factor = curve_factor
         self.position = position
+
         # Type determines which part of the image this sprite draws (rails, sleepers, ballast or hints)
         self.type = type
+
         # Init variables
         self.paths = []
         self.control_hint = None
 
-        self.box = [vec2d(size, size),
-               vec2d(0, size),
+        self.box = [vec2d(Tile.size, Tile.size),
+               vec2d(0, Tile.size),
                vec2d(0, 0),
-               vec2d(size, 0)]
+               vec2d(Tile.size, 0)]
 
         self.box_midpoints = []
         self.box_allmidpoints = []
@@ -214,9 +152,9 @@ class Tile(pygame.sprite.Sprite):
             self.box_allmidpoints.append([find_midpoint(self.box_midpoints[p-1], self.box_midpoints[p]), (self.box_midpoints[p] - self.box_midpoints[p-1]).normalized()])
         self.box_endpoints = []
         for p in range(len(self.box_allmidpoints)):
-            self.box_endpoints.append([self.box_allmidpoints[p][0] - self.box_allmidpoints[p][1] * track_spacing, self.box_allmidpoints[p][1].perpendicular()])
+            self.box_endpoints.append([self.box_allmidpoints[p][0] - self.box_allmidpoints[p][1] * Tile.track_spacing, self.box_allmidpoints[p][1].perpendicular()])
             self.box_endpoints.append([self.box_allmidpoints[p][0], self.box_allmidpoints[p][1].perpendicular()])
-            self.box_endpoints.append([self.box_allmidpoints[p][0] + self.box_allmidpoints[p][1] * track_spacing, self.box_allmidpoints[p][1].perpendicular()])
+            self.box_endpoints.append([self.box_allmidpoints[p][0] + self.box_allmidpoints[p][1] * Tile.track_spacing, self.box_allmidpoints[p][1].perpendicular()])
 
         self.image = pygame.Surface((self.size, self.size))
         self.image.fill(black)
@@ -286,34 +224,36 @@ class Tile(pygame.sprite.Sprite):
                 self.draw_track(p, "hints")
         elif self.type == "box":
             # Draw the outline of the box
-            pygame.draw.lines(self.image, True, darkblue, self.box)
+##            pygame.draw.lines(self.image, True, darkblue, self.box)
             pygame.draw.lines(self.image, True, darkblue, self.box_midpoints)
             # Draw control hints for this tile
             if self.control_hint:
-                print "self.control_hint: %s" % self.control_hint
                 pygame.draw.circle(self.image, green, self.box_endpoints[self.control_hint][0], 7)
             # Draw the remaining box endpoints
             for p in self.box_endpoints:
+                # Draw red circles indicating the path endpoints
                 pygame.draw.circle(self.image, red, (int(p[0][0]),int(p[0][1])), 3)
-                pygame.draw.line(self.image, darkblue, p[0], p[0] + 20 * p[1])
-                s = Tile.font.render(str(self.box_endpoints.index(p)), False, green)
-                x,y = s.get_size()
-                x = x/2
-                y = y/2
-                self.image.blit(s, p[0] + 5 * p[1] - (x,y))
+                # Draw normal lines indicating the path endpoints
+##                pygame.draw.line(self.image, darkblue, p[0], p[0] + 20 * p[1])
+                # Draw text indicating which path endpoint the dot is
+##                s = Tile.font.render(str(self.box_endpoints.index(p)), False, green)
+##                x,y = s.get_size()
+##                x = x/2
+##                y = y/2
+##                self.image.blit(s, p[0] + 8 * p[1] - (x,y))
         self.rect = self.calc_rect()
     def draw_track(self, control_points, component):
         """Draw the varying track components onto the sprite's image"""
         # Calculate bezier curve points and tangents
         cps, tangents = calculate_bezier(control_points, 30)
         # Setup constants
-        sleeper_spacing = 15
-        sleeper_width = 5
-        sleeper_length = 18
-        rail_spacing = 10
-        rail_width = 2
-        ballast_width = 30
-        overflow = - sleeper_spacing / 2.0
+        sleeper_spacing = Tile.sleeper_spacing
+        sleeper_width = Tile.sleeper_width
+        sleeper_length = Tile.sleeper_length
+        rail_spacing = Tile.rail_spacing
+        rail_width = Tile.rail_width
+        ballast_width = Tile.ballast_width
+        overflow = - Tile.sleeper_spacing / 2.0
         if component == "sleepers":
             sleeper_points = []
             start = True
@@ -358,16 +298,31 @@ class Tile(pygame.sprite.Sprite):
             # Draw out to the image
             pygame.draw.polygon(self.image, grey, ballast_points, 0)
 
+##        if component == "rails":
+##            softness = 50
+##            for s in [1, -1]:
+##                for q in range(0, rail_width*softness):
+##                    points = []
+##                    for p in range(0, len(cps)):
+##                        points.append(get_at_width(cps[p], tangents[p], s*rail_spacing+s*q/softness))
+##                    pygame.draw.aalines(self.image, silver, False, points, True)
+
         if component == "rails":
-            points2 = []
-            for p in range(0, len(cps)):
-                points2.append(get_at_width(cps[p], tangents[p], rail_spacing))
-            points3 = []
-            for p in range(0, len(cps)):
-                points3.append(get_at_width(cps[p], tangents[p], -rail_spacing))
-            # Draw out to the image
-            pygame.draw.lines(self.image, silver, False, points2, rail_width)
-            pygame.draw.lines(self.image, silver, False, points3, rail_width)
+            softness = 50
+            for s in [1, -1]:
+##                for q in range(0, rail_width*softness):
+                points1 = []
+                points2 = []
+                points3 = []
+                for p in range(0, len(cps)):
+                    points1.append(get_at_width(cps[p], tangents[p], s*rail_spacing))
+                    points2.append(get_at_width(cps[p], tangents[p], s*rail_spacing - rail_width/2.0))
+                    points3.append(get_at_width(cps[p], tangents[p], s*rail_spacing + rail_width/2.0))
+                pygame.draw.lines(self.image, silver, False, points1, rail_width)
+                pygame.draw.aalines(self.image, silver, False, points2, True)
+                pygame.draw.aalines(self.image, silver, False, points3, True)
+                pygame.draw.aalines(self.image, silver, False, points2, True)
+                pygame.draw.aalines(self.image, silver, False, points3, True)
 
         if component == "controls":
             # Draw bezier curve control points
@@ -471,7 +426,7 @@ class DisplayMain(object):
             for y in range(yWorld):
                 d = {}
                 for c, b in enumerate(layers):
-                    d[b] = Tile(self.box_size, (x,y), b)
+                    d[b] = Tile((x,y), b)
                     self.sprites.add(d[b], layer=c)
                     if c == 0:
                         self.searchsprites.add(d[b])
