@@ -35,7 +35,7 @@ from copy import copy
 import world
 World = world.World()
 
-import Tools
+import tools
 
 import logger
 debug = logger.Log()
@@ -271,8 +271,8 @@ class DisplayMain(object):
         # Most basic tool is the "inspection tool", this will highlight whatever it's over including tiles
         # Terrain raise/lower tool, live preview of affected area
         # Terrain leveling tool, click and drag to select area
-        self.lmb_tool = Tools.Test()
-        self.rmb_tool = Tools.Move()
+        self.lmb_tool = tools.Test()
+        self.rmb_tool = tools.Move()
 
         # Array of tiles which should have highlighting applied to them
         
