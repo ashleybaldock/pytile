@@ -212,16 +212,16 @@ class Tile(pygame.sprite.Sprite):
             paths_to_draw.append([a,b,c,d])
         if self.type == "rails":
             for p in paths_to_draw:
-                self.draw_track(p, "rails")
+                self.draw_rails(p)
         elif self.type == "sleepers":
             for p in paths_to_draw:
-                self.draw_track(p, "sleepers")
+                self.draw_sleepers(p)
         elif self.type == "ballast":
             for p in paths_to_draw:
-                self.draw_track(p, "ballast")
-        elif self.type == "hints":
-            for p in paths_to_draw:
-                self.draw_track(p, "hints")
+                self.draw_ballast(p)
+##        elif self.type == "hints":
+##            for p in paths_to_draw:
+##                self.draw_hints(p)
         elif self.type == "box":
             # Draw the outline of the box
 ##            pygame.draw.lines(self.image, True, darkblue, self.box)
@@ -242,103 +242,95 @@ class Tile(pygame.sprite.Sprite):
 ##                y = y/2
 ##                self.image.blit(s, p[0] + 8 * p[1] - (x,y))
         self.rect = self.calc_rect()
-    def draw_track(self, control_points, component):
-        """Draw the varying track components onto the sprite's image"""
+
+    def draw_sleepers(self, control_points):
+        """Draw the sleeper component of the track"""
         # Calculate bezier curve points and tangents
         cps, tangents = calculate_bezier(control_points, 30)
-        # Setup constants
-        sleeper_spacing = Tile.sleeper_spacing
-        sleeper_width = Tile.sleeper_width
-        sleeper_length = Tile.sleeper_length
-        rail_spacing = Tile.rail_spacing
-        rail_width = Tile.rail_width
-        ballast_width = Tile.ballast_width
-        overflow = - Tile.sleeper_spacing / 2.0
-        if component == "sleepers":
-            sleeper_points = []
-            start = True
-            for p in range(1, len(cps)):
-                # Find gradient of a->b
-                b = cps[p]
-                a = cps[p-1]
-                a_to_b = b - a
-                ab_n = a_to_b.normalized()
-                # Vector to add to start vector, to get offset start location
-                start_vector = overflow * ab_n
-                
-                # Number of sleepers to draw in this section
-                n_sleepers, overflow = divmod((a_to_b + start_vector).get_length(), (ab_n * sleeper_spacing).get_length())
-                n_sleepers = int(n_sleepers)
-                # Loop through n_sleepers, draw a sleeper at the start of each sleeper spacing interval
-                if start:
-                    s = 0
-                    start = False
-                else:
-                    s = 1
-                for n in range(s, n_sleepers+1):
-                    sleeper_points.append([get_at_width(a - start_vector + n*ab_n*sleeper_spacing - ab_n*0.5*sleeper_width, a_to_b, -sleeper_length),
-                                           get_at_width(a - start_vector + n*ab_n*sleeper_spacing - ab_n*0.5*sleeper_width, a_to_b, sleeper_length),
-                                           get_at_width(a - start_vector + n*ab_n*sleeper_spacing + ab_n*0.5*sleeper_width, a_to_b, sleeper_length),
-                                           get_at_width(a - start_vector + n*ab_n*sleeper_spacing + ab_n*0.5*sleeper_width, a_to_b, -sleeper_length)])
+        overflow = Tile.sleeper_spacing * -0.5
+        sleeper_points = []
+        start = True
+        for p in range(1, len(cps)):
+            # Find gradient of a->b
+            b = cps[p]
+            a = cps[p-1]
+            a_to_b = b - a
+            ab_n = a_to_b.normalized()
+            # Vector to add to start vector, to get offset start location
+            start_vector = overflow * ab_n
+            
+            # Number of sleepers to draw in this section
+            n_sleepers, overflow = divmod((a_to_b + start_vector).get_length(), (ab_n * Tile.sleeper_spacing).get_length())
+            n_sleepers = int(n_sleepers)
+            # Loop through n_sleepers, draw a sleeper at the start of each sleeper spacing interval
+            if start:
+                s = 0
+                start = False
+            else:
+                s = 1
+            for n in range(s, n_sleepers+1):
+                sleeper_points.append([get_at_width(a - start_vector + n*ab_n*Tile.sleeper_spacing - ab_n*0.5*Tile.sleeper_width, a_to_b, -Tile.sleeper_length),
+                                       get_at_width(a - start_vector + n*ab_n*Tile.sleeper_spacing - ab_n*0.5*Tile.sleeper_width, a_to_b, Tile.sleeper_length),
+                                       get_at_width(a - start_vector + n*ab_n*Tile.sleeper_spacing + ab_n*0.5*Tile.sleeper_width, a_to_b, Tile.sleeper_length),
+                                       get_at_width(a - start_vector + n*ab_n*Tile.sleeper_spacing + ab_n*0.5*Tile.sleeper_width, a_to_b, -Tile.sleeper_length)])
 
-            # Finally draw all the sleeper points
-            for p in sleeper_points:
-                pygame.draw.polygon(self.image, brown, p, 0)
+        # Finally draw all the sleeper points
+        for p in sleeper_points:
+            pygame.draw.polygon(self.image, brown, p, 0)
 
-        if component == "ballast":
-            # Draw the ballast under the track, this will be a polygon in the rough shape of the trackwork which will then be replaced with a texture
-            # Polygon defined by the two lines at either side of the track
-            ballast_points = []
-            # Add one side
+    def draw_ballast(self, control_points):
+        """Draw the ballast component of the track"""
+        # Calculate bezier curve points and tangents
+        cps, tangents = calculate_bezier(control_points, 30)
+        # Draw the ballast under the track, this will be a polygon in the rough shape of the trackwork which will then be replaced with a texture
+        # Polygon defined by the two lines at either side of the track
+        ballast_points = []
+        # Add one side
+        for p in range(0, len(cps)):
+            ballast_points.append(get_at_width(cps[p], tangents[p], Tile.ballast_width))
+        ballast_points.reverse()
+        for p in range(0, len(cps)):
+            ballast_points.append(get_at_width(cps[p], tangents[p], -Tile.ballast_width))
+        # Draw out to the image
+        pygame.draw.polygon(self.image, grey, ballast_points, 0)
+
+    def draw_rails(self, control_points):
+        """Draw the rails component of the track"""
+        # Calculate bezier curve points and tangents
+        cps, tangents = calculate_bezier(control_points, 30)
+##        softness = 50
+##        for s in [1, -1]:
+##            for q in range(0, rail_width*softness):
+##                points = []
+##                for p in range(0, len(cps)):
+##                    points.append(get_at_width(cps[p], tangents[p], s*rail_spacing+s*q/softness))
+##                pygame.draw.aalines(self.image, silver, False, points, True)
+        for s in [1, -1]:
+            points1 = []
+            points2 = []
+            points3 = []
             for p in range(0, len(cps)):
-                ballast_points.append(get_at_width(cps[p], tangents[p], ballast_width))
-            ballast_points.reverse()
-            for p in range(0, len(cps)):
-                ballast_points.append(get_at_width(cps[p], tangents[p], -ballast_width))
-            # Draw out to the image
-            pygame.draw.polygon(self.image, grey, ballast_points, 0)
+                points1.append(get_at_width(cps[p], tangents[p], s*Tile.rail_spacing))
+                points2.append(get_at_width(cps[p], tangents[p], s*Tile.rail_spacing - Tile.rail_width/2.0))
+                points3.append(get_at_width(cps[p], tangents[p], s*Tile.rail_spacing + Tile.rail_width/2.0))
+            pygame.draw.lines(self.image, silver, False, points1, Tile.rail_width)
+            pygame.draw.aalines(self.image, silver, False, points2, True)
+            pygame.draw.aalines(self.image, silver, False, points3, True)
+            pygame.draw.aalines(self.image, silver, False, points2, True)
+            pygame.draw.aalines(self.image, silver, False, points3, True)
 
-##        if component == "rails":
-##            softness = 50
-##            for s in [1, -1]:
-##                for q in range(0, rail_width*softness):
-##                    points = []
-##                    for p in range(0, len(cps)):
-##                        points.append(get_at_width(cps[p], tangents[p], s*rail_spacing+s*q/softness))
-##                    pygame.draw.aalines(self.image, silver, False, points, True)
-
-        if component == "rails":
-            softness = 50
-            for s in [1, -1]:
-##                for q in range(0, rail_width*softness):
-                points1 = []
-                points2 = []
-                points3 = []
-                for p in range(0, len(cps)):
-                    points1.append(get_at_width(cps[p], tangents[p], s*rail_spacing))
-                    points2.append(get_at_width(cps[p], tangents[p], s*rail_spacing - rail_width/2.0))
-                    points3.append(get_at_width(cps[p], tangents[p], s*rail_spacing + rail_width/2.0))
-                pygame.draw.lines(self.image, silver, False, points1, rail_width)
-                pygame.draw.aalines(self.image, silver, False, points2, True)
-                pygame.draw.aalines(self.image, silver, False, points3, True)
-                pygame.draw.aalines(self.image, silver, False, points2, True)
-                pygame.draw.aalines(self.image, silver, False, points3, True)
-
-        if component == "controls":
-            # Draw bezier curve control points
-            for p in control_points:
-                pygame.draw.circle(screen, blue, p, 4)
-            # Draw out to the image
-            pygame.draw.lines(self.image, lightgray, False, [control_points[0],control_points[1]])
-            pygame.draw.lines(self.image, lightgray, False, [control_points[2],control_points[3]])
-            # Draw the base bezier curve
-            pygame.draw.lines(self.image, red, False, cps)
-
-        if component == "hints":
-            # Draw hints as to the curve sections
-            for p in cps:
-                pygame.draw.circle(self.image, green, p, 3)
-    ##        pygame.draw.circle(screen, yellow, cps[0], 8)
+    def draw_controls(self, control_points):
+        """Draw the controls component of the track"""
+        # Calculate bezier curve points and tangents
+        cps, tangents = calculate_bezier(control_points, 30)
+        # Draw bezier curve control points
+        for p in control_points:
+            pygame.draw.circle(screen, blue, p, 4)
+        # Draw out to the image
+        pygame.draw.lines(self.image, lightgray, False, [control_points[0],control_points[1]])
+        pygame.draw.lines(self.image, lightgray, False, [control_points[2],control_points[3]])
+        # Draw the base bezier curve
+        pygame.draw.lines(self.image, red, False, cps)
 
 
 
