@@ -221,7 +221,7 @@ class Tile(pygame.sprite.Sprite):
         self.image = pygame.Surface((self.size, self.size))
         self.image.fill(black)
         self.image.set_colorkey(black, pygame.RLEACCEL)
-        self.rect = self.calc_rect
+        self.update()
     def add_path(self, path):
         """Add another path to this tile"""
         self.paths.append(path)
@@ -242,7 +242,10 @@ class Tile(pygame.sprite.Sprite):
                 control_points.append(n)
         print "control_points: %s\nwx: %s, wy: %s, x: %s, y: %s" % (control_points,wx,wy,x,y)
         # Return only one control point
-        return control_points[0]
+        if control_points:
+            return control_points[0]
+        else:
+            return None
                 
     def calc_rect(self):
         """Calculate the current rect of this tile"""
@@ -259,6 +262,8 @@ class Tile(pygame.sprite.Sprite):
         return self.rect
     def update(self):
         """Draw the image this tile represents"""
+        # Reset the image to blank
+        self.image.fill(black)
         # Draw a track for every entry in paths
         paths_to_draw = []
         for p in self.paths:
@@ -423,7 +428,7 @@ class DisplayMain(object):
                 # For each tile collided with, calculate which of its control points the mouse event is closest to (if any)
                 cp = t.find_control_points(mousepos)
                 if cp:
-                    tilecontrols.append([t, t.position, cp])
+                    tilecontrols.append([t.position[0], t.position[1], cp])
             return tilecontrols
         else:
             return None
@@ -448,16 +453,18 @@ class DisplayMain(object):
                              ]
 
         # Layers to draw, first listed drawn first
-        layers = ["box",
-                  "hints",
+        layers = [
+##                  "hints",
                   "ballast",
                   "sleepers",
-                  "rails"
+                  "rails",
+                  "box",
                   ]
 
         # 2D array, [x][y]
         self.sprite_lookup = []
         self.sprites = pygame.sprite.LayeredUpdates()
+        self.searchsprites = pygame.sprite.Group()
 
         for x in range(xWorld):
             a = []
@@ -465,7 +472,9 @@ class DisplayMain(object):
                 d = {}
                 for c, b in enumerate(layers):
                     d[b] = Tile(self.box_size, (x,y), b)
-                    self.sprites.add(d[b])
+                    self.sprites.add(d[b], layer=c)
+                    if c == 0:
+                        self.searchsprites.add(d[b])
                 a.append(d)
             self.sprite_lookup.append(a)
 
@@ -487,33 +496,38 @@ class DisplayMain(object):
                         pygame.display.quit()
                         sys.exit()
                 elif event.type == MOUSEBUTTONUP and event.button == 1:
+                    print "Mouse button event starts"
                     if self.start_positions:
-                        end_positions = self.collide_locate(event.pos, self.sprites)
-                        for e in end_positions:
-                            for s in self.start_positions:
-                                print e, s
-                                if e[1] == s[1]:
-                                    s[0].set_control_hint(None)
-                                    s[0].add_path([s[2], e[2]])
-                                    # This doesn't work because the array only contains the sprites for the hints!
-                                    # Need either some kind of global store for all the tile information, which the individual tiles then grab
-                                    # Or to make each "tile" be a sprite group, containing X number of sprites which develop into that sprite
-                                    # Can then reference those through that group.
-                                    print "adding path: %s to %s to tile: %s" % (s[2], e[2],s[0])
-                                    clear = True
-                                    self.refresh_screen = True
-
+                        print "existing operation in progress..."
+                        end_positions = self.collide_locate(event.pos, self.searchsprites)
+                        if end_positions:
+                            for e in end_positions:
+                                for s in self.start_positions:
+                                    if e[0] == s[0] and e[1] == s[1]:
+                                        for key, value in self.sprite_lookup[s[0]][s[1]].iteritems():
+                                            value.set_control_hint(None)
+                                            value.add_path([s[2], e[2]])
+                                            value.update()
+                                        clear = True
+                                        self.refresh_screen = True
+                                        print "adding path: %s->%s to tile: (%s,%s)" % (s[2], e[2],s[0],s[1])
+                                    else:
+                                        for key, value in self.sprite_lookup[s[0]][s[1]].iteritems():
+                                            value.set_control_hint(None)
+                                            value.update()
                     else:
-                        self.start_positions = self.collide_locate(event.pos, self.sprites)
-                        for t in self.start_positions:
-                            t[0].set_control_hint(t[2])
-                        self.refresh_screen = True
+                        print "new operation..."
+                        self.start_positions = self.collide_locate(event.pos, self.searchsprites)
+                        if self.start_positions:
+                            for s in self.start_positions:
+                                for key, value in self.sprite_lookup[s[0]][s[1]].iteritems():
+                                    value.set_control_hint(s[2])
+                                    value.update()
+                            self.refresh_screen = True
+                        print "end operation"
 
             if clear:
-                self.start_positions = []
-
-            ### Draw stuff
-            self.screen.fill(darkgreen)
+                self.start_positions = None
 
 
             # Draw instructions to screen
@@ -529,14 +543,15 @@ class DisplayMain(object):
                                            (self.clock.get_fps()))
 
             # Update sprites in the sprite groups which need updating
-            if self.refresh_screen:
-                self.sprites.update()
+##            if self.refresh_screen:
+##                self.sprites.update()
             rectlist = self.sprites.draw(self.screen)
 
             # Refresh the screen if necessary, or just draw the updated bits
+            self.refresh_screen = True
             if self.refresh_screen:
                 pygame.display.update()
-                self.screen.fill((0,0,0))
+                self.screen.fill(darkgreen)
                 self.refresh_screen = False
             else:
                 pygame.display.update(self.dirty)
