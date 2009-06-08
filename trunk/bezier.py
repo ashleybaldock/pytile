@@ -1,7 +1,7 @@
 import pygame
 from pygame.locals import *
 
-import os, sys
+import os, sys, math
  
 from vec2d import *
  
@@ -250,6 +250,20 @@ class Tile(pygame.sprite.Sprite):
         overflow = Tile.sleeper_spacing * -0.5
         sleeper_points = []
         start = True
+        # Calculate total length of this curve section based on the straight lines which make it up
+        length = 0
+        for p in range(1, len(cps)):
+            # Find gradient of a->b
+            b = cps[p]
+            a = cps[p-1]
+            a_to_b = b - a
+            ab_n = a_to_b.normalized()
+            length += a_to_b.get_length() / ab_n.get_length()
+        # Number of sleepers is length, (minus one interval to make the ends line up) divided by interval length
+        num_sleepers = float(length) / float(Tile.sleeper_spacing)
+        true_spacing = float(length) / float(math.ceil(num_sleepers))
+        print "base spacing: %s, calculated spacing: %s\n(length: %s, number of sleepers: %s)" % (Tile.sleeper_spacing,true_spacing,length,num_sleepers,)
+        
         for p in range(1, len(cps)):
             # Find gradient of a->b
             b = cps[p]
@@ -258,9 +272,8 @@ class Tile(pygame.sprite.Sprite):
             ab_n = a_to_b.normalized()
             # Vector to add to start vector, to get offset start location
             start_vector = overflow * ab_n
-            
             # Number of sleepers to draw in this section
-            n_sleepers, overflow = divmod((a_to_b + start_vector).get_length(), (ab_n * Tile.sleeper_spacing).get_length())
+            n_sleepers, overflow = divmod((a_to_b + start_vector).get_length(), (ab_n * true_spacing).get_length())
             n_sleepers = int(n_sleepers)
             # Loop through n_sleepers, draw a sleeper at the start of each sleeper spacing interval
             if start:
@@ -269,10 +282,10 @@ class Tile(pygame.sprite.Sprite):
             else:
                 s = 1
             for n in range(s, n_sleepers+1):
-                sleeper_points.append([get_at_width(a - start_vector + n*ab_n*Tile.sleeper_spacing - ab_n*0.5*Tile.sleeper_width, a_to_b, -Tile.sleeper_length),
-                                       get_at_width(a - start_vector + n*ab_n*Tile.sleeper_spacing - ab_n*0.5*Tile.sleeper_width, a_to_b, Tile.sleeper_length),
-                                       get_at_width(a - start_vector + n*ab_n*Tile.sleeper_spacing + ab_n*0.5*Tile.sleeper_width, a_to_b, Tile.sleeper_length),
-                                       get_at_width(a - start_vector + n*ab_n*Tile.sleeper_spacing + ab_n*0.5*Tile.sleeper_width, a_to_b, -Tile.sleeper_length)])
+                sleeper_points.append([get_at_width(a - start_vector + n*ab_n*true_spacing - ab_n*0.5*Tile.sleeper_width, a_to_b, -Tile.sleeper_length),
+                                       get_at_width(a - start_vector + n*ab_n*true_spacing - ab_n*0.5*Tile.sleeper_width, a_to_b, Tile.sleeper_length),
+                                       get_at_width(a - start_vector + n*ab_n*true_spacing + ab_n*0.5*Tile.sleeper_width, a_to_b, Tile.sleeper_length),
+                                       get_at_width(a - start_vector + n*ab_n*true_spacing + ab_n*0.5*Tile.sleeper_width, a_to_b, -Tile.sleeper_length)])
 
         # Finally draw all the sleeper points
         for p in sleeper_points:
