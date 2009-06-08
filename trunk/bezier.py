@@ -144,6 +144,9 @@ class Tile(pygame.sprite.Sprite):
                     vec2d(0, 0),
                     vec2d(Tile.size, 0)]
 
+
+        self.calc_rect()
+
         self.box_midpoints = []
         self.box_allmidpoints = []
         for p in range(len(self.box)):
@@ -157,10 +160,18 @@ class Tile(pygame.sprite.Sprite):
             self.box_endpoints.append([self.box_allmidpoints[p][0], self.box_allmidpoints[p][1].perpendicular()])
             self.box_endpoints.append([self.box_allmidpoints[p][0] + self.box_allmidpoints[p][1] * Tile.track_spacing, self.box_allmidpoints[p][1].perpendicular()])
 
+        self.endpoints = []
+        screen_pos = vec2d(self.xpos, self.ypos)
+        for p in range(len(self.box_allmidpoints)):
+            self.endpoints.append(screen_pos + self.box_allmidpoints[p][0] - self.box_allmidpoints[p][1] * Tile.track_spacing)
+            self.endpoints.append(screen_pos + self.position + self.box_allmidpoints[p][0])
+            self.endpoints.append(screen_pos + self.position + self.box_allmidpoints[p][0] + self.box_allmidpoints[p][1] * Tile.track_spacing)
+
         self.image = pygame.Surface((self.size, self.size))
         self.image.fill(black)
         self.image.set_colorkey(black, pygame.RLEACCEL)
         self.update()
+
     def add_path(self, path):
         """Add another path to this tile"""
         self.paths.append(path)
@@ -169,22 +180,9 @@ class Tile(pygame.sprite.Sprite):
     def set_control_hint(self, endpoint_number):
         """Add a control hint to this sprite, used to indicate which endpoints are active"""
         self.control_hint = endpoint_number
-    def find_control_points(self, position):
-        """Find the control points closest to the mouse cursor, relative to this tile"""
-        wx, wy = position
-        x = wx - self.xpos
-        y = wy - self.ypos
-        control_points = []
-        for n, c in enumerate(self.box_endpoints):
-            # If the position is within 10 pixels of the control point position, this is a valid control point
-            if abs(x - c[0][0]) < 10 and abs(y - c[0][1]) < 10:
-                control_points.append(n)
-        print "control_points: %s\nwx: %s, wy: %s, x: %s, y: %s" % (control_points,wx,wy,x,y)
-        # Return only one control point
-        if control_points:
-            return control_points[0]
-        else:
-            return None
+    def return_endpoints(self):
+        """Return the absolute control points for this tile"""
+        return self.endpoints
                 
     def calc_rect(self):
         """Calculate the current rect of this tile"""
@@ -262,11 +260,11 @@ class Tile(pygame.sprite.Sprite):
             # Draw normal lines indicating the path endpoints
 ##                pygame.draw.line(self.image, darkblue, p[0], p[0] + 20 * p[1])
             # Draw text indicating which path endpoint the dot is
-##                s = Tile.font.render(str(self.box_endpoints.index(p)), False, green)
-##                x,y = s.get_size()
-##                x = x/2
-##                y = y/2
-##                self.image.blit(s, p[0] + 8 * p[1] - (x,y))
+            s = Tile.font.render(str(self.box_endpoints.index(p)), False, green)
+            x,y = s.get_size()
+            x = x/2
+            y = y/2
+            self.image.blit(s, p[0] + 8 * p[1] - (x,y))
 
     def draw_sleepers(self, control_points):
         """Draw the sleeper component of the track"""
@@ -284,7 +282,6 @@ class Tile(pygame.sprite.Sprite):
             a_to_b = b - a
             ab_n = a_to_b.normalized()
             total_length += a_to_b.get_length() / ab_n.get_length()
-            print b, a, a_to_b, ab_n, total_length
         # Number of sleepers is length, (minus one interval to make the ends line up) divided by interval length
         num_sleepers = float(total_length) / float(Tile.sleeper_spacing)
         true_spacing = float(total_length) / float(math.ceil(num_sleepers))
@@ -416,25 +413,18 @@ class DisplayMain(object):
 
         self.mouseSprite = None
 
-    def collide_locate(self, mousepos, collideagainst, start=None):
-        """Locates the sprite(s) that the mouse position intersects with"""
-        # Draw mouseSprite at cursor position
-        if self.mouseSprite:
-            self.mouseSprite.sprite.update(mousepos)
-        else:
-            self.mouseSprite = pygame.sprite.GroupSingle(MouseSprite(mousepos))
-        # Find sprites that the mouseSprite intersects with
-        collision_list1 = pygame.sprite.spritecollide(self.mouseSprite.sprite, collideagainst, False)
-        if collision_list1:
-            tilecontrols = []
-            for t in collision_list1:
-                # For each tile collided with, calculate which of its control points the mouse event is closest to (if any)
-                cp = t.find_control_points(mousepos)
-                if cp:
-                    tilecontrols.append([t.position[0], t.position[1], cp])
-            return tilecontrols
-        else:
-            return None
+
+    def control_locate(self, mousepos, tolerance=10):
+        """Locate all control points close to the mouse position"""
+        x = mousepos[0]
+        y = mousepos[1]
+        control_points = []
+        for a in range(xWorld):
+            for b in range(yWorld):
+                for n, c in enumerate(self.map[a][b]["controls"]):
+                    if abs(x - c[0]) < tolerance and abs(y - c[1]) < tolerance:
+                        control_points.append([a, b, n])
+        return control_points
 
     def MainLoop(self):
         """This is the Main Loop of the Game"""
@@ -465,21 +455,28 @@ class DisplayMain(object):
                   ]
 
         # 2D array, [x][y]
-        self.sprite_lookup = []
         self.sprites = pygame.sprite.LayeredUpdates()
         self.searchsprites = pygame.sprite.Group()
 
+        # Can look up in self.map:
+        #   self.map[x][y]["paths"] -> List of paths for this tile
+        #   self.map[x][y]["layers"] -> List of all the tile sprites making up this tile by layer
+
+        # Map, used to look up all the tiles
+        self.map = []
         for x in range(xWorld):
             a = []
             for y in range(yWorld):
-                d = {}
-                for c, b in enumerate(layers):
-                    d[b] = Tile((x,y), b)
-                    self.sprites.add(d[b], layer=c)
+                b = {"paths": [], "layers": {}, "controls": []}
+                for c, d in enumerate(layers):
+                    b["layers"][d] = Tile((x,y), d)
+                    self.sprites.add(b["layers"][d], layer=c)
+                    # Searchsprites will go when we no longer use collision detection for drawing
                     if c == 0:
-                        self.searchsprites.add(d[b])
-                a.append(d)
-            self.sprite_lookup.append(a)
+                        self.searchsprites.add(b["layers"][d])
+                b["controls"] = b["layers"]["box"].return_endpoints()
+                a.append(b)
+            self.map.append(a)
 
         self.start_positions = []
 
@@ -502,35 +499,40 @@ class DisplayMain(object):
                     print "Mouse button event starts"
                     if self.start_positions:
                         print "existing operation in progress..."
-                        end_positions = self.collide_locate(event.pos, self.searchsprites)
+                        end_positions = self.control_locate(event.pos)
                         if end_positions:
                             for e in end_positions:
                                 for s in self.start_positions:
                                     if e[0] == s[0] and e[1] == s[1]:
-                                        for key, value in self.sprite_lookup[s[0]][s[1]].iteritems():
-                                            value.set_control_hint(None)
-                                            value.add_path([s[2], e[2]])
-                                            value.update()
+                                        # Paths should be added to the map, rather than the tiles in future!
+                                        print "adding path: %s->%s to tile: (%s,%s)" % (s[2], e[2],s[0],s[1])
+                                        self.map[s[0]][s[1]]["layers"]["rails"].add_path([s[2], e[2]])
+                                        self.map[s[0]][s[1]]["layers"]["sleepers"].add_path([s[2], e[2]])
+                                        self.map[s[0]][s[1]]["layers"]["ballast"].add_path([s[2], e[2]])
+                                        self.map[s[0]][s[1]]["layers"]["box"].update()
+                                        # Since this track drawing operation is complete, clear the highlights
                                         clear = True
                                         self.refresh_screen = True
-                                        print "adding path: %s->%s to tile: (%s,%s)" % (s[2], e[2],s[0],s[1])
-                                    else:
-                                        for key, value in self.sprite_lookup[s[0]][s[1]].iteritems():
+                            if clear:
+                                # Second loop, if we found something first time around remove all the highlights
+                                print "removing control hints from all tiles"
+                                for e in end_positions:
+                                    for s in self.start_positions:
+                                        for key, value in self.map[s[0]][s[1]]["layers"].iteritems():
                                             value.set_control_hint(None)
                                             value.update()
+                                self.start_positions = None
                     else:
                         print "new operation..."
-                        self.start_positions = self.collide_locate(event.pos, self.searchsprites)
+                        self.start_positions = self.control_locate(event.pos)
+                        print "start positions: %s"
                         if self.start_positions:
                             for s in self.start_positions:
-                                for key, value in self.sprite_lookup[s[0]][s[1]].iteritems():
-                                    value.set_control_hint(s[2])
-                                    value.update()
+                                print "adding control hint: %s to tile (%s,%s)" % (s[2], s[0], s[1])
+                                self.map[s[0]][s[1]]["layers"]["box"].set_control_hint(s[2])
+                                self.map[s[0]][s[1]]["layers"]["box"].update()
                             self.refresh_screen = True
                         print "end operation"
-
-            if clear:
-                self.start_positions = None
 
 
             # Draw instructions to screen
