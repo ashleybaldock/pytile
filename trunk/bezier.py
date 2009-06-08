@@ -109,6 +109,8 @@ class Tile(pygame.sprite.Sprite):
     def __init__(self, position, type, track_width=10, curve_factor=60):
         pygame.sprite.Sprite.__init__(self)
         if not Tile.init:
+            tex = pygame.image.load("ballast_texture.png")
+            Tile.ballast_texture = tex.convert()
             Tile.init = True
             Tile.size = TILE_SIZE
             Tile.font = pygame.font.SysFont("Arial", 12)
@@ -122,7 +124,8 @@ class Tile(pygame.sprite.Sprite):
             Tile.rail_spacing = track_width
             Tile.rail_width = track_width * 0.2
             Tile.ballast_width = track_width * 2.3
-        self.curve_factor = curve_factor
+            Tile.curve_factor = curve_factor
+            Tile.curve_multiplier = curve_factor * 0.02
         self.position = position
 
         # Type determines which part of the image this sprite draws (rails, sleepers, ballast or hints)
@@ -215,8 +218,8 @@ class Tile(pygame.sprite.Sprite):
             x = (self.box_endpoints[p[1]][1] * Tile.track_spacing).length
             y = (self.box_endpoints[p[0]][1] * Tile.track_spacing).length
 
-            b1 = self.box_endpoints[p[0]][0] + self.box_endpoints[p[0]][1] * (self.curve_factor + p13 * x)
-            c1 = self.box_endpoints[p[1]][0] + self.box_endpoints[p[1]][1] * (self.curve_factor + p03 * y)
+            b1 = self.box_endpoints[p[0]][0] + self.box_endpoints[p[0]][1] * (self.curve_factor + p13 * x * self.curve_multiplier)
+            c1 = self.box_endpoints[p[1]][0] + self.box_endpoints[p[1]][1] * (self.curve_factor + p03 * y * self.curve_multiplier)
             b = self.box_endpoints[p[0]][0] + self.box_endpoints[p[0]][1] * self.curve_factor
             c = self.box_endpoints[p[1]][0] + self.box_endpoints[p[1]][1] * self.curve_factor
 
@@ -231,8 +234,7 @@ class Tile(pygame.sprite.Sprite):
             for p in paths_to_draw:
                 self.draw_sleepers(p)
         elif self.type == "ballast":
-            for p in paths_to_draw:
-                self.draw_ballast(p)
+            self.draw_ballast(paths_to_draw)
         elif self.type == "box":
             self.draw_box()
         self.rect = self.calc_rect()
@@ -305,21 +307,33 @@ class Tile(pygame.sprite.Sprite):
         for p in sleeper_points:
             pygame.draw.polygon(self.image, brown, p, 0)
 
-    def draw_ballast(self, control_points):
+    def draw_ballast(self, points_to_draw):
         """Draw the ballast component of the track"""
-        # Calculate bezier curve points and tangents
-        cps, tangents = calculate_bezier(control_points, 30)
-        # Draw the ballast under the track, this will be a polygon in the rough shape of the trackwork which will then be replaced with a texture
-        # Polygon defined by the two lines at either side of the track
-        ballast_points = []
-        # Add one side
-        for p in range(0, len(cps)):
-            ballast_points.append(get_at_width(cps[p], tangents[p], Tile.ballast_width))
-        ballast_points.reverse()
-        for p in range(0, len(cps)):
-            ballast_points.append(get_at_width(cps[p], tangents[p], -Tile.ballast_width))
         # Draw out to the image
-        pygame.draw.polygon(self.image, grey, ballast_points, 0)
+        surface = pygame.Surface((self.size, self.size))
+        surface.fill(black)
+        for control_points in points_to_draw:
+            # Calculate bezier curve points and tangents
+            cps, tangents = calculate_bezier(control_points, 30)
+            # Draw the ballast under the track, this will be a polygon in the rough shape of the trackwork which will then be replaced with a texture
+            # Polygon defined by the two lines at either side of the track
+            ballast_points = []
+            # Add one side
+            for p in range(0, len(cps)):
+                ballast_points.append(get_at_width(cps[p], tangents[p], Tile.ballast_width))
+            ballast_points.reverse()
+            for p in range(0, len(cps)):
+                ballast_points.append(get_at_width(cps[p], tangents[p], -Tile.ballast_width))
+            pygame.draw.polygon(surface, white, ballast_points, 0)
+
+        surface.set_colorkey(white, pygame.RLEACCEL)
+
+        self.image.blit(self.ballast_texture, (0,0), (0,0,self.image.get_width(), self.image.get_height()))
+
+        self.image.blit(surface, (0,0))
+
+        self.image.set_colorkey(black)
+
 
     def draw_rails(self, control_points, control_points2):
         """Draw the rails component of the track"""
