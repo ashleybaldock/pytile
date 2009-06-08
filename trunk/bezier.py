@@ -139,9 +139,9 @@ class Tile(pygame.sprite.Sprite):
         self.control_hint = None
 
         self.box = [vec2d(Tile.size, Tile.size),
-               vec2d(0, Tile.size),
-               vec2d(0, 0),
-               vec2d(Tile.size, 0)]
+                    vec2d(0, Tile.size),
+                    vec2d(0, 0),
+                    vec2d(Tile.size, 0)]
 
         self.box_midpoints = []
         self.box_allmidpoints = []
@@ -219,29 +219,29 @@ class Tile(pygame.sprite.Sprite):
         elif self.type == "ballast":
             for p in paths_to_draw:
                 self.draw_ballast(p)
-##        elif self.type == "hints":
-##            for p in paths_to_draw:
-##                self.draw_hints(p)
         elif self.type == "box":
-            # Draw the outline of the box
+            self.draw_box()
+        self.rect = self.calc_rect()
+
+    def draw_box(self):
+        # Draw the outline of the box
 ##            pygame.draw.lines(self.image, True, darkblue, self.box)
-            pygame.draw.lines(self.image, True, darkblue, self.box_midpoints)
-            # Draw control hints for this tile
-            if self.control_hint:
-                pygame.draw.circle(self.image, green, self.box_endpoints[self.control_hint][0], 7)
-            # Draw the remaining box endpoints
-            for p in self.box_endpoints:
-                # Draw red circles indicating the path endpoints
-                pygame.draw.circle(self.image, red, (int(p[0][0]),int(p[0][1])), 3)
-                # Draw normal lines indicating the path endpoints
+        pygame.draw.lines(self.image, True, darkblue, self.box_midpoints)
+        # Draw control hints for this tile
+        if self.control_hint:
+            pygame.draw.circle(self.image, green, self.box_endpoints[self.control_hint][0], 7)
+        # Draw the remaining box endpoints
+        for p in self.box_endpoints:
+            # Draw red circles indicating the path endpoints
+            pygame.draw.circle(self.image, red, (int(p[0][0]),int(p[0][1])), 3)
+            # Draw normal lines indicating the path endpoints
 ##                pygame.draw.line(self.image, darkblue, p[0], p[0] + 20 * p[1])
-                # Draw text indicating which path endpoint the dot is
+            # Draw text indicating which path endpoint the dot is
 ##                s = Tile.font.render(str(self.box_endpoints.index(p)), False, green)
 ##                x,y = s.get_size()
 ##                x = x/2
 ##                y = y/2
 ##                self.image.blit(s, p[0] + 8 * p[1] - (x,y))
-        self.rect = self.calc_rect()
 
     def draw_sleepers(self, control_points):
         """Draw the sleeper component of the track"""
