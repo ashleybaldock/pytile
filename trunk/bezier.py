@@ -122,12 +122,6 @@ class Tile(pygame.sprite.Sprite):
             Tile.rail_spacing = track_width
             Tile.rail_width = track_width * 0.2
             Tile.ballast_width = track_width * 2.3
-##            Tile.sleeper_spacing = 15
-##            Tile.sleeper_width = 5
-##            Tile.sleeper_length = 18
-##            Tile.rail_spacing = 10
-##            Tile.rail_width = 2
-##            Tile.ballast_width = 30
         self.curve_factor = curve_factor
         self.position = position
 
@@ -204,15 +198,35 @@ class Tile(pygame.sprite.Sprite):
         self.image.fill(black)
         # Draw a track for every entry in paths
         paths_to_draw = []
+        paths_to_draw2 = []
+        
         for p in self.paths:
-            a = self.box_endpoints[p[0]][0]
+            p0 = p[0]
+            p1 = p[1]
+            # This gets us +1, +0 or -1, to bring the real value of the end point up to the midpoint
+            p03 = -1 * ((p0 % 3) - 1)
+            p13 = -1 * ((p1 % 3) - 1)
+            print "p0: %s, p03: %s, p1: %s, p13: %s" % (p0, p03, p1, p13)
+            # Curve factor dictates the length between the two endpoints of each of the two curve control points
+            # By varying the length of these control points, we can make the curve smoother and sharper
+            # Taking two control points which make up a path, for each one multiply curve factor by either + or - of the
+            # offset location of the other point
+            # Find midpoint to real point vectors
+            x = (self.box_endpoints[p[1]][1] * Tile.track_spacing).length
+            y = (self.box_endpoints[p[0]][1] * Tile.track_spacing).length
+
+            b1 = self.box_endpoints[p[0]][0] + self.box_endpoints[p[0]][1] * (self.curve_factor + p13 * x)
+            c1 = self.box_endpoints[p[1]][0] + self.box_endpoints[p[1]][1] * (self.curve_factor + p03 * y)
             b = self.box_endpoints[p[0]][0] + self.box_endpoints[p[0]][1] * self.curve_factor
             c = self.box_endpoints[p[1]][0] + self.box_endpoints[p[1]][1] * self.curve_factor
+
+            a = self.box_endpoints[p[0]][0]
             d = self.box_endpoints[p[1]][0]
             paths_to_draw.append([a,b,c,d])
+            paths_to_draw2.append([a,b1,c1,d])
         if self.type == "rails":
-            for p in paths_to_draw:
-                self.draw_rails(p)
+            for p, q in zip(paths_to_draw, paths_to_draw2):
+                self.draw_rails(p, q)
         elif self.type == "sleepers":
             for p in paths_to_draw:
                 self.draw_sleepers(p)
@@ -251,18 +265,18 @@ class Tile(pygame.sprite.Sprite):
         sleeper_points = []
         start = True
         # Calculate total length of this curve section based on the straight lines which make it up
-        length = 0
+        total_length = 0
         for p in range(1, len(cps)):
             # Find gradient of a->b
             b = cps[p]
             a = cps[p-1]
             a_to_b = b - a
             ab_n = a_to_b.normalized()
-            length += a_to_b.get_length() / ab_n.get_length()
+            total_length += a_to_b.get_length() / ab_n.get_length()
         # Number of sleepers is length, (minus one interval to make the ends line up) divided by interval length
-        num_sleepers = float(length) / float(Tile.sleeper_spacing)
-        true_spacing = float(length) / float(math.ceil(num_sleepers))
-        print "base spacing: %s, calculated spacing: %s\n(length: %s, number of sleepers: %s)" % (Tile.sleeper_spacing,true_spacing,length,num_sleepers,)
+        num_sleepers = float(total_length) / float(Tile.sleeper_spacing)
+        true_spacing = float(total_length) / float(math.ceil(num_sleepers))
+        print "base spacing: %s, calculated spacing: %s\n(length: %s, number of sleepers: %s)" % (Tile.sleeper_spacing,true_spacing,total_length,num_sleepers,)
         
         for p in range(1, len(cps)):
             # Find gradient of a->b
@@ -307,10 +321,14 @@ class Tile(pygame.sprite.Sprite):
         # Draw out to the image
         pygame.draw.polygon(self.image, grey, ballast_points, 0)
 
-    def draw_rails(self, control_points):
+    def draw_rails(self, control_points, control_points2):
         """Draw the rails component of the track"""
         # Calculate bezier curve points and tangents
         cps, tangents = calculate_bezier(control_points, 30)
+        cps2, tangents2 = calculate_bezier(control_points2, 30)
+        pygame.draw.lines(self.image, red, False, cps, 1)
+        pygame.draw.lines(self.image, silver, False, cps2, 1)
+        return True
 ##        softness = 50
 ##        for s in [1, -1]:
 ##            for q in range(0, rail_width*softness):
