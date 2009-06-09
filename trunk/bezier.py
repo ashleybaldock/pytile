@@ -24,10 +24,26 @@ FPS_REFRESH = 500
 WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 800
 
-xWorld = 4
-yWorld = 4
+xWorld = 6
+yWorld = 6
 
 TILE_SIZE = 200
+
+# Starting offsets, these will center the map by default
+offx = WINDOW_WIDTH / 2 - xWorld * TILE_SIZE / 2
+offy = WINDOW_HEIGHT / 2 - yWorld * TILE_SIZE / 2
+
+
+class World(object):
+    """Global world object for all Tiles to reference"""
+    init = True
+    def __init__(self):
+        if World.init:
+            World.offx = offx
+            World.offy = offy
+            World.xWorld = xWorld
+            World.yWorld = yWorld
+
 
 class MouseSprite(pygame.sprite.Sprite):
     """Small invisible sprite to use for mouse/sprite collision testing"""
@@ -195,7 +211,7 @@ class Tile(pygame.sprite.Sprite):
 ##        self.ypos = (x * p4) + (y * p4) - (z * ph)
         self.ypos = (x * p2) + (y * p2)
         # Rect position takes into account the offset
-        self.rect = (self.xpos, self.ypos, p, p)
+        self.rect = (self.xpos + World.offx, self.ypos + World.offy, p, p)
         return self.rect
     def update(self):
         """Draw the image this tile represents"""
@@ -218,7 +234,7 @@ class Tile(pygame.sprite.Sprite):
                 # This gets us +1, +0 or -1, to bring the real value of the end point up to the midpoint
                 p03 = -1 * ((p0 % 3) - 1)
                 p13 = -1 * ((p1 % 3) - 1)
-                print "p0: %s, p03: %s, p1: %s, p13: %s" % (p0, p03, p1, p13)
+##                print "p0: %s, p03: %s, p1: %s, p13: %s" % (p0, p03, p1, p13)
                 # Curve factor dictates the length between the two endpoints of each of the two curve control points
                 # By varying the length of these control points, we can make the curve smoother and sharper
                 # Taking two control points which make up a path, for each one multiply curve factor by either + or - of the
@@ -285,7 +301,7 @@ class Tile(pygame.sprite.Sprite):
         # Number of sleepers is length, (minus one interval to make the ends line up) divided by interval length
         num_sleepers = float(total_length) / float(Tile.sleeper_spacing)
         true_spacing = float(total_length) / float(math.ceil(num_sleepers))
-        print "base spacing: %s, calculated spacing: %s\n(length: %s, number of sleepers: %s)" % (Tile.sleeper_spacing,true_spacing,total_length,num_sleepers,)
+##        print "base spacing: %s, calculated spacing: %s\n(length: %s, number of sleepers: %s)" % (Tile.sleeper_spacing,true_spacing,total_length,num_sleepers,)
         
         for p in range(1, len(cps)):
             # Find gradient of a->b
@@ -413,11 +429,12 @@ class DisplayMain(object):
 
         self.mouseSprite = None
 
+        self.world = World()
 
     def control_locate(self, mousepos, tolerance=10):
         """Locate all control points close to the mouse position"""
-        x = mousepos[0]
-        y = mousepos[1]
+        x = mousepos[0] - World.offx
+        y = mousepos[1] - World.offy
         control_points = []
         for a in range(xWorld):
             for b in range(yWorld):
@@ -480,6 +497,8 @@ class DisplayMain(object):
 
         self.start_positions = []
 
+        self.last_rmbpos = (0,0)
+
         while True:
             self.clock.tick(0)
             # If there's a quit event, don't bother parsing the event queue
@@ -495,44 +514,60 @@ class DisplayMain(object):
                     if event.key == pygame.K_ESCAPE:
                         pygame.display.quit()
                         sys.exit()
-                elif event.type == MOUSEBUTTONUP and event.button == 1:
-                    print "Mouse button event starts"
-                    if self.start_positions:
-                        print "existing operation in progress..."
-                        end_positions = self.control_locate(event.pos)
-                        if end_positions:
-                            for e in end_positions:
-                                for s in self.start_positions:
-                                    if e[0] == s[0] and e[1] == s[1]:
-                                        # Paths should be added to the map, rather than the tiles in future!
-                                        print "adding path: %s->%s to tile: (%s,%s)" % (s[2], e[2],s[0],s[1])
-                                        self.map[s[0]][s[1]]["layers"]["rails"].add_path([s[2], e[2]])
-                                        self.map[s[0]][s[1]]["layers"]["sleepers"].add_path([s[2], e[2]])
-                                        self.map[s[0]][s[1]]["layers"]["ballast"].add_path([s[2], e[2]])
-                                        self.map[s[0]][s[1]]["layers"]["box"].update()
-                                        # Since this track drawing operation is complete, clear the highlights
-                                        clear = True
-                                        self.refresh_screen = True
-                            if clear:
-                                # Second loop, if we found something first time around remove all the highlights
-                                print "removing control hints from all tiles"
+                if event.type == MOUSEMOTION:
+                    if event.buttons[2] == 1:
+                        rmbpos = event.pos
+                        if rmbpos != self.last_rmbpos:
+                            World.offx -= self.last_rmbpos[0] - rmbpos[0]
+                            World.offy -= self.last_rmbpos[1] - rmbpos[1]
+                        print "offx: %s, offy: %s" % (World.offx, World.offy)
+                        self.last_rmbpos = rmbpos
+                        self.refresh_screen = True
+                if event.type == MOUSEBUTTONDOWN:
+                    if event.button == 3:
+                        self.last_rmbpos = event.pos
+                if event.type == MOUSEBUTTONUP:
+##                    if event.button == 3:
+##                        self.drag_start = None
+                    if event.button == 1:
+                        print "Mouse button event starts"
+                        if self.start_positions:
+                            print "existing operation in progress..."
+                            end_positions = self.control_locate(event.pos)
+                            if end_positions:
                                 for e in end_positions:
                                     for s in self.start_positions:
-                                        for key, value in self.map[s[0]][s[1]]["layers"].iteritems():
-                                            value.set_control_hint(None)
-                                            value.update()
-                                self.start_positions = None
-                    else:
-                        print "new operation..."
-                        self.start_positions = self.control_locate(event.pos)
-                        print "start positions: %s"
-                        if self.start_positions:
-                            for s in self.start_positions:
-                                print "adding control hint: %s to tile (%s,%s)" % (s[2], s[0], s[1])
-                                self.map[s[0]][s[1]]["layers"]["box"].set_control_hint(s[2])
-                                self.map[s[0]][s[1]]["layers"]["box"].update()
-                            self.refresh_screen = True
-                        print "end operation"
+                                        if e[0] == s[0] and e[1] == s[1]:
+                                            # Paths should be added to the map, rather than the tiles in future!
+                                            print "adding path: %s->%s to tile: (%s,%s)" % (s[2], e[2],s[0],s[1])
+                                            self.map[s[0]][s[1]]["layers"]["rails"].add_path([s[2], e[2]])
+                                            self.map[s[0]][s[1]]["layers"]["sleepers"].add_path([s[2], e[2]])
+                                            self.map[s[0]][s[1]]["layers"]["ballast"].add_path([s[2], e[2]])
+                                            self.map[s[0]][s[1]]["layers"]["box"].update()
+                                            # Since this track drawing operation is complete, clear the highlights
+                                            clear = True
+                                            self.refresh_screen = True
+                                if clear:
+                                    # Second loop, if we found something first time around remove all the highlights
+                                    print "removing control hints from all tiles"
+                                    for e in end_positions:
+                                        for s in self.start_positions:
+                                            for key, value in self.map[s[0]][s[1]]["layers"].iteritems():
+                                                value.set_control_hint(None)
+                                                value.update()
+                                    self.start_positions = None
+                        else:
+                            print "new operation..."
+                            self.start_positions = self.control_locate(event.pos)
+                            print "start positions: %s"
+                            if self.start_positions:
+                                for s in self.start_positions:
+                                    print "adding control hint: %s to tile (%s,%s)" % (s[2], s[0], s[1])
+                                    self.map[s[0]][s[1]]["layers"]["box"].set_control_hint(s[2])
+                                    self.map[s[0]][s[1]]["layers"]["box"].update()
+                                    print "...done"
+                                self.refresh_screen = True
+                            print "end operation"
 
 
             # Draw instructions to screen
@@ -548,8 +583,8 @@ class DisplayMain(object):
                                            (self.clock.get_fps()))
 
             # Update sprites in the sprite groups which need updating
-##            if self.refresh_screen:
-##                self.sprites.update()
+            if self.refresh_screen:
+                self.sprites.update()
             rectlist = self.sprites.draw(self.screen)
 
             # Refresh the screen if necessary, or just draw the updated bits
