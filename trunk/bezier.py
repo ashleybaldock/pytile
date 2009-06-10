@@ -196,6 +196,8 @@ class Tile(pygame.sprite.Sprite):
     def set_control_hint(self, endpoint_number):
         """Add a control hint to this sprite, used to indicate which endpoints are active"""
         self.control_hint = endpoint_number
+        self.update()
+
     def return_endpoints(self):
         """Return the absolute control points for this tile"""
         return self.endpoints
@@ -216,40 +218,41 @@ class Tile(pygame.sprite.Sprite):
     def update(self):
         """Draw the image this tile represents"""
         # Reset the image to blank
+        self.image.fill(white)
         self.image.fill(black)
         # Draw a track for every entry in paths
-        paths_to_draw = []
-        paths_to_draw2 = []
-        
-        for p in self.paths:
-            a = self.box_endpoints[p[0]][0]
-            d = self.box_endpoints[p[1]][0]
-            # If this tile is a straight line no need to use a bezier curve
-            if p[0] + p[1] in [32,26,20,14]:
-                paths_to_draw.append([a,d])
-                paths_to_draw2.append([a,d])
-            else:
-                p0 = p[0]
-                p1 = p[1]
-                # This gets us +1, +0 or -1, to bring the real value of the end point up to the midpoint
-                p03 = -1 * ((p0 % 3) - 1)
-                p13 = -1 * ((p1 % 3) - 1)
-##                print "p0: %s, p03: %s, p1: %s, p13: %s" % (p0, p03, p1, p13)
-                # Curve factor dictates the length between the two endpoints of each of the two curve control points
-                # By varying the length of these control points, we can make the curve smoother and sharper
-                # Taking two control points which make up a path, for each one multiply curve factor by either + or - of the
-                # offset location of the other point
-                # Find midpoint to real point vectors
-                x = (self.box_endpoints[p[1]][1] * Tile.track_spacing).length
-                y = (self.box_endpoints[p[0]][1] * Tile.track_spacing).length
+        if self.type in ["rails", "sleepers", "ballast"]:
+            paths_to_draw = []
+            paths_to_draw2 = []
+            for p in self.paths:
+                a = self.box_endpoints[p[0]][0]
+                d = self.box_endpoints[p[1]][0]
+                # If this tile is a straight line no need to use a bezier curve
+                if p[0] + p[1] in [32,26,20,14]:
+                    paths_to_draw.append([a,d])
+                    paths_to_draw2.append([a,d])
+                else:
+                    p0 = p[0]
+                    p1 = p[1]
+                    # This gets us +1, +0 or -1, to bring the real value of the end point up to the midpoint
+                    p03 = -1 * ((p0 % 3) - 1)
+                    p13 = -1 * ((p1 % 3) - 1)
+    ##                print "p0: %s, p03: %s, p1: %s, p13: %s" % (p0, p03, p1, p13)
+                    # Curve factor dictates the length between the two endpoints of each of the two curve control points
+                    # By varying the length of these control points, we can make the curve smoother and sharper
+                    # Taking two control points which make up a path, for each one multiply curve factor by either + or - of the
+                    # offset location of the other point
+                    # Find midpoint to real point vectors
+                    x = (self.box_endpoints[p[1]][1] * Tile.track_spacing).length
+                    y = (self.box_endpoints[p[0]][1] * Tile.track_spacing).length
 
-                b1 = self.box_endpoints[p[0]][0] + self.box_endpoints[p[0]][1] * (self.curve_factor + p13 * x * self.curve_multiplier)
-                c1 = self.box_endpoints[p[1]][0] + self.box_endpoints[p[1]][1] * (self.curve_factor + p03 * y * self.curve_multiplier)
-                b = self.box_endpoints[p[0]][0] + self.box_endpoints[p[0]][1] * self.curve_factor
-                c = self.box_endpoints[p[1]][0] + self.box_endpoints[p[1]][1] * self.curve_factor
+                    b1 = self.box_endpoints[p[0]][0] + self.box_endpoints[p[0]][1] * (self.curve_factor + p13 * x * self.curve_multiplier)
+                    c1 = self.box_endpoints[p[1]][0] + self.box_endpoints[p[1]][1] * (self.curve_factor + p03 * y * self.curve_multiplier)
+                    b = self.box_endpoints[p[0]][0] + self.box_endpoints[p[0]][1] * self.curve_factor
+                    c = self.box_endpoints[p[1]][0] + self.box_endpoints[p[1]][1] * self.curve_factor
 
-                paths_to_draw.append([a,b,c,d])
-                paths_to_draw2.append([a,b1,c1,d])
+                    paths_to_draw.append([a,b,c,d])
+                    paths_to_draw2.append([a,b1,c1,d])
         if self.type == "rails":
             for p, q in zip(paths_to_draw, paths_to_draw2):
                 self.draw_rails(p, q)
@@ -416,6 +419,7 @@ class DisplayMain(object):
         
         # Create the Screen
         self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))#, pygame.RESIZABLE)
+        self.screen.fill(darkgreen)
 
         #tell pygame to keep sending up keystrokes when they are held down
         pygame.key.set_repeat(500, 30)
@@ -522,10 +526,12 @@ class DisplayMain(object):
                             World.offy -= self.last_rmbpos[1] - rmbpos[1]
                         print "offx: %s, offy: %s" % (World.offx, World.offy)
                         self.last_rmbpos = rmbpos
+                        self.sprites.update()
                         self.refresh_screen = True
                 if event.type == MOUSEBUTTONDOWN:
                     if event.button == 3:
                         self.last_rmbpos = event.pos
+                        self.refresh_screen = True
                 if event.type == MOUSEBUTTONUP:
 ##                    if event.button == 3:
 ##                        self.drag_start = None
@@ -543,18 +549,17 @@ class DisplayMain(object):
                                             self.map[s[0]][s[1]]["layers"]["rails"].add_path([s[2], e[2]])
                                             self.map[s[0]][s[1]]["layers"]["sleepers"].add_path([s[2], e[2]])
                                             self.map[s[0]][s[1]]["layers"]["ballast"].add_path([s[2], e[2]])
-                                            self.map[s[0]][s[1]]["layers"]["box"].update()
                                             # Since this track drawing operation is complete, clear the highlights
                                             clear = True
-                                            self.refresh_screen = True
+                                            self.dirty.append(self.map[s[0]][s[1]]["layers"]["box"].rect)
                                 if clear:
                                     # Second loop, if we found something first time around remove all the highlights
                                     print "removing control hints from all tiles"
-                                    for e in end_positions:
-                                        for s in self.start_positions:
-                                            for key, value in self.map[s[0]][s[1]]["layers"].iteritems():
-                                                value.set_control_hint(None)
-                                                value.update()
+                                    for s in self.start_positions:
+                                        print "removing control hint: %s from tile (%s,%s)" % (s[2], s[0], s[1])
+                                        self.map[s[0]][s[1]]["layers"]["box"].set_control_hint(None)
+                                        self.dirty.append(self.map[s[0]][s[1]]["layers"]["box"].rect)
+                                        print "...done"
                                     self.start_positions = None
                         else:
                             print "new operation..."
@@ -564,15 +569,14 @@ class DisplayMain(object):
                                 for s in self.start_positions:
                                     print "adding control hint: %s to tile (%s,%s)" % (s[2], s[0], s[1])
                                     self.map[s[0]][s[1]]["layers"]["box"].set_control_hint(s[2])
-                                    self.map[s[0]][s[1]]["layers"]["box"].update()
+                                    self.dirty.append(self.map[s[0]][s[1]]["layers"]["box"].rect)
                                     print "...done"
-                                self.refresh_screen = True
                             print "end operation"
 
 
-            # Draw instructions to screen
-            for t in range(len(self.instructions)):
-                self.screen.blit(self.font.render(self.instructions[t], False, black), (10,10 + t*20))
+##            # Draw instructions to screen
+##            for t in range(len(self.instructions)):
+##                self.screen.blit(self.font.render(self.instructions[t], False, black), (10,10 + t*20))
 
 
             # Write some useful info on the top bar
@@ -583,17 +587,20 @@ class DisplayMain(object):
                                            (self.clock.get_fps()))
 
             # Update sprites in the sprite groups which need updating
-            if self.refresh_screen:
-                self.sprites.update()
-            rectlist = self.sprites.draw(self.screen)
+
+            if self.dirty:
+                print self.dirty
 
             # Refresh the screen if necessary, or just draw the updated bits
-            self.refresh_screen = True
             if self.refresh_screen:
-                pygame.display.update()
                 self.screen.fill(darkgreen)
+                rectlist = self.sprites.draw(self.screen)
+                pygame.display.update()
                 self.refresh_screen = False
             else:
+                for a in self.dirty:
+                    self.screen.fill(darkgreen, a)
+                rectlist = self.sprites.draw(self.screen)
                 pygame.display.update(self.dirty)
 
 
