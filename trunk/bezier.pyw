@@ -69,26 +69,6 @@ class World(object):
             World.yWorld = yWorld
 
 
-class MouseSprite(pygame.sprite.Sprite):
-    """Small invisible sprite to use for mouse/sprite collision testing"""
-    # This sprite never gets drawn, so no need to worry about what it looks like
-    image = None
-    mask = None
-    def __init__(self, (mouseX, mouseY)):
-        pygame.sprite.Sprite.__init__(self)
-        if MouseSprite.image is None:
-            MouseSprite.image = pygame.Surface((1,1))
-        if MouseSprite.mask is None:
-            s = pygame.Surface((1,1))
-            s.fill((1,1,1))
-            MouseSprite.mask = pygame.mask.from_surface(s, 0)
-        self.mask = MouseSprite.mask
-        self.image = MouseSprite.image
-        self.rect = pygame.Rect(mouseX, mouseY, 1,1)
-    def update(self, (x, y)):
-        self.rect = pygame.Rect(x, y, 1,1)
-
-
 def calculate_bezier(p, steps = 30):
     """
     Calculate a bezier curve from 4 control points and return a 
@@ -170,6 +150,8 @@ class Tile(pygame.sprite.Sprite):
             Tile.ballast_width = track_width * 2.3
             Tile.curve_factor = curve_factor
             Tile.curve_multiplier = curve_factor * 0.02
+
+        # Position of the tile in tile coordinates from which the world coordinates are derived
         self.position = position
 
         # Type determines which part of the image this sprite draws (rails, sleepers, ballast or hints)
@@ -185,7 +167,6 @@ class Tile(pygame.sprite.Sprite):
                     vec2d(0, Tile.size),
                     vec2d(0, 0),
                     vec2d(Tile.size, 0)]
-
 
         self.calc_rect()
 
@@ -245,6 +226,7 @@ class Tile(pygame.sprite.Sprite):
         # Rect position takes into account the offset
         self.rect = (self.xpos + World.offx, self.ypos + World.offy, p, p)
         return self.rect
+
     def update(self):
         """Draw the image this tile represents"""
         # Draw a track for every entry in paths
@@ -299,7 +281,7 @@ class Tile(pygame.sprite.Sprite):
             # Reset the image to blank
             self.image.fill(black)
             self.draw_highlight()
-        self.rect = self.calc_rect()
+        self.calc_rect()
 
     def draw_highlight(self):
         """Draw the highlight which indicates the selected tile endpoint"""
@@ -614,9 +596,13 @@ class DisplayMain(object):
                             print "end operation"
 
 
+            # Needs a sprite class for drawing text to the screen
+
 ##            # Draw instructions to screen
 ##            for t in range(len(self.instructions)):
-##                self.screen.blit(self.font.render(self.instructions[t], False, black), (10,10 + t*20))
+##                text = self.font.render(self.instructions[t], False, black)
+##                self.screen.blit(text, (10,10 + t*20))
+##                self.dirty.append(pygame.rect.Rect(10, 10 + t*20, text.get_width(), text.get_height()))
 
 
             # Write some useful info on the top bar
