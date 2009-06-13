@@ -177,6 +177,8 @@ class Tile(pygame.sprite.Sprite):
 
         # Init variables
         self.paths = []
+        self.paths_changed = False
+        self.highlight_changed = False
         self.control_hint = None
 
         self.box = [vec2d(Tile.size, Tile.size),
@@ -210,16 +212,20 @@ class Tile(pygame.sprite.Sprite):
         self.image = pygame.Surface((self.size, self.size))
         self.image.fill(black)
         self.image.set_colorkey(black, pygame.RLEACCEL)
+        self.paths_changed = True
+        self.init_box = True
         self.update()
 
     def add_path(self, path):
         """Add another path to this tile"""
         self.paths.append(path)
+        self.paths_changed = True
         self.update()
 
     def set_control_hint(self, endpoint_number):
         """Add a control hint to this sprite, used to indicate which endpoints are active"""
         self.control_hint = endpoint_number
+        self.highlight_changed = True
         self.update()
 
     def return_endpoints(self):
@@ -241,11 +247,10 @@ class Tile(pygame.sprite.Sprite):
         return self.rect
     def update(self):
         """Draw the image this tile represents"""
-        # Reset the image to blank
-        self.image.fill(white)
-        self.image.fill(black)
         # Draw a track for every entry in paths
-        if self.type in ["rails", "sleepers", "ballast"]:
+        if self.paths_changed and self.type in ["rails", "sleepers", "ballast"]:
+            # Only update the image once when first drawn, can be persistent after that (redrawn when the paths change only)
+            self.paths_changed = False
             paths_to_draw = []
             paths_to_draw2 = []
             for p in self.paths:
@@ -277,25 +282,35 @@ class Tile(pygame.sprite.Sprite):
 
                     paths_to_draw.append([a,b,c,d])
                     paths_to_draw2.append([a,b1,c1,d])
-        if self.type == "rails":
-            for p, q in zip(paths_to_draw, paths_to_draw2):
-                self.draw_rails(p, q)
-        elif self.type == "sleepers":
-            for p in paths_to_draw:
-                self.draw_sleepers(p)
-        elif self.type == "ballast":
-            self.draw_ballast(paths_to_draw)
-        elif self.type == "box":
+            if self.type == "rails":
+                for p, q in zip(paths_to_draw, paths_to_draw2):
+                    self.draw_rails(p, q)
+            elif self.type == "sleepers":
+                for p in paths_to_draw:
+                    self.draw_sleepers(p)
+            elif self.type == "ballast":
+                self.draw_ballast(paths_to_draw)
+        # Box never changes, draw once only
+        if self.init_box and self.type == "box":
+            self.init_box = False
             self.draw_box()
+        # Highlight can change on its own
+        if self.highlight_changed and self.type == "highlight":
+            # Reset the image to blank
+            self.image.fill(black)
+            self.draw_highlight()
         self.rect = self.calc_rect()
+
+    def draw_highlight(self):
+        """Draw the highlight which indicates the selected tile endpoint"""
+        # Draw control hints for this tile
+        if self.control_hint:
+            pygame.draw.circle(self.image, green, self.box_endpoints[self.control_hint][0], 7)
 
     def draw_box(self):
         # Draw the outline of the box
 ##            pygame.draw.lines(self.image, True, darkblue, self.box)
         pygame.draw.lines(self.image, True, darkblue, self.box_midpoints)
-        # Draw control hints for this tile
-        if self.control_hint:
-            pygame.draw.circle(self.image, green, self.box_endpoints[self.control_hint][0], 7)
         # Draw the remaining box endpoints
         for p in self.box_endpoints:
             # Draw red circles indicating the path endpoints
@@ -496,6 +511,7 @@ class DisplayMain(object):
                   "ballast",
                   "sleepers",
                   "rails",
+                  "highlight",
                   "box",
                   ]
 
@@ -575,14 +591,14 @@ class DisplayMain(object):
                                             self.map[s[0]][s[1]]["layers"]["ballast"].add_path([s[2], e[2]])
                                             # Since this track drawing operation is complete, clear the highlights
                                             clear = True
-                                            self.dirty.append(self.map[s[0]][s[1]]["layers"]["box"].rect)
+                                            self.dirty.append(self.map[s[0]][s[1]]["layers"]["highlight"].rect)
                                 if clear:
                                     # Second loop, if we found something first time around remove all the highlights
                                     print "removing control hints from all tiles"
                                     for s in self.start_positions:
                                         print "removing control hint: %s from tile (%s,%s)" % (s[2], s[0], s[1])
-                                        self.map[s[0]][s[1]]["layers"]["box"].set_control_hint(None)
-                                        self.dirty.append(self.map[s[0]][s[1]]["layers"]["box"].rect)
+                                        self.map[s[0]][s[1]]["layers"]["highlight"].set_control_hint(None)
+                                        self.dirty.append(self.map[s[0]][s[1]]["layers"]["highlight"].rect)
                                         print "...done"
                                     self.start_positions = None
                         else:
@@ -592,8 +608,8 @@ class DisplayMain(object):
                             if self.start_positions:
                                 for s in self.start_positions:
                                     print "adding control hint: %s to tile (%s,%s)" % (s[2], s[0], s[1])
-                                    self.map[s[0]][s[1]]["layers"]["box"].set_control_hint(s[2])
-                                    self.dirty.append(self.map[s[0]][s[1]]["layers"]["box"].rect)
+                                    self.map[s[0]][s[1]]["layers"]["highlight"].set_control_hint(s[2])
+                                    self.dirty.append(self.map[s[0]][s[1]]["layers"]["highlight"].rect)
                                     print "...done"
                             print "end operation"
 
