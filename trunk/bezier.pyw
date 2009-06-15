@@ -20,10 +20,12 @@
 
 DEBUG = False
 
+import os
+import sys
+import math
+
 import pygame
 from pygame.locals import *
-
-import os, sys, math
 
 import logger
 debug = logger.Log()
@@ -48,26 +50,22 @@ FPS_REFRESH = 500
 WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 800
 
+# Size of the world in tiles
 xWorld = 6
 yWorld = 6
 
 TILE_SIZE = 200
-
-# Starting offsets, these will center the map by default
-offx = WINDOW_WIDTH / 2 - xWorld * TILE_SIZE / 2
-offy = WINDOW_HEIGHT / 2 - yWorld * TILE_SIZE / 2
-
 
 class World(object):
     """Global world object for all Tiles to reference"""
     init = True
     def __init__(self):
         if World.init:
-            World.offx = offx
-            World.offy = offy
             World.xWorld = xWorld
             World.yWorld = yWorld
-
+            # Starting offsets, these will center the map by default
+            World.offx = WINDOW_WIDTH / 2 - World.xWorld * TILE_SIZE / 2
+            World.offy = WINDOW_HEIGHT / 2 - World.yWorld * TILE_SIZE / 2
 
 class Bezier(object):
     """Bezier curve related methods"""
@@ -244,7 +242,8 @@ class Tile(pygame.sprite.Sprite):
 
 
     def set_control_hint(self, endpoint_number):
-        """Add a control hint to this sprite, used to indicate which endpoints are active"""
+        """Add a control hint to this sprite, used to indicate which endpoints are active
+        Pass None as endpoint_number to clear the control hint"""
         self.control_hint = endpoint_number
         self.highlight_changed = True
         self.update()
@@ -290,7 +289,7 @@ class Tile(pygame.sprite.Sprite):
                     # This gets us +1, +0 or -1, to bring the real value of the end point up to the midpoint
                     p03 = -1 * ((p0 % 3) - 1)
                     p13 = -1 * ((p1 % 3) - 1)
-    ##                print "p0: %s, p03: %s, p1: %s, p13: %s" % (p0, p03, p1, p13)
+##                    print "p0: %s, p03: %s, p1: %s, p13: %s" % (p0, p03, p1, p13)
                     # Curve factor dictates the length between the two endpoints of each of the two curve control points
                     # By varying the length of these control points, we can make the curve smoother and sharper
                     # Taking two control points which make up a path, for each one multiply curve factor by either + or - of the
@@ -450,8 +449,6 @@ class Tile(pygame.sprite.Sprite):
             pygame.draw.lines(self.image, silver, False, points1, Tile.rail_width)
 ##            pygame.draw.aalines(self.image, silver, False, points2, True)
 ##            pygame.draw.aalines(self.image, silver, False, points3, True)
-##            pygame.draw.aalines(self.image, silver, False, points2, True)
-##            pygame.draw.aalines(self.image, silver, False, points3, True)
 
     def draw_controls(self, control_points):
         """Draw the controls component of the track"""
@@ -494,7 +491,7 @@ class DisplayMain(object):
 
         self.world = World()
 
-    def control_locate(self, mousepos, tolerance=10):
+    def control_locate(self, mousepos, tolerance=7):
         """Locate all control points close to the mouse position"""
         x = mousepos[0] - World.offx
         y = mousepos[1] - World.offy
@@ -502,8 +499,13 @@ class DisplayMain(object):
         for a in range(xWorld):
             for b in range(yWorld):
                 for n, c in enumerate(self.map[a][b]["controls"]):
+                    # Rough tolerance check
                     if abs(x - c[0]) < tolerance and abs(y - c[1]) < tolerance:
-                        control_points.append([a, b, n])
+                        xx = abs(x - c[0])
+                        yy = abs(y - c[1])
+                        # Expensive tolerance check if rough passes
+                        if math.sqrt(xx * xx + yy * yy) <= tolerance:
+                            control_points.append([a, b, n])
         return control_points
 
     def MainLoop(self):
