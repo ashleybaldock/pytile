@@ -215,7 +215,9 @@ class Tile(pygame.sprite.Sprite):
         Return True if path removed, False if path doesn't exist"""
         print "remove_path - self.paths: %s" % self.paths
         if path in self.paths or path[::-1] in self.paths:
+            print   self.paths
             self.paths.remove(path)
+            print self.paths
             self.paths_changed = True
             self.update()
             return True
@@ -251,6 +253,8 @@ class Tile(pygame.sprite.Sprite):
         """Draw the image this tile represents"""
         # Draw a track for every entry in paths
         if self.paths_changed and self.type in ["rails", "sleepers", "ballast"]:
+            # Reset image
+            self.image.fill(black)
             # Only update the image once when first drawn, can be persistent after that (redrawn when the paths change only)
             self.paths_changed = False
             paths_to_draw = []
@@ -369,7 +373,6 @@ class Tile(pygame.sprite.Sprite):
                                        get_at_width(a - start_vector + n*ab_n*true_spacing - ab_n*0.5*Tile.sleeper_width, a_to_b, Tile.sleeper_length),
                                        get_at_width(a - start_vector + n*ab_n*true_spacing + ab_n*0.5*Tile.sleeper_width, a_to_b, Tile.sleeper_length),
                                        get_at_width(a - start_vector + n*ab_n*true_spacing + ab_n*0.5*Tile.sleeper_width, a_to_b, -Tile.sleeper_length)])
-
         # Finally draw all the sleeper points
         for p in sleeper_points:
             pygame.draw.polygon(self.image, brown, p, 0)
@@ -502,6 +505,9 @@ class DisplayMain(object):
         # The currently selected point
         self.selected = None
 
+        # Current tool mode
+        self.mode = "add"
+
         self.instructions = ["Click on a pair of red dots to:",
                              "D - draw a track between them",
 ##                             "R - remove the track between them",
@@ -560,6 +566,12 @@ class DisplayMain(object):
                     if event.key == pygame.K_ESCAPE:
                         pygame.display.quit()
                         sys.exit()
+                    if event.key == pygame.K_d:
+                        self.mode = "delete"
+                        print "set mode: delete"
+                    if event.key == pygame.K_a:
+                        self.mode = "add"
+                        print "set mode: add"
                 if event.type == MOUSEMOTION:
                     if event.buttons[2] == 1:
                         rmbpos = event.pos
@@ -586,11 +598,18 @@ class DisplayMain(object):
                                 for e in end_positions:
                                     for s in self.start_positions:
                                         if e[0] == s[0] and e[1] == s[1]:
-                                            # Paths should be added to the map, rather than the tiles in future!
-                                            print "adding path: %s->%s to tile: (%s,%s)" % (s[2], e[2],s[0],s[1])
-                                            self.map[s[0]][s[1]]["layers"]["rails"].add_path([s[2], e[2]])
-                                            self.map[s[0]][s[1]]["layers"]["sleepers"].add_path([s[2], e[2]])
-                                            self.map[s[0]][s[1]]["layers"]["ballast"].add_path([s[2], e[2]])
+                                            if self.mode == "add":
+                                                # Paths should be added to the map, rather than the tiles in future!
+                                                print "adding path: %s->%s to tile: (%s,%s)" % (s[2], e[2],s[0],s[1])
+                                                self.map[s[0]][s[1]]["layers"]["rails"].add_path([s[2], e[2]])
+                                                self.map[s[0]][s[1]]["layers"]["sleepers"].add_path([s[2], e[2]])
+                                                self.map[s[0]][s[1]]["layers"]["ballast"].add_path([s[2], e[2]])
+                                            if self.mode == "delete":
+                                                # Paths should be added to the map, rather than the tiles in future!
+                                                print "removing path: %s->%s from tile: (%s,%s)" % (s[2], e[2],s[0],s[1])
+                                                self.map[s[0]][s[1]]["layers"]["rails"].remove_path([s[2], e[2]])
+                                                self.map[s[0]][s[1]]["layers"]["sleepers"].remove_path([s[2], e[2]])
+                                                self.map[s[0]][s[1]]["layers"]["ballast"].remove_path([s[2], e[2]])
                                             # Since this track drawing operation is complete, clear the highlights
                                             clear = True
                                             self.dirty.append(self.map[s[0]][s[1]]["layers"]["highlight"].rect)
