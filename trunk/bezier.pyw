@@ -198,10 +198,30 @@ class Tile(pygame.sprite.Sprite):
         self.update()
 
     def add_path(self, path):
-        """Add another path to this tile"""
-        self.paths.append(path)
-        self.paths_changed = True
-        self.update()
+        """Add another path to this tile
+        Only add a path if that path does not already exist
+        This is where path bound checking will go eventually"""
+        print path, self.paths
+        print "add_path - self.paths: %s" % self.paths
+        if path in self.paths or path[::-1] in self.paths:
+            # Trying to add duplicate path
+            return False
+        else:
+            self.paths.append(path)
+            self.paths_changed = True
+            self.update()
+    def remove_path(self, path):
+        """Remove a path from this tile
+        Return True if path removed, False if path doesn't exist"""
+        print "remove_path - self.paths: %s" % self.paths
+        if path in self.paths or path[::-1] in self.paths:
+            self.paths.remove(path)
+            self.paths_changed = True
+            self.update()
+            return True
+        else:
+            return False
+
 
     def set_control_hint(self, endpoint_number):
         """Add a control hint to this sprite, used to indicate which endpoints are active"""
