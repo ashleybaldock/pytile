@@ -69,58 +69,60 @@ class World(object):
             World.yWorld = yWorld
 
 
-def calculate_bezier(p, steps = 30):
-    """
-    Calculate a bezier curve from 4 control points and return a 
-    list of the resulting points.
-    
-    The function uses the forward differencing algorithm described here: 
-    http://www.niksula.cs.hut.fi/~hkankaan/Homepages/bezierfast.html
-    """
+class Bezier(object):
+    """Bezier curve related methods"""
+    def calculate_bezier(self, p, steps = 30):
+        """
+        Calculate a bezier curve from 4 control points and return a 
+        list of the resulting points.
+        
+        The function uses the forward differencing algorithm described here: 
+        http://www.niksula.cs.hut.fi/~hkankaan/Homepages/bezierfast.html
+        """
 
-    # This bypasses the generation of a bezier curve, and returns a straight line in a form which should still work with all the functions that depend on this
-    if len(p) == 2:
-        return ([p[1], p[0]], [p[1] - p[0],p[1] - p[0]])
+        # This bypasses the generation of a bezier curve, and returns a straight line in a form which should still work with all the functions that depend on this
+        if len(p) == 2:
+            return ([p[1], p[0]], [p[1] - p[0],p[1] - p[0]])
 
-    t = 1.0 / steps
-    temp = t*t
-    
-    f = p[0]
-    fd = 3 * (p[1] - p[0]) * t
-    fdd_per_2 = 3 * (p[0] - 2 * p[1] + p[2]) * temp
-    fddd_per_2 = 3 * (3 * (p[1] - p[2]) + p[3] - p[0]) * temp * t
-    
-    fddd = fddd_per_2 + fddd_per_2
-    fdd = fdd_per_2 + fdd_per_2
-    fddd_per_6 = fddd_per_2 * (1.0 / 3)
-    
-    points = []
-    tangents = []
-    for x in range(steps):
+        t = 1.0 / steps
+        temp = t*t
+        
+        f = p[0]
+        fd = 3 * (p[1] - p[0]) * t
+        fdd_per_2 = 3 * (p[0] - 2 * p[1] + p[2]) * temp
+        fddd_per_2 = 3 * (3 * (p[1] - p[2]) + p[3] - p[0]) * temp * t
+        
+        fddd = fddd_per_2 + fddd_per_2
+        fdd = fdd_per_2 + fdd_per_2
+        fddd_per_6 = fddd_per_2 * (1.0 / 3)
+        
+        points = []
+        tangents = []
+        for x in range(steps):
+            points.append(f)
+            tangents.append(fd)
+            f = f + fd + fdd_per_2 + fddd_per_6
+            fd = fd + fdd + fddd_per_2
+            fdd = fdd + fddd
+            fdd_per_2 = fdd_per_2 + fddd_per_2
         points.append(f)
         tangents.append(fd)
-        f = f + fd + fdd_per_2 + fddd_per_6
-        fd = fd + fdd + fddd_per_2
-        fdd = fdd + fddd
-        fdd_per_2 = fdd_per_2 + fddd_per_2
-    points.append(f)
-    tangents.append(fd)
-    return (points, tangents)
+        return (points, tangents)
 
-def get_at_width(point, tangent, width):
-    newpoint = point + tangent.perpendicular_normal() * width
-    return newpoint
+    def get_at_width(self, point, tangent, width):
+        newpoint = point + tangent.perpendicular_normal() * width
+        return newpoint
 
-def get_point_at_width(a, b, width):
-    a_to_b = b - a
-    c = a + a_to_b.perpendicular_normal() * width
-    d = b + a_to_b.perpendicular_normal() * width
-    return d
+    def get_point_at_width(self, a, b, width):
+        a_to_b = b - a
+        c = a + a_to_b.perpendicular_normal() * width
+        d = b + a_to_b.perpendicular_normal() * width
+        return d
 
-def find_midpoint(a, b):
-    """"""
-    a_to_b = b - a
-    return a + a_to_b / 2.0
+    def find_midpoint(self, a, b):
+        """"""
+        a_to_b = b - a
+        return a + a_to_b / 2.0
 
 
 class TextSprite(pygame.sprite.Sprite):
@@ -148,6 +150,7 @@ class Tile(pygame.sprite.Sprite):
     def __init__(self, position, type, track_width=10, curve_factor=60):
         pygame.sprite.Sprite.__init__(self)
         if not Tile.init:
+            Tile.bezier = Bezier()
             tex = pygame.image.load("ballast_texture.png")
             Tile.ballast_texture = tex.convert()
             Tile.init = True
@@ -188,10 +191,10 @@ class Tile(pygame.sprite.Sprite):
         self.box_midpoints = []
         self.box_allmidpoints = []
         for p in range(len(self.box)):
-            self.box_midpoints.append(find_midpoint(self.box[p-1], self.box[p]))
+            self.box_midpoints.append(self.bezier.find_midpoint(self.box[p-1], self.box[p]))
         for p in range(len(self.box_midpoints)):
             self.box_allmidpoints.append([self.box_midpoints[p-1], (self.box[p-1] - self.box[p-2]).normalized()])
-            self.box_allmidpoints.append([find_midpoint(self.box_midpoints[p-1], self.box_midpoints[p]), (self.box_midpoints[p] - self.box_midpoints[p-1]).normalized()])
+            self.box_allmidpoints.append([self.bezier.find_midpoint(self.box_midpoints[p-1], self.box_midpoints[p]), (self.box_midpoints[p] - self.box_midpoints[p-1]).normalized()])
         self.box_endpoints = []
         for p in range(len(self.box_allmidpoints)):
             self.box_endpoints.append([self.box_allmidpoints[p][0] - self.box_allmidpoints[p][1] * Tile.track_spacing, self.box_allmidpoints[p][1].perpendicular()])
@@ -347,7 +350,7 @@ class Tile(pygame.sprite.Sprite):
     def draw_sleepers(self, control_points):
         """Draw the sleeper component of the track"""
         # Calculate bezier curve points and tangents
-        cps, tangents = calculate_bezier(control_points, 30)
+        cps, tangents = self.bezier.calculate_bezier(control_points, 30)
         overflow = Tile.sleeper_spacing * -0.5
         sleeper_points = []
         start = True
@@ -383,10 +386,10 @@ class Tile(pygame.sprite.Sprite):
             else:
                 s = 1
             for n in range(s, n_sleepers+1):
-                sleeper_points.append([get_at_width(a - start_vector + n*ab_n*true_spacing - ab_n*0.5*Tile.sleeper_width, a_to_b, -Tile.sleeper_length),
-                                       get_at_width(a - start_vector + n*ab_n*true_spacing - ab_n*0.5*Tile.sleeper_width, a_to_b, Tile.sleeper_length),
-                                       get_at_width(a - start_vector + n*ab_n*true_spacing + ab_n*0.5*Tile.sleeper_width, a_to_b, Tile.sleeper_length),
-                                       get_at_width(a - start_vector + n*ab_n*true_spacing + ab_n*0.5*Tile.sleeper_width, a_to_b, -Tile.sleeper_length)])
+                sleeper_points.append([self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing - ab_n*0.5*Tile.sleeper_width, a_to_b, -Tile.sleeper_length),
+                                       self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing - ab_n*0.5*Tile.sleeper_width, a_to_b, Tile.sleeper_length),
+                                       self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing + ab_n*0.5*Tile.sleeper_width, a_to_b, Tile.sleeper_length),
+                                       self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing + ab_n*0.5*Tile.sleeper_width, a_to_b, -Tile.sleeper_length)])
         # Finally draw all the sleeper points
         for p in sleeper_points:
             pygame.draw.polygon(self.image, brown, p, 0)
@@ -399,16 +402,16 @@ class Tile(pygame.sprite.Sprite):
         surface.fill(black)
         for control_points in points_to_draw:
             # Calculate bezier curve points and tangents
-            cps, tangents = calculate_bezier(control_points, 30)
+            cps, tangents = self.bezier.calculate_bezier(control_points, 30)
             # Draw the ballast under the track, this will be a polygon in the rough shape of the trackwork which will then be replaced with a texture
             # Polygon defined by the two lines at either side of the track
             ballast_points = []
             # Add one side
             for p in range(0, len(cps)):
-                ballast_points.append(get_at_width(cps[p], tangents[p], Tile.ballast_width))
+                ballast_points.append(self.bezier.get_at_width(cps[p], tangents[p], Tile.ballast_width))
             ballast_points.reverse()
             for p in range(0, len(cps)):
-                ballast_points.append(get_at_width(cps[p], tangents[p], -Tile.ballast_width))
+                ballast_points.append(self.bezier.get_at_width(cps[p], tangents[p], -Tile.ballast_width))
             pygame.draw.polygon(surface, white, ballast_points, 0)
         # Set mask key to white, so only the outline parts drawn
         surface.set_colorkey(white, pygame.RLEACCEL)
@@ -423,8 +426,8 @@ class Tile(pygame.sprite.Sprite):
     def draw_rails(self, control_points, control_points2):
         """Draw the rails component of the track"""
         # Calculate bezier curve points and tangents
-        cps, tangents = calculate_bezier(control_points, 30)
-        cps2, tangents2 = calculate_bezier(control_points2, 30)
+        cps, tangents = self.bezier.calculate_bezier(control_points, 30)
+        cps2, tangents2 = self.bezier.calculate_bezier(control_points2, 30)
         if DEBUG:
             pygame.draw.lines(self.image, red, False, cps, 1)
             pygame.draw.lines(self.image, silver, False, cps2, 1)
@@ -434,16 +437,16 @@ class Tile(pygame.sprite.Sprite):
 ##            for q in range(0, rail_width*softness):
 ##                points = []
 ##                for p in range(0, len(cps)):
-##                    points.append(get_at_width(cps[p], tangents[p], s*rail_spacing+s*q/softness))
+##                    points.append(Bezier.get_at_width(cps[p], tangents[p], s*rail_spacing+s*q/softness))
 ##                pygame.draw.aalines(self.image, silver, False, points, True)
         for s in [1, -1]:
             points1 = []
             points2 = []
             points3 = []
             for p in range(0, len(cps)):
-                points1.append(get_at_width(cps[p], tangents[p], s*Tile.rail_spacing))
-                points2.append(get_at_width(cps[p], tangents[p], s*Tile.rail_spacing - Tile.rail_width/2.0))
-                points3.append(get_at_width(cps[p], tangents[p], s*Tile.rail_spacing + Tile.rail_width/2.0))
+                points1.append(self.bezier.get_at_width(cps[p], tangents[p], s*Tile.rail_spacing))
+                points2.append(self.bezier.get_at_width(cps[p], tangents[p], s*Tile.rail_spacing - Tile.rail_width/2.0))
+                points3.append(self.bezier.get_at_width(cps[p], tangents[p], s*Tile.rail_spacing + Tile.rail_width/2.0))
             pygame.draw.lines(self.image, silver, False, points1, Tile.rail_width)
 ##            pygame.draw.aalines(self.image, silver, False, points2, True)
 ##            pygame.draw.aalines(self.image, silver, False, points3, True)
@@ -453,7 +456,7 @@ class Tile(pygame.sprite.Sprite):
     def draw_controls(self, control_points):
         """Draw the controls component of the track"""
         # Calculate bezier curve points and tangents
-        cps, tangents = calculate_bezier(control_points, 30)
+        cps, tangents = Bezier.calculate_bezier(control_points, 30)
         # Draw bezier curve control points
         for p in control_points:
             pygame.draw.circle(screen, blue, p, 4)
