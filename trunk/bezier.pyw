@@ -18,6 +18,7 @@
 ##
 ## THIS SOFTWARE IS PROVIDED BY THE AUTHOR "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
 
+DEBUG = False
 
 import pygame
 from pygame.locals import *
@@ -39,7 +40,6 @@ blue = (0,0,255)
 darkblue = (0,0,192)
 brown = (72,64,0)
 silver = (224,216,216)
-X,Y,Z = 0,1,2
 black = (0,0,0)
 white = (255,255,255)
 yellow = (255,255,0)
@@ -116,10 +116,6 @@ def get_point_at_width(a, b, width):
     c = a + a_to_b.perpendicular_normal() * width
     d = b + a_to_b.perpendicular_normal() * width
     return d
-
-def draw_curve(points, colour, screen):
-    b_points = calculate_bezier(points)
-    pygame.draw.lines(screen, colour, False, b_points)
 
 def find_midpoint(a, b):
     """"""
@@ -334,14 +330,13 @@ class Tile(pygame.sprite.Sprite):
 
     def draw_box(self):
         # Draw the outline of the box
-##            pygame.draw.lines(self.image, True, darkblue, self.box)
         pygame.draw.lines(self.image, True, darkblue, self.box_midpoints)
         # Draw the remaining box endpoints
         for p in self.box_endpoints:
             # Draw red circles indicating the path endpoints
             pygame.draw.circle(self.image, red, (int(p[0][0]),int(p[0][1])), 3)
             # Draw normal lines indicating the path endpoints
-##                pygame.draw.line(self.image, darkblue, p[0], p[0] + 20 * p[1])
+##            pygame.draw.line(self.image, darkblue, p[0], p[0] + 20 * p[1])
             # Draw text indicating which path endpoint the dot is
             s = Tile.font.render(str(self.box_endpoints.index(p)), False, green)
             x,y = s.get_size()
@@ -430,8 +425,9 @@ class Tile(pygame.sprite.Sprite):
         # Calculate bezier curve points and tangents
         cps, tangents = calculate_bezier(control_points, 30)
         cps2, tangents2 = calculate_bezier(control_points2, 30)
-        pygame.draw.lines(self.image, red, False, cps, 1)
-        pygame.draw.lines(self.image, silver, False, cps2, 1)
+        if DEBUG:
+            pygame.draw.lines(self.image, red, False, cps, 1)
+            pygame.draw.lines(self.image, silver, False, cps2, 1)
 ##        return True
 ##        softness = 50
 ##        for s in [1, -1]:
@@ -488,13 +484,10 @@ class DisplayMain(object):
         pygame.key.set_repeat(500, 30)
 
         # Setup fonts
-        self.font = pygame.font.Font(None, 12)
         self.font = pygame.font.SysFont("Arial", 16)
 
         # Set up variables
         self.refresh_screen = True
-
-        self.mouseSprite = None
 
         self.world = World()
 
@@ -523,6 +516,10 @@ class DisplayMain(object):
 
         # The currently selected point
         self.selected = None
+        # Array to contain endpoint positions selected during the start of a draw operation
+        self.start_positions = []
+        # Stores the last recorded drag operation position for world movement
+        self.last_rmbpos = (0,0)
 
         # Current tool mode
         self.mode = "add"
@@ -544,7 +541,6 @@ class DisplayMain(object):
 
         # 2D array, [x][y]
         self.sprites = pygame.sprite.LayeredUpdates()
-        self.searchsprites = pygame.sprite.Group()
 
         # Can look up in self.map:
         #   self.map[x][y]["paths"] -> List of paths for this tile
@@ -559,9 +555,6 @@ class DisplayMain(object):
                 for c, d in enumerate(layers):
                     b["layers"][d] = Tile((x,y), d)
                     self.sprites.add(b["layers"][d], layer=c)
-                    # Searchsprites will go when we no longer use collision detection for drawing
-                    if c == 0:
-                        self.searchsprites.add(b["layers"][d])
                 b["controls"] = b["layers"]["box"].return_endpoints()
                 a.append(b)
             self.map.append(a)
@@ -576,9 +569,6 @@ class DisplayMain(object):
             self.sprites.add(TextSprite((instructions_offx, instructions_offy + font_size * n),
                                         t, instructions_font, fg=black, bg=white), layer=100)
 
-        self.start_positions = []
-
-        self.last_rmbpos = (0,0)
 
         while True:
             self.clock.tick(0)
@@ -664,26 +654,12 @@ class DisplayMain(object):
                             print "end operation"
 
 
-            # Needs a sprite class for drawing text to the screen
-
-##            # Draw instructions to screen
-##            for t in range(len(self.instructions)):
-##                text = self.font.render(self.instructions[t], False, black)
-##                self.screen.blit(text, (10,10 + t*20))
-##                self.dirty.append(pygame.rect.Rect(10, 10 + t*20, text.get_width(), text.get_height()))
-
-
             # Write some useful info on the top bar
             self.fps_elapsed += self.clock.get_time()
             if self.fps_elapsed >= self.fps_refresh:
                 self.fps_elapsed = 0
                 pygame.display.set_caption("FPS: %i" %
                                            (self.clock.get_fps()))
-
-            # Update sprites in the sprite groups which need updating
-
-            if self.dirty:
-                print self.dirty
 
             # Refresh the screen if necessary, or just draw the updated bits
             if self.refresh_screen:
