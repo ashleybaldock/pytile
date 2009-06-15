@@ -127,6 +127,25 @@ def find_midpoint(a, b):
     return a + a_to_b / 2.0
 
 
+class TextSprite(pygame.sprite.Sprite):
+    """Subclass of sprite to draw text to the screen"""
+    def __init__(self, position, textstring, font, fg=(0,0,0), bg=None):
+        pygame.sprite.Sprite.__init__(self)
+
+        self.position = position
+        self.font = font
+        self.fg = fg
+        self.bg = bg
+
+        self.text = textstring
+        self.update()
+
+    def update(self):
+        """"""
+        self.image = self.font.render(self.text, False, self.fg, self.bg)
+        self.rect = (self.position[0], self.position[1], self.image.get_width(), self.image.get_height())
+
+
 class Tile(pygame.sprite.Sprite):
     """A tile containing tracks, drawn in layers"""
     init = False
@@ -509,8 +528,8 @@ class DisplayMain(object):
         self.mode = "add"
 
         self.instructions = ["Click on a pair of red dots to:",
-                             "D - draw a track between them",
-##                             "R - remove the track between them",
+                             "A - Add a track between them",
+                             "D - Delete the track between them",
                              ]
 
         # Layers to draw, first listed drawn first
@@ -546,6 +565,16 @@ class DisplayMain(object):
                 b["controls"] = b["layers"]["box"].return_endpoints()
                 a.append(b)
             self.map.append(a)
+
+        # Set up instructions font
+        font_size = 16
+        instructions_offx = 10
+        instructions_offy = 10
+        instructions_font = pygame.font.SysFont("Arial", font_size)
+        # Make a text sprite for all lines in
+        for n, t in enumerate(self.instructions):
+            self.sprites.add(TextSprite((instructions_offx, instructions_offy + font_size * n),
+                                        t, instructions_font, fg=black, bg=white), layer=100)
 
         self.start_positions = []
 
@@ -671,8 +700,8 @@ class DisplayMain(object):
 
     
 if __name__ == "__main__":
-    sys.stderr = debug
-    sys.stdout = debug
+##    sys.stderr = debug
+##    sys.stdout = debug
     os.environ["SDL_VIDEO_CENTERED"] = "1"
     MainWindow = DisplayMain(WINDOW_WIDTH, WINDOW_HEIGHT)
     MainWindow.MainLoop()
