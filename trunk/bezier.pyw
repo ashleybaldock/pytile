@@ -141,6 +141,12 @@ class TextSprite(pygame.sprite.Sprite):
         self.image = self.font.render(self.text, False, self.fg, self.bg)
         self.rect = (self.position[0], self.position[1], self.image.get_width(), self.image.get_height())
 
+##class WayType(object):
+##    """"""
+##    def __init__(self):
+##        """"""
+##        # WayType objects define the properties of a way, e.g.
+##        # the allowable curves within a tile, the way its drawn, number of layers etc.
 
 class Tile(pygame.sprite.Sprite):
     """A tile containing tracks, drawn in layers"""
@@ -216,16 +222,33 @@ class Tile(pygame.sprite.Sprite):
     def add_path(self, path):
         """Add another path to this tile
         Only add a path if that path does not already exist
-        This is where path bound checking will go eventually"""
-        print path, self.paths
-        print "add_path - self.paths: %s" % self.paths
+        Only add a path if it passes the bounds checks for this track type"""
+        debug("add_path - add: %s to existing: %s" % (path, self.paths))
         if path in self.paths or path[::-1] in self.paths:
             # Trying to add duplicate path
             return False
         else:
-            self.paths.append(path)
-            self.paths_changed = True
-            self.update()
+            # Path is not a duplicate, check if it is allowed
+            # Divide by the number of paths per side, then find "angle" (in number of sides) between the two
+            # sides being compared. If this is in the allowed "angles" permit drawing of this path
+            side1, subside1 = divmod(path[0], 3)
+            side2, subside2 = divmod(path[1], 3)
+            # K determines the allowed "angle" between two endpoints
+            # 0 is endpoint to itself, 1 is endpoint to immediate neighbour etc. 4 is endpoint to its opposite
+            # Disallow values of K to restrict endpoints
+##            K = [0,1,2,3,4]
+            K = [3,4]
+            L = [0,1,2,3,4,3,2,1]
+            for i in range(side1):
+                L.insert(0, L.pop())
+            debug("add_path - transform: %s, result: %s, lookup: %s, result: %s" % (side1, L, side2, L[side2]))
+            if L[side2] in K:
+                self.paths.append(path)
+                self.paths_changed = True
+                self.update()
+                return True
+            else:
+                return False
     def remove_path(self, path):
         """Remove a path from this tile
         Return True if path removed, False if path doesn't exist"""
@@ -536,7 +559,6 @@ class DisplayMain(object):
 
         # Layers to draw, first listed drawn first
         layers = [
-##                  "hints",
                   "ballast",
                   "sleepers",
                   "rails",
@@ -647,16 +669,16 @@ class DisplayMain(object):
                                         print "...done"
                                     self.start_positions = None
                         else:
-                            print "new operation..."
+                            debug("new operation...")
                             self.start_positions = self.control_locate(event.pos)
-                            print "start positions: %s"
+                            debug("start positions: %s")
                             if self.start_positions:
                                 for s in self.start_positions:
-                                    print "adding control hint: %s to tile (%s,%s)" % (s[2], s[0], s[1])
+                                    debug("adding control hint: %s to tile (%s,%s)" % (s[2], s[0], s[1]))
                                     self.map[s[0]][s[1]]["layers"]["highlight"].set_control_hint(s[2])
                                     self.dirty.append(self.map[s[0]][s[1]]["layers"]["highlight"].rect)
-                                    print "...done"
-                            print "end operation"
+                                    debug("...done")
+                            debug("end operation")
 
 
             # Write some useful info on the top bar
@@ -681,8 +703,8 @@ class DisplayMain(object):
 
     
 if __name__ == "__main__":
-##    sys.stderr = debug
-##    sys.stdout = debug
+    sys.stderr = debug
+    sys.stdout = debug
     os.environ["SDL_VIDEO_CENTERED"] = "1"
     MainWindow = DisplayMain(WINDOW_WIDTH, WINDOW_HEIGHT)
     MainWindow.MainLoop()
