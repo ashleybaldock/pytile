@@ -162,7 +162,6 @@ class TextSprite(pygame.sprite.Sprite):
                                      textimages[0].get_height() * len(textimages) \
                                      + self.line_spacing * (len(textimages) - 1) \
                                      + 2 * (self.borderwidth + self.padding)))
-
         self.image.fill(self.bg)
         if self.borderwidth > 0:
             pygame.draw.rect(self.image, self.bordercolour,
@@ -614,16 +613,14 @@ class DisplayMain(object):
             self.map.append(a)
 
         # Set up instructions font
-        font_size = 16
+        font_size = 18
         instructions_offx = 10
         instructions_offy = 10
-        instructions_font = pygame.font.SysFont("Arial", font_size)
-        # Make a text sprite for all lines in
-##        for n, t in enumerate(self.instructions):
-##            self.sprites.add(TextSprite((instructions_offx, instructions_offy + font_size * n),
-##                                        t, instructions_font, fg=black, bg=darkgreen, bold=True), layer=100)
+##        instructions_font = pygame.font.SysFont("Arial", font_size)
+        instructions_font = pygame.font.SysFont(pygame.font.get_default_font(), font_size)
+        # Make a text sprite to display the instructions
         self.sprites.add(TextSprite((10,10), self.instructions, instructions_font,
-                                    fg=black, bg=green, bold=True), layer=100)
+                                    fg=black, bg=green, bold=False), layer=100)
 
 
         while True:
