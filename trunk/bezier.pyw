@@ -125,28 +125,55 @@ class Bezier(object):
 
 class TextSprite(pygame.sprite.Sprite):
     """Subclass of sprite to draw text to the screen"""
-    def __init__(self, position, textstring, font, fg=(0,0,0), bg=None):
+    def __init__(self, position, textstring, font, fg=(0,0,0), bg=None,
+                 borderwidth=0, bordercolour=(0,0,0),
+                 bold=False, italic=False, underline=False,
+                 line_spacing=3, padding=5):
         pygame.sprite.Sprite.__init__(self)
 
         self.position = position
         self.font = font
         self.fg = fg
         self.bg = bg
+        self.borderwidth = borderwidth
+        self.bordercolour = bordercolour
+        self.line_spacing = line_spacing
+        self.padding = padding
+        self.font.set_bold(bold)
+        self.font.set_italic(italic)
+        self.font.set_underline(underline)
 
         self.text = textstring
         self.update()
 
     def update(self):
         """"""
-        self.image = self.font.render(self.text, False, self.fg, self.bg)
+        textimages = []
+        # Render all lines of text
+        for t in self.text:
+            textimages.append(self.font.render(t, False, self.fg, self.bg))
+
+        # Find the largest width line of text
+        debug(str(textimages))
+        maxwidth = max(textimages, key=lambda x: x.get_width()).get_width()
+        debug(str(maxwidth))
+        # Produce an image to hold all of the text strings
+        self.image = pygame.Surface((maxwidth + 2 * (self.borderwidth + self.padding),
+                                     textimages[0].get_height() * len(textimages) \
+                                     + self.line_spacing * (len(textimages) - 1) \
+                                     + 2 * (self.borderwidth + self.padding)))
+
+        self.image.fill(self.bg)
+        if self.borderwidth > 0:
+            pygame.draw.rect(self.image, self.bordercolour,
+                             (0, 0, self.image.get_width(), self.image.get_height()), self.borderwidth)
+        for n, t in enumerate(textimages):
+            self.image.blit(t, (self.borderwidth + self.padding,
+                                self.borderwidth + self.padding + (self.line_spacing + t.get_height()) * n))
+
         self.rect = (self.position[0], self.position[1], self.image.get_width(), self.image.get_height())
 
-##class WayType(object):
-##    """"""
-##    def __init__(self):
-##        """"""
-##        # WayType objects define the properties of a way, e.g.
-##        # the allowable curves within a tile, the way its drawn, number of layers etc.
+
 
 class Tile(pygame.sprite.Sprite):
     """A tile containing tracks, drawn in layers"""
@@ -592,9 +619,11 @@ class DisplayMain(object):
         instructions_offy = 10
         instructions_font = pygame.font.SysFont("Arial", font_size)
         # Make a text sprite for all lines in
-        for n, t in enumerate(self.instructions):
-            self.sprites.add(TextSprite((instructions_offx, instructions_offy + font_size * n),
-                                        t, instructions_font, fg=black, bg=white), layer=100)
+##        for n, t in enumerate(self.instructions):
+##            self.sprites.add(TextSprite((instructions_offx, instructions_offy + font_size * n),
+##                                        t, instructions_font, fg=black, bg=darkgreen, bold=True), layer=100)
+        self.sprites.add(TextSprite((10,10), self.instructions, instructions_font,
+                                    fg=black, bg=green, bold=True), layer=100)
 
 
         while True:
