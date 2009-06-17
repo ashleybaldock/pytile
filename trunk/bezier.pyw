@@ -69,14 +69,10 @@ class World(object):
 
 class Bezier(object):
     """Bezier curve related methods"""
-    def calculate_bezier(self, p, steps = 30):
-        """
-        Calculate a bezier curve from 4 control points and return a 
-        list of the resulting points.
-        
-        The function uses the forward differencing algorithm described here: 
-        http://www.niksula.cs.hut.fi/~hkankaan/Homepages/bezierfast.html
-        """
+    def calculate_bezier(self, p, steps=30):
+        """Calculate a bezier curve from 4 control points and return a list of the resulting points.
+        This function uses the forward differencing algorithm described here: 
+        http://www.niksula.cs.hut.fi/~hkankaan/Homepages/bezierfast.html"""
 
         # This bypasses the generation of a bezier curve, and returns a straight line in a form which should still work with all the functions that depend on this
         if len(p) == 2:
