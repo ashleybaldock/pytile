@@ -26,7 +26,6 @@
 # BUG - crash when nothing is on screen?
 
 
-
 import os, sys
 import pygame
 import random, math
