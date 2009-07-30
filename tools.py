@@ -317,6 +317,7 @@ class Test(Tool):
     def begin(self, start):
         """Reset the start position for a new operation"""
         self.start = start
+        self.addback = 0
     def end(self, final):
         """End of application of tool"""
         self.current = final
@@ -354,8 +355,11 @@ class Test(Tool):
 
 
             diff = (self.current[1] - self.start[1]) / ph
-            diffrem = (self.current[1] - self.start[1]) % ph
             self.start = (self.start[0], self.start[1] + diff * ph)
+
+##            adiff = diff - self.addback
+##
+##            invdiff = -diff + self.addback
 
 ##        if diff != 0:
 ##            invdiff = - diff
@@ -368,7 +372,13 @@ class Test(Tool):
                 if len(self.tiles) > 1:
                     self.modify_tiles(self.tiles, invdiff, soft=Test.smooth)
                 else:
-                    self.modify_tile(self.tiles[0], self.subtile, invdiff, soft=Test.smooth)
+                    r = self.modify_tile(self.tiles[0], self.subtile, invdiff, soft=Test.smooth)
+                # Addback is calcuated as the total requested height change minus the *actual* height change. The remainder is the
+                # amount of cursor movement which doesn't actually do anything.
+                # for example, if the cursor moves down (lowering the terrain) and hits the "0" level of the terrain we can't continue
+                # to lower the terrain. The cursor keeps moving however and the addback value keeps track of this so that when the
+                # cursor starts to move up again it won't start raising the terrain again until it hits the "0" level again
+##                self.addback = invdiff - r
                 # Set this so that the changed portion of the map is updated on screen
                 self.set_aoe_changed(True)
                 # Must also re-draw the highlight if we're changing the map
@@ -530,6 +540,9 @@ class Test(Tool):
         """Raise (or lower) a tile based on the subtile"""
         x = t[0]
         y = t[1]
+        # r measures the total amount of raising/lowering *actually* done
+        # This can then be compared with the amount requested to calculate the cursor offset
+        r = 0
         if amount > 0:
             step = 1
             for i in range(0, amount, step):
@@ -561,7 +574,7 @@ class Test(Tool):
                 # Whole tile lower
                 if subtile == 9:
                     tgrid = World.get_height(x,y)
-                    tgrid.lower_face()
+                    r += tgrid.lower_face()
                     World.set_height(tgrid, (x,y))
                     self.aoe = [(x,y)]
                 # Edge lower
@@ -579,3 +592,4 @@ class Test(Tool):
                     self.aoe = [(x,y)]
             if subtile == 9 and soft:
                 self.soften(self.aoe, soften_down=True)
+        return r
