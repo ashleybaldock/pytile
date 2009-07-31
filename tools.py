@@ -420,26 +420,31 @@ class Test(Tool):
             for i in range(0, amount, step):
                 maxval = max(vertices, key=lambda x: x[0])[0]
                 if maxval != 0:
+                    rr = 0
                     for p in vertices:
                         if p[0] == maxval:
                             p[0] -= 1
                             # Whole tile lower
                             if subtile == 9:
                                 tgrid = World.get_height(p[1])
-                                r += tgrid.lower_face()
+                                rr = tgrid.lower_face()
                                 World.set_height(tgrid, p[1])
                             # Edge lower
                             elif subtile in [5,6,7,8]:
                                 st1 = subtile - 5
                                 st2 = st1 + 1
                                 tgrid = World.get_height(p[1])
-                                r += tgrid.lower_edge(st1, st2)
+                                rr = tgrid.lower_edge(st1, st2)
                                 World.set_height(tgrid, p[1])
                             # Vertex lower
                             elif subtile in [1,2,3,4]:
                                 tgrid = World.get_height(p[1])
-                                r += tgrid.lower_vertex(subtile - 1)
+                                rr = tgrid.lower_vertex(subtile - 1)
                                 World.set_height(tgrid, p[1])
+                    # Since we're potentially modifying a large number of individual tiles we only want to know if
+                    # *any* of them were lowered for the purposes of calculating the real raise/lower amount
+                    # Thus r should only be incremented once per raise/lower level
+                    r += rr
             if soft:
                 # Soften around the modified tiles
                 self.soften(self.aoe, soften_down=True)
