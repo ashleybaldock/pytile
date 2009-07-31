@@ -279,7 +279,11 @@ class Test(Tool):
                     self.set_highlight_changed(False)
                 self.tile = tile
                 self.subtile = subtile
-                
+            else:
+                self.set_highlight(None)
+                self.set_highlight_changed(True)
+                self.tile = None
+                self.subtile = None
         # Otherwise a drag operation is on-going, do usual tool behaviour
         else:
             # If we don't already have a list of tiles to use as the primary area of effect
