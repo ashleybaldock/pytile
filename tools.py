@@ -361,42 +361,32 @@ class Test(Tool):
             # Coord system is from top-left corner, down = -ve, up = +ve, so do start pos - end pos
             # This gets us the number of units to move up or down by
             diff = (self.start[1] - self.current[1]) / ph
-            print "diff=%s" % diff
-##            diff = (self.start[1] - self.current[1]) / ph
-
-##            invdiff = -diff
             self.start = (self.start[0], self.start[1] - diff * ph)
-            print "new start pos= %s" % str(self.start)
 
             # If diff < 0 we're lowering terrain, if diff > 0 we're raising it
             # If raising, check if addback is positive, if so we need to zero out addback before applying any raising
             # to the terrain
             if diff > 0:
                 while self.addback > 0:
-                    print "  addback=%s, diff=%s" % (self.addback, diff)
                     if diff == 0:
                         break
                     diff -= 1
                     self.addback -= 1
-            
-            # Always try to modify (unless the diff is 
 
             if diff != 0:
                 if len(self.tiles) > 1:
                     self.modify_tiles(self.tiles, diff, soft=Test.smooth)
                 else:
                     r = self.modify_tile(self.tiles[0], self.subtile, diff, soft=Test.smooth)
-                # Addback is calcuated as the total requested height change minus the *actual* height change. The remainder is the
+                # Addback is calcuated as the actual height change minus the requested height change. The remainder is the
                 # amount of cursor movement which doesn't actually do anything.
-                # for example, if the cursor moves down (lowering the terrain) and hits the "0" level of the terrain we can't continue
+                # For example, if the cursor moves down (lowering the terrain) and hits the "0" level of the terrain we can't continue
                 # to lower the terrain. The cursor keeps moving however and the addback value keeps track of this so that when the
-                # cursor starts to move up again it won't start raising the terrain again until it hits the "0" level again
+                # cursor starts to move up it won't start raising the terrain until it hits the "0" level again
 
                 # If we're lowering, update addback if necessary
                 if diff < 0:
-                    print "old addback=%s, diff=%s, r=%s" % (self.addback, diff, r)
                     self.addback += r - diff
-                    print "new addback=%s" % self.addback
 
                 # Set this so that the changed portion of the map is updated on screen
                 self.set_aoe_changed(True)
@@ -602,12 +592,12 @@ class Test(Tool):
                     st1 = subtile - 5
                     st2 = st1 + 1
                     tgrid = World.get_height(x,y)
-                    tgrid.lower_edge(st1, st2)
+                    r += tgrid.lower_edge(st1, st2)
                     World.set_height(tgrid, (x,y))
                 # Vertex lower
                 elif subtile in [1,2,3,4]:
                     tgrid = World.get_height(x,y)
-                    tgrid.lower_vertex(subtile - 1)
+                    r += tgrid.lower_vertex(subtile - 1)
                     World.set_height(tgrid, (x,y))
                     self.aoe = [(x,y)]
             if subtile == 9 and soft:

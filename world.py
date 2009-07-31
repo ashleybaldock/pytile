@@ -121,13 +121,14 @@ class TGrid(object):
         v1 = v1 % 4
         v2 = v2 % 4
         if self.array[v1] > self.array[v2]:
-            self.lower_vertex(v1)
+            r = self.lower_vertex(v1)
         elif self.array[v1] < self.array[v2]:
-            self.lower_vertex(v2)
+            r = self.lower_vertex(v2)
         else:
-            self.lower_vertex(v1)
-            self.lower_vertex(v2)
-        return True
+            r = self.lower_vertex(v1)
+            r = self.lower_vertex(v2)
+        # Return pass-through of success/failure to lower this edge
+        return r
     def lower_vertex(self, v):
         """Lower vertex, or if vertex is 0 lower entire tile then lower vertex"""
         v = v % 4
@@ -139,9 +140,11 @@ class TGrid(object):
                 self.array[k] += 1
             self.array[v] -= 1
         else:
-            return False
+            # Cannot lower this vertex, return 0 to indicate this
+            return 0
         self.correct_vertices(v)
-        return True
+        # Vertex has been lowered, return the amount we've modified by
+        return -1
     def correct_vertices(self, v):
         """Ensure that vertices follow the rules, no more than 1 unit difference between neighbours
         Takes argument v, which is the vertex to keep fixed"""
