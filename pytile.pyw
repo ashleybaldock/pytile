@@ -24,6 +24,9 @@
 # Issues
 # BUG - clicking on cliff tile causes crash (needs checks for non-interactable tile type)   - Fixed
 # BUG - crash when nothing is on screen?
+#       This occurs whenever you have a highlighted tile, then drag the screen so that the tile which was highlighted
+#       goes outside of the screen window, since the tile specified is no longer in the orderedSpritesDict it can't be
+#       looked up and so you get a KeyError and crash. Temp fix by catching KeyError.
 # BUG - terrain smoothing is still far too greedy, especially on terrain lowering
 # BUG - doesn't draw vertical faces of surrounding tiles                                    - Fixed
 
@@ -352,10 +355,19 @@ class DisplayMain(object):
                 self.fps_elapsed = 0
                 hl = self.lmb_tool.get_highlight()
                 if hl:
-                    ii = self.orderedSpritesDict[hl[0][0]][0]
-                    layer = self.orderedSprites.get_layer_of_sprite(ii)
-                    pygame.display.set_caption("FPS: %i | Tile: (%s,%s) of type: %s, layer: %s | dxoff: %s dyoff: %s" %
-                                               (self.clock.get_fps(), ii.xWorld, ii.yWorld, ii.type, layer, World.dxoff, World.dyoff))
+                    # If the highlighted tile reported by self.lmb_tool.get_highlight() isn't a valid tile in the orderedSpritesDict
+                    # (e.g. this tile isn't on the screen) then the following will throw a KeyError. This needs to be fixed by ensuring
+                    # that the highlighted tile has to be on the screen, but fix the crash for now by catching the KeyError
+                    # --Fix this by making lmb_tool not have a highlight (None) when cursor isn't on the world--
+                    try:
+                        ii = self.orderedSpritesDict[hl[0][0]][0]
+                    except KeyError:
+                        pygame.display.set_caption("FPS: %i | dxoff: %s dyoff: %s ||highlight invalidity||" %
+                                                   (self.clock.get_fps(), World.dxoff, World.dyoff))
+                    else:
+                        layer = self.orderedSprites.get_layer_of_sprite(ii)
+                        pygame.display.set_caption("FPS: %i | Tile: (%s,%s) of type: %s, layer: %s | dxoff: %s dyoff: %s" %
+                                                   (self.clock.get_fps(), ii.xWorld, ii.yWorld, ii.type, layer, World.dxoff, World.dyoff))
                 else:
                     pygame.display.set_caption("FPS: %i | dxoff: %s dyoff: %s" %
                                                (self.clock.get_fps(), World.dxoff, World.dyoff))

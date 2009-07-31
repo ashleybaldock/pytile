@@ -111,66 +111,6 @@ class Tool(object):
             return None
 
 
-
-##            if lmb_drags:
-##                # Do selection, interaction etc.
-##                # First locate collision position of the start and end point of the drag (if these differ)
-##                for drag in lmb_drags:
-##                    if not drag[2]:
-##                        tileposition = self.CollideLocate(drag[0], self.orderedSprites)
-##                        if tileposition:
-##                            subtileposition = self.SubTilePosition(drag[0], tileposition)
-##                        else:
-##                            subtileposition = None
-##                        drag[2] = (tileposition, subtileposition)
-##                    else:
-##                        tileposition, subtileposition = drag[2]
-##                    # Drag or click must be on a sprite
-##                    # If that sprite is a ground tile, and a ground tile altering tool is selected
-##                    # then perform ground alteration
-##                    if tileposition:
-##                        # Set start position
-##                        start = drag[0]
-##                        # If end position different to start, set end position
-##                        if drag[0] != drag[1]:
-##                            end = drag[1]
-##                        else:
-##                            end = None
-##                        if end:
-##                            # Addback keeps the cursor on the 0 level of the terrain and ensures that the user
-##                            # must bring the mouse back up to the 0 level before the raising function will
-##                            # work again
-##                            addback = 0
-##                            # Raise height by y difference / ph
-##                            diff = (end[1] - start[1]) / ph
-##                            diffrem = (end[1] - start[1]) % ph
-##                            if diff != 0:
-##                                invdiff = - diff
-##                                totalchange, realchange = self.modify_tile(tileposition, subtileposition, invdiff)
-##                                x = tileposition.xWorld
-##                                y = tileposition.yWorld
-##                                # Also raise the height of the stored copy of the tile in the drag object
-##                                drag[2][0].ypos += realchange * ph
-##                                if invdiff < 0:
-##                                    # Moving down
-##                                    if totalchange > invdiff:
-##                                        # Have moved tile down by less than the total change
-##                                        # Thus an additional offset must be made to force the cursor to be
-##                                        # brought back up to the level of the terrain
-##                                        addback = (invdiff - totalchange) * ph
-####                                print "invdiff: %s, realchange: %s, totalchange: %s, addback: %s" % (invdiff, realchange, totalchange, addback)
-##                                # This could be optimised to not recreate the entire sprite array
-##                                # and only correct the tiles which have been modified
-##                                self.paint_world()
-##                            if drag == lmb_current_drag:
-##                                # If this is a drag operation which is split across multiple frames then
-##                                # the start location for the next frame needs to be modified to reflect the bits
-##                                # which were processed this frame
-##                                lmb_current_drag[0] = (lmb_current_drag[1][0],
-##                                                       lmb_current_drag[1][1] - diffrem + addback)
-##
-##
-
 class Move(Tool):
     """Screen movement tool"""
     def __init__(self):
@@ -205,7 +145,7 @@ class Move(Tool):
         rel_x = start_x - end_x
         rel_y = start_y - end_y
         World.set_offset(World.dxoff + rel_x, World.dyoff + rel_y)
-        print rel_x, World.dxoff, rel_y, World.dyoff
+##        print "rel_x: %s, World.dxoff: %s, rel_y: %s, World.dyoff: %s" % (rel_x, World.dxoff, rel_y, World.dyoff)
 
 
 class Test(Tool):
