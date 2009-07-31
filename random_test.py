@@ -14,7 +14,7 @@ surface = pygame.Surface([X_SCREEN, Y_SCREEN])
 
 
 persistence = 0.8
-num_octaves = 3
+num_octaves = 8
 
 randoms = []
 
@@ -55,8 +55,8 @@ def PerlinNoise_2D(x, y):
     n = num_octaves
 
     for i in range(0, n):
-        frequency = 2*i
-        amplitude = p*i
+        frequency = math.pow(2,i)
+        amplitude = math.pow(p,i)
 
         total += InterpolatedNoise(i, x*frequency, y*frequency) * amplitude
 
@@ -65,19 +65,21 @@ def PerlinNoise_2D(x, y):
 
 def generate():
     noise = []
-
-    surface.lock()
+    
     for x in range(X_SCREEN):
         a = []
         for y in range(Y_SCREEN):
             n = PerlinNoise_2D(float(x), float(y))
             a.append(n)
-            print n
-            color = int(round(n*255.0))
-            print color
-            surface.set_at((x,y), (color,color,color))
         noise.append(a)
 
+    print noise
+
+    surface.lock()
+    for x in range(X_SCREEN):
+        for y in range(Y_SCREEN):
+            color = int(round(noise[x][y]*255.0/3.0))
+            surface.set_at((x,y), (color,color,color))
     surface.unlock()
 
 
