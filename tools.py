@@ -233,24 +233,24 @@ class Test(Tool):
     def process_key(self, key):
         """Process a keystroke during a drag operation"""
         keyname = pygame.key.name(key)
-        if keyname == "[":
+        if keyname == "k":
             Test.xdims += 1
-        elif keyname == "]":
+        elif keyname == "o":
             Test.xdims -= 1
             if Test.xdims < 1:
                 Test.xdims = 1
-        elif keyname == "o":
+        elif keyname == "l":
             Test.ydims += 1
-        elif keyname == "p":
+        elif keyname == "i":
             Test.ydims -= 1
             if Test.ydims < 1:
                 Test.ydims = 1
         elif keyname == "s":
             Test.smooth = not(Test.smooth)
-        if keyname in ["o","p","[","]"]:
+        if keyname in ["i","o","k","l"]:
             self.set_highlight(self.find_highlight(self.tile.xWorld, self.tile.yWorld, self.subtile))
             self.set_highlight_changed(True)
-        print pygame.key.name(key)
+        print keyname
         return True
     def active(self):
         """Return true if tool currently being used and screen needs updating"""
@@ -375,9 +375,10 @@ class Test(Tool):
 
             if diff != 0:
                 if len(self.tiles) > 1:
-                    self.modify_tiles(self.tiles, diff, soft=Test.smooth)
+                    r = self.modify_tiles(self.tiles, diff, soft=Test.smooth)
                 else:
-                    r = self.modify_tile(self.tiles[0], self.subtile, diff, soft=Test.smooth)
+                    r = self.modify_tiles(self.tiles, diff, subtile=self.subtile, soft=Test.smooth)
+##                    r = self.modify_tile(self.tiles[0], self.subtile, diff, soft=Test.smooth)
                 # Addback is calcuated as the actual height change minus the requested height change. The remainder is the
                 # amount of cursor movement which doesn't actually do anything.
                 # For example, if the cursor moves down (lowering the terrain) and hits the "0" level of the terrain we can't continue
@@ -394,10 +395,76 @@ class Test(Tool):
                 self.set_highlight_changed(True)
 
 
-    def modify_tiles(self, tiles, amount, soft=False):
+    def modify_tile(self, t, subtile, amount, soft=False):
+        """Raise (or lower) a tile based on the subtile"""
+        x = t[0]
+        y = t[1]
+        # r measures the total amount of raising/lowering *actually* done
+        # This can then be compared with the amount requested to calculate the cursor offset
+        r = 0
+        if amount > 0:
+            step = 1
+            for i in range(0, amount, step):
+                # Whole tile raise
+                if subtile == 9:
+                    tgrid = World.get_height(x,y)
+                    tgrid.raise_face()
+                    World.set_height(tgrid, (x,y))
+                    self.aoe = [(x,y)]
+                # Edge raise
+                elif subtile in [5,6,7,8]:
+                    st1 = subtile - 5
+                    st2 = st1 + 1
+                    tgrid = World.get_height(x,y)
+                    tgrid.raise_edge(st1, st2)
+                    World.set_height(tgrid, (x,y))
+                    self.aoe = [(x,y)]
+                # Vertex raise
+                elif subtile in [1,2,3,4]:
+                    tgrid = World.get_height(x,y)
+                    tgrid.raise_vertex(subtile - 1)
+                    World.set_height(tgrid, (x,y))
+                    self.aoe = [(x,y)]
+            if subtile == 9 and soft:
+                self.soften(self.aoe, soften_up=True)
+        else:
+            step = -1
+            for i in range(0, amount, step):
+                # Whole tile lower
+                if subtile == 9:
+                    tgrid = World.get_height(x,y)
+                    r += tgrid.lower_face()
+                    World.set_height(tgrid, (x,y))
+                    self.aoe = [(x,y)]
+                # Edge lower
+                elif subtile in [5,6,7,8]:
+                    st1 = subtile - 5
+                    st2 = st1 + 1
+                    tgrid = World.get_height(x,y)
+                    r += tgrid.lower_edge(st1, st2)
+                    World.set_height(tgrid, (x,y))
+                # Vertex lower
+                elif subtile in [1,2,3,4]:
+                    tgrid = World.get_height(x,y)
+                    r += tgrid.lower_vertex(subtile - 1)
+                    World.set_height(tgrid, (x,y))
+                    self.aoe = [(x,y)]
+            if subtile == 9 and soft:
+                self.soften(self.aoe, soften_down=True)
+        return r
+
+    def modify_tiles(self, tiles, amount, subtile=9, soft=False):
         """Raise or lower a region of tiles"""
+        # r measures the total amount of raising/lowering *actually* done
+        # This can then be compared with the amount requested to calculate the cursor offset
+        r = 0
+        # The area of effect of the tool (list of tiles modified)
         self.aoe = []
         # This will always be a whole tile raise/lower
+        # If subtile is None, this is always a whole tile raise/lower
+        # If subtile is something, and there's only one tile in the array then this is a single tile action
+        # If subtile is something, and there's more than one tile in the array then this is a multi-tile action, but based
+        #   off a vertex rather than a face
         vertices = []
         # Lowering terrain, find maximum value to start from
         if amount < 0:
@@ -415,9 +482,23 @@ class Test(Tool):
                     for p in vertices:
                         if p[0] == maxval:
                             p[0] -= 1
-                            tgrid = World.get_height(p[1])
-                            tgrid.lower_face()
-                            World.set_height(tgrid, p[1])
+                            # Whole tile lower
+                            if subtile == 9:
+                                tgrid = World.get_height(p[1])
+                                r += tgrid.lower_face()
+                                World.set_height(tgrid, p[1])
+                            # Edge lower
+                            elif subtile in [5,6,7,8]:
+                                st1 = subtile - 5
+                                st2 = st1 + 1
+                                tgrid = World.get_height(p[1])
+                                r += tgrid.lower_edge(st1, st2)
+                                World.set_height(tgrid, p[1])
+                            # Vertex lower
+                            elif subtile in [1,2,3,4]:
+                                tgrid = World.get_height(p[1])
+                                r += tgrid.lower_vertex(subtile - 1)
+                                World.set_height(tgrid, p[1])
             if soft:
                 # Soften around the modified tiles
                 self.soften(self.aoe, soften_down=True)
@@ -436,13 +517,27 @@ class Test(Tool):
                 for p in vertices:
                     if p[0] == minval:
                         p[0] += 1
-                        tgrid = World.get_height(p[1])
-                        tgrid.raise_face()
-                        World.set_height(tgrid, p[1])
+                        # Whole tile raise
+                        if subtile == 9:
+                            tgrid = World.get_height(p[1])
+                            tgrid.raise_face()
+                            World.set_height(tgrid, p[1])
+                        # Edge raise
+                        elif subtile in [5,6,7,8]:
+                            st1 = subtile - 5
+                            st2 = st1 + 1
+                            tgrid = World.get_height(p[1])
+                            tgrid.raise_edge(st1, st2)
+                            World.set_height(tgrid, p[1])
+                        # Vertex raise
+                        elif subtile in [1,2,3,4]:
+                            tgrid = World.get_height(p[1])
+                            tgrid.raise_vertex(subtile - 1)
+                            World.set_height(tgrid, p[1])
             if soft:
                 # Soften around the modified tiles
                 self.soften(self.aoe, soften_up=True)
-
+        return r
 
     def soften(self, tiles, soften_up=False, soften_down=False):
         """Soften the tiles around a given set of tiles, raising them to make a smooth slope
@@ -527,8 +622,6 @@ class Test(Tool):
         for k in checked.keys():
             World.set_height(checked[k], k)
 
-
-
     def compare_vertex_higher(self, tgrid1, tgrid2, v1, v2):
         """Return True if specified vertex of tgrid1 is higher than specified vertex of tgrid2"""
         if v1 == None or v2 == None:
@@ -545,61 +638,3 @@ class Test(Tool):
             return True
         else:
             return False
-
-    def modify_tile(self, t, subtile, amount, soft=False):
-        """Raise (or lower) a tile based on the subtile"""
-        x = t[0]
-        y = t[1]
-        # r measures the total amount of raising/lowering *actually* done
-        # This can then be compared with the amount requested to calculate the cursor offset
-        r = 0
-        if amount > 0:
-            step = 1
-            for i in range(0, amount, step):
-                # Whole tile raise
-                if subtile == 9:
-                    tgrid = World.get_height(x,y)
-                    tgrid.raise_face()
-                    World.set_height(tgrid, (x,y))
-                    self.aoe = [(x,y)]
-                # Edge raise
-                elif subtile in [5,6,7,8]:
-                    st1 = subtile - 5
-                    st2 = st1 + 1
-                    tgrid = World.get_height(x,y)
-                    tgrid.raise_edge(st1, st2)
-                    World.set_height(tgrid, (x,y))
-                    self.aoe = [(x,y)]
-                # Vertex raise
-                elif subtile in [1,2,3,4]:
-                    tgrid = World.get_height(x,y)
-                    tgrid.raise_vertex(subtile - 1)
-                    World.set_height(tgrid, (x,y))
-                    self.aoe = [(x,y)]
-            if subtile == 9 and soft:
-                self.soften(self.aoe, soften_up=True)
-        else:
-            step = -1
-            for i in range(0, amount, step):
-                # Whole tile lower
-                if subtile == 9:
-                    tgrid = World.get_height(x,y)
-                    r += tgrid.lower_face()
-                    World.set_height(tgrid, (x,y))
-                    self.aoe = [(x,y)]
-                # Edge lower
-                elif subtile in [5,6,7,8]:
-                    st1 = subtile - 5
-                    st2 = st1 + 1
-                    tgrid = World.get_height(x,y)
-                    r += tgrid.lower_edge(st1, st2)
-                    World.set_height(tgrid, (x,y))
-                # Vertex lower
-                elif subtile in [1,2,3,4]:
-                    tgrid = World.get_height(x,y)
-                    r += tgrid.lower_vertex(subtile - 1)
-                    World.set_height(tgrid, (x,y))
-                    self.aoe = [(x,y)]
-            if subtile == 9 and soft:
-                self.soften(self.aoe, soften_down=True)
-        return r
