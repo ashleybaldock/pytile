@@ -22,8 +22,10 @@
 
 
 # Issues
-# BUG - clicking on cliff tile causes crash (needs checks for non-interactable tile type) - Fixed
+# BUG - clicking on cliff tile causes crash (needs checks for non-interactable tile type)   - Fixed
 # BUG - crash when nothing is on screen?
+# BUG - terrain smoothing is still far too greedy, especially on terrain lowering
+# BUG - doesn't draw vertical faces of surrounding tiles                                    - Fixed
 
 
 import os, sys
@@ -377,26 +379,18 @@ class DisplayMain(object):
 
     def update_world(self, tiles):
         """Instead of completely regenerating the entire world, just update certain tiles"""
-        checked_nearby = []
         # Add all the items in tiles to the checked_nearby hash table
-        # There must be a more elegant way to do this!
-        for t in tiles:
-            print "t is: %s" % str(t)
-            checked_nearby.append(t[0])
-        tiles2 = []
+        nearbytiles = []
         for t in tiles:
             x, y = t
             # Also need to look up tiles at (x-1,y) and (x,y-1) and have them re-evaluate their cliffs too
             # This needs to check that a) that tile hasn't already been re-evaluated and that
             # b) that tile isn't one of the ones which we're checking, i.e. not in tiles
-            tiles2.append(t)
-            if not (x-1,y) in checked_nearby:
-                checked_nearby.append((x-1,y))
-                tiles2.append([(x-1,y), 2])
-            if not (x,y-1) in checked_nearby:
-                checked_nearby.append((x,y-1))
-                tiles2.append([(x,y-1), 2])
-        tiles = tiles2
+            if not (x-1,y) in tiles and not (x-1,y) in nearbytiles:
+                nearbytiles.append((x-1,y))
+            if not (x,y-1) in tiles and not (x,y-1) in nearbytiles:
+                nearbytiles.append((x,y-1))
+        tiles.extend(nearbytiles)
         for t in tiles:
             x, y = t
             # Look the tile up in the group using the position, this will give us the tile and all its cliffs
