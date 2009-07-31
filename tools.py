@@ -342,7 +342,6 @@ class Test(Tool):
                 
         # Otherwise a drag operation is on-going, do usual tool behaviour
         else:
-##            addback = 0
             # If we don't already have a list of tiles to use as the primary area of effect
             if not self.tiles:
                 tile = self.collide_locate(self.current, collisionlist)
@@ -353,36 +352,57 @@ class Test(Tool):
                     self.tile = tile
                     self.subtile = subtile
 
+            # We keep track of the mouse position in the y dimension, as it moves it ticks over in ph size increments
+            # each time it does this we remove a ph size increment from the start location, so that next time we start
+            # from the right place. If when we actually try to modify the terrain by that number of ticks we find we're
+            # unable to (e.g. we've hit a terrain limit) and the modification is less than the requested modification
+            # the start position needs to be offset such that we have to "make back" that offset.
 
-            diff = (self.current[1] - self.start[1]) / ph
-            self.start = (self.start[0], self.start[1] + diff * ph)
+            # Coord system is from top-left corner, down = -ve, up = +ve, so do start pos - end pos
+            # This gets us the number of units to move up or down by
+            diff = (self.start[1] - self.current[1]) / ph
+            print "diff=%s" % diff
+##            diff = (self.start[1] - self.current[1]) / ph
 
-##            adiff = diff - self.addback
-##
-##            invdiff = -diff + self.addback
+##            invdiff = -diff
+            self.start = (self.start[0], self.start[1] - diff * ph)
+            print "new start pos= %s" % str(self.start)
 
-##        if diff != 0:
-##            invdiff = - diff
-##            totalchange, realchange = self.modify_tile(self.tile, self.subtile, invdiff)
-##            print "invdiff: %s, realchange: %s, totalchange: %s, addback: %s" % (invdiff, realchange, totalchange, addback)
-
-            invdiff = -diff
+            # If diff < 0 we're lowering terrain, if diff > 0 we're raising it
+            # If raising, check if addback is positive, if so we need to zero out addback before applying any raising
+            # to the terrain
+            if diff > 0:
+                while self.addback > 0:
+                    print "  addback=%s, diff=%s" % (self.addback, diff)
+                    if diff == 0:
+                        break
+                    diff -= 1
+                    self.addback -= 1
+            
+            # Always try to modify (unless the diff is 
 
             if diff != 0:
                 if len(self.tiles) > 1:
-                    self.modify_tiles(self.tiles, invdiff, soft=Test.smooth)
+                    self.modify_tiles(self.tiles, diff, soft=Test.smooth)
                 else:
-                    r = self.modify_tile(self.tiles[0], self.subtile, invdiff, soft=Test.smooth)
+                    r = self.modify_tile(self.tiles[0], self.subtile, diff, soft=Test.smooth)
                 # Addback is calcuated as the total requested height change minus the *actual* height change. The remainder is the
                 # amount of cursor movement which doesn't actually do anything.
                 # for example, if the cursor moves down (lowering the terrain) and hits the "0" level of the terrain we can't continue
                 # to lower the terrain. The cursor keeps moving however and the addback value keeps track of this so that when the
                 # cursor starts to move up again it won't start raising the terrain again until it hits the "0" level again
-##                self.addback = invdiff - r
+
+                # If we're lowering, update addback if necessary
+                if diff < 0:
+                    print "old addback=%s, diff=%s, r=%s" % (self.addback, diff, r)
+                    self.addback += r - diff
+                    print "new addback=%s" % self.addback
+
                 # Set this so that the changed portion of the map is updated on screen
                 self.set_aoe_changed(True)
                 # Must also re-draw the highlight if we're changing the map
                 self.set_highlight_changed(True)
+
 
     def modify_tiles(self, tiles, amount, soft=False):
         """Raise or lower a region of tiles"""

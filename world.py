@@ -109,14 +109,13 @@ class TGrid(object):
             self.array = [0,0,0,0]
         else:
             self.height -= 1
-        r = -1
         # Tile must not be reduced to below 0
         if self.height < 0:
             self.height = 0
             return 0
         else:
             # Return the actual lowering done, this will always be 1 unless we've reset the height for being negative
-            return 1
+            return -1
     def lower_edge(self, v1, v2):
         """Lower a tile edge, takes two vertices as arguments which define the edge"""
         v1 = v1 % 4
