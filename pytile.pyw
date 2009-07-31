@@ -23,12 +23,10 @@
 
 # Issues
 # BUG - clicking on cliff tile causes crash (needs checks for non-interactable tile type)   - Fixed
-# BUG - crash when nothing is on screen?
-#       This occurs whenever you have a highlighted tile, then drag the screen so that the tile which was highlighted
-#       goes outside of the screen window, since the tile specified is no longer in the orderedSpritesDict it can't be
-#       looked up and so you get a KeyError and crash. Temp fix by catching KeyError.
+# BUG - crash when previously highlighted tile moves off screen                             - Fixed
 # BUG - terrain smoothing is still far too greedy, especially on terrain lowering
 # BUG - doesn't draw vertical faces of surrounding tiles                                    - Fixed
+# BUG - background isn't blanked to black when raise/lower on the edges of the world        - Fixed
 
 
 import os, sys
@@ -261,6 +259,7 @@ class DisplayMain(object):
         self.orderedSpritesDict = {}
 
         self.paint_world()
+        self.refresh_screen = 1
 
         # Sprite used to find what the cursor is selecting
         self.mouseSprite = None
@@ -339,12 +338,12 @@ class DisplayMain(object):
 
             # Add all highlighted tiles to the dirty sprites list to redraw them
             if self.lmb_tool.has_highlight_changed():
-                # Remove the old highlight from the screen
+                # Remove the old highlight from the screen (if there was one)
                 if self.lmb_tool.get_last_highlight() is not None:
                     for t in self.lmb_tool.get_last_highlight():
                         if self.orderedSpritesDict.has_key(t[0]):
                             self.dirty.append(self.orderedSpritesDict[t[0]][0].change_highlight(0))
-                # Add the new highlight
+                # Add the new highlight (if there is one)
                 if self.lmb_tool.get_highlight() is not None:
                     for t in self.lmb_tool.get_highlight():
                         if self.orderedSpritesDict.has_key(t[0]):
@@ -357,33 +356,28 @@ class DisplayMain(object):
                 self.fps_elapsed = 0
                 hl = self.lmb_tool.get_highlight()
                 if hl:
-                    # If the highlighted tile reported by self.lmb_tool.get_highlight() isn't a valid tile in the orderedSpritesDict
-                    # (e.g. this tile isn't on the screen) then the following will throw a KeyError. This needs to be fixed by ensuring
-                    # that the highlighted tile has to be on the screen, but fix the crash for now by catching the KeyError
-                    # --Fix this by making lmb_tool not have a highlight (None) when cursor isn't on the world--
-                    try:
-                        ii = self.orderedSpritesDict[hl[0][0]][0]
-                    except KeyError:
-                        pygame.display.set_caption("FPS: %i | dxoff: %s dyoff: %s ||highlight invalidity||" %
-                                                   (self.clock.get_fps(), World.dxoff, World.dyoff))
-                    else:
-                        layer = self.orderedSprites.get_layer_of_sprite(ii)
-                        pygame.display.set_caption("FPS: %i | Tile: (%s,%s) of type: %s, layer: %s | dxoff: %s dyoff: %s" %
-                                                   (self.clock.get_fps(), ii.xWorld, ii.yWorld, ii.type, layer, World.dxoff, World.dyoff))
+                    ii = self.orderedSpritesDict[hl[0][0]][0]
+                    layer = self.orderedSprites.get_layer_of_sprite(ii)
+                    pygame.display.set_caption("FPS: %i | Tile: (%s,%s) of type: %s, layer: %s | dxoff: %s dyoff: %s" %
+                                               (self.clock.get_fps(), ii.xWorld, ii.yWorld, ii.type, layer, World.dxoff, World.dyoff))
                 else:
                     pygame.display.set_caption("FPS: %i | dxoff: %s dyoff: %s" %
                                                (self.clock.get_fps(), World.dxoff, World.dyoff))
 
             # Draw the sprite group to the screen (doesn't necessarily refresh the screen)
-            rectlist = self.orderedSprites.draw(self.screen)
+##            rectlist = self.orderedSprites.draw(self.screen)
 
             # If land height has been altered, or the screen has been moved
             # we need to refresh the entire screen
             if self.refresh_screen == 1:
-                pygame.display.update()
                 self.screen.fill((0,0,0))
+                rectlist = self.orderedSprites.draw(self.screen)
+                pygame.display.update()
                 self.refresh_screen = 0
             else:
+                for r in self.dirty:
+                    self.screen.fill((0,0,0), r)
+                rectlist = self.orderedSprites.draw(self.screen)
                 pygame.display.update(self.dirty)
 
 
