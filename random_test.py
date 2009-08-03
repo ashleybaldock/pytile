@@ -10,11 +10,12 @@ X_SCREEN = 1000
 Y_SCREEN = 500
 
 # Set offsets of origin of depiction of 1D noise
-X_OFFSET = 70
+X_OFFSET_LEFT = 10
+X_OFFSET_RIGHT = 200
 Y_OFFSET = Y_SCREEN / 2
 
 # Set size of the 1D noise output
-X_LIMIT = X_SCREEN - 2 * X_OFFSET
+X_LIMIT = X_SCREEN - X_OFFSET_LEFT - X_OFFSET_RIGHT
 Y_LIMIT = Y_SCREEN / 2 - 10
 
 # Colours
@@ -26,8 +27,11 @@ BLUE = (0,0,255)
 
 period = 1
 num_octaves = 4
+# Octaves from 0 to X
+# Octave 1 is period 1, Octave 2 is period 1/2, Octave 3 is period 1/4 etc.
+
 # pixels per period (in x dimension), 20 is smallest which looks good
-PPP = 100
+PPP = 400
 # In y dimension the equivalent value is taken by multiplying by the Y_LIMIT, assuming a value between 0 and 1
 
 
@@ -57,55 +61,57 @@ def CosineInterpolate(a, b, x):
 def generate(ppp):
 
     allvals = []
-    for o in range(num_octaves+1):
-        if o != 0:
-            length = X_LIMIT / ppp * o
-            allvals.append(gen_1D_values(length + 2*o))
+    # Octaves in range 1, num_octaves+1
+    for o in range(num_octaves):
+        # Calculate length of one period for this octave in pixels
+        # Total x length divided by the pixels per period value divided by the octave
+        length, remainder = divmod(X_LIMIT, ppp / pow(2,o))
+        if remainder > 0:
+            allvals.append(gen_1D_values(length + 2))
         else:
-            allvals.append(None)
+            allvals.append(gen_1D_values(length + 1))
 
     print allvals
 
     surface.fill(BLACK)
     # draw x axis
-    pygame.draw.line(surface, WHITE, (X_OFFSET,Y_OFFSET), (X_OFFSET+X_LIMIT,Y_OFFSET))
+    pygame.draw.line(surface, WHITE, (X_OFFSET_LEFT,Y_OFFSET), (X_OFFSET_LEFT+X_LIMIT,Y_OFFSET))
     # draw y axis
-    pygame.draw.line(surface, WHITE, (X_OFFSET,Y_OFFSET-Y_LIMIT), (X_OFFSET,Y_OFFSET+Y_LIMIT))
+    pygame.draw.line(surface, WHITE, (X_OFFSET_LEFT,Y_OFFSET-Y_LIMIT), (X_OFFSET_LEFT,Y_OFFSET+Y_LIMIT))
 
     # Generate array of colours, divide 255 by number of octaves
     colours = []
-    b = 100.0 / o
-    c = 200.0 / o
-    for d in range(o):
-        colours.append((255 - int(c * d), 0, 155 + int(b * d)))
+    b = 100.0 / num_octaves
+    c = 200.0 / num_octaves
+    for d in range(num_octaves):
+        colours.append((255 - int(c * d), 100, 155 + int(b * d)))
 
     surface.lock()
     for o, vals in enumerate(allvals):
         if vals:
             for x in range(X_LIMIT):
                 # Number of units along, number of pixels in one unit along
-                xdiv, xmod = divmod(x, ppp / o)
+                xdiv, xmod = divmod(x, ppp / pow(2,o))
+##                print xdiv, xmod
                 if xmod != 0:
                     # Convert number of pixels along in a period into a % value for the interpolation function
-                    percentalong = float(xmod) / ppp * o
+                    percentalong = float(xmod) / ppp * pow(2,o)
                 else:
                     percentalong = 0
-##                y = LinearInterpolate(vals[xdiv], vals[xdiv+1], percentalong)
-##                print xdiv, xdiv+1, percentalong
                 y = CosineInterpolate(vals[xdiv], vals[xdiv+1], percentalong)
-                surface.set_at((X_OFFSET+x,Y_OFFSET-y*Y_LIMIT), colours[o-1])
-    surface.unlock()
-
-    
+                surface.set_at((X_OFFSET_LEFT+x,Y_OFFSET-y*Y_LIMIT), colours[o])
+##    surface.unlock()
 
     # draw all random points on the line at correct interval
-    surface.lock()
+##    surface.lock()
     for o, vals in enumerate(allvals):
         if vals:
             for n, v in enumerate(vals):
-                pos = (X_OFFSET+n*ppp/o,Y_OFFSET-v*Y_LIMIT)
-                pygame.draw.circle(surface, BLUE, pos, 2)
-            pygame.draw.circle(surface, GREEN, pos, 2)
+                pos = (X_OFFSET_LEFT+n*ppp/pow(2,o),Y_OFFSET-v*Y_LIMIT)
+                pygame.draw.circle(surface, GREEN, pos, 2)
+                if o == 0:
+                    pygame.draw.circle(surface, RED, (pos[0], Y_OFFSET), 3)
+            pygame.draw.circle(surface, RED, pos, 3)
     surface.unlock()
 
 
