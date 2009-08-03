@@ -58,11 +58,21 @@ def CosineInterpolate(a, b, x):
     f = (1 - math.cos(ft)) * 0.5
     return a*(1-f) + b*f
 
-def generate(ppp):
+def regen_seed():
+    random.seed()
+    r = random.randint(0,100)
+    return r
 
+def generate(ppp, r):
+    random.seed(r)
     allvals = []
+    # First generate the seeds for each octave
+    randoms = []
+    for o in range(num_octaves):
+        randoms.append(random.randint(0,100))
     # Octaves in range 1, num_octaves+1
     for o in range(num_octaves):
+        random.seed(randoms[o])
         # Calculate length of one period for this octave in pixels
         # Total x length divided by the pixels per period value divided by the octave
         length, remainder = divmod(X_LIMIT, ppp / pow(2,o))
@@ -117,6 +127,7 @@ def generate(ppp):
 
 def mainloop():
     ppp = PPP
+    r = 50
     while 1:
         key = pygame.key.get_pressed()
         for event in pygame.event.get():
@@ -125,20 +136,21 @@ def mainloop():
             if event.type == KEYDOWN and event.key == K_F12:
                 pygame.image.save(surface, "Perlin Noise.png")
             if event.type == KEYDOWN and event.key == K_r:
-                generate(ppp)
+                r = regen_seed()
+                generate(ppp, r)
             if event.type == KEYDOWN and event.key == K_p:
                 ppp += 10
-                generate(ppp)
+                generate(ppp, r)
             if event.type == KEYDOWN and event.key == K_o:
                 ppp -= 10
                 if ppp <= 0:
                     ppp = 20
-                generate(ppp)
+                generate(ppp, r)
         
         screen.blit(surface,(0,0))
         pygame.display.flip()
 
-generate(PPP)
+generate(PPP, 50)
 mainloop()
 
 
