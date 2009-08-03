@@ -6,11 +6,11 @@ import sys, os, random, math
 pygame.init()
 
 # Size of the screen
-X_SCREEN = 500
+X_SCREEN = 1000
 Y_SCREEN = 500
 
 # Set offsets of origin of depiction of 1D noise
-X_OFFSET = 10
+X_OFFSET = 70
 Y_OFFSET = Y_SCREEN / 2
 
 # Set size of the 1D noise output
@@ -25,8 +25,9 @@ GREEN = (0,255,0)
 BLUE = (0,0,255)
 
 period = 1
-# pixels per period (in x dimension)
-ppp = 30
+num_octaves = 4
+# pixels per period (in x dimension), 20 is smallest which looks good
+PPP = 100
 # In y dimension the equivalent value is taken by multiplying by the Y_LIMIT, assuming a value between 0 and 1
 
 
@@ -34,7 +35,6 @@ screen = pygame.display.set_mode([X_SCREEN, Y_SCREEN])
 surface = pygame.Surface([X_SCREEN, Y_SCREEN])
 
 persistence = 0.2
-num_octaves = 8
 
 # Random values should always be between 0 and 1
 def get_random():
@@ -54,12 +54,17 @@ def CosineInterpolate(a, b, x):
     f = (1 - math.cos(ft)) * 0.5
     return a*(1-f) + b*f
 
-def generate():
-    length = X_LIMIT / ppp
+def generate(ppp):
 
-    vals = gen_1D_values(length + 1)
+    allvals = []
+    for o in range(num_octaves+1):
+        if o != 0:
+            length = X_LIMIT / ppp * o
+            allvals.append(gen_1D_values(length + 2*o))
+        else:
+            allvals.append(None)
 
-    print vals
+    print allvals
 
     surface.fill(BLACK)
     # draw x axis
@@ -67,28 +72,45 @@ def generate():
     # draw y axis
     pygame.draw.line(surface, WHITE, (X_OFFSET,Y_OFFSET-Y_LIMIT), (X_OFFSET,Y_OFFSET+Y_LIMIT))
 
+    # Generate array of colours, divide 255 by number of octaves
+    colours = []
+    b = 100.0 / o
+    c = 200.0 / o
+    for d in range(o):
+        colours.append((255 - int(c * d), 0, 155 + int(b * d)))
+
     surface.lock()
-    for x in range(X_LIMIT):
-        # Number of units along, number of pixels in one unit along
-        xdiv, xmod = divmod(x, ppp)
-        if xmod != 0:
-            percentalong = float(xmod) / ppp
-        else:
-            percentalong = 0
-##        y = LinearInterpolate(vals[xdiv], vals[xdiv+1], percentalong)
-        y = CosineInterpolate(vals[xdiv], vals[xdiv+1], percentalong)
-        surface.set_at((X_OFFSET+x,Y_OFFSET-y*Y_LIMIT), RED)
+    for o, vals in enumerate(allvals):
+        if vals:
+            for x in range(X_LIMIT):
+                # Number of units along, number of pixels in one unit along
+                xdiv, xmod = divmod(x, ppp / o)
+                if xmod != 0:
+                    # Convert number of pixels along in a period into a % value for the interpolation function
+                    percentalong = float(xmod) / ppp * o
+                else:
+                    percentalong = 0
+##                y = LinearInterpolate(vals[xdiv], vals[xdiv+1], percentalong)
+##                print xdiv, xdiv+1, percentalong
+                y = CosineInterpolate(vals[xdiv], vals[xdiv+1], percentalong)
+                surface.set_at((X_OFFSET+x,Y_OFFSET-y*Y_LIMIT), colours[o-1])
     surface.unlock()
+
+    
 
     # draw all random points on the line at correct interval
     surface.lock()
-    for n, v in enumerate(vals):
-        pos = (X_OFFSET+n*ppp,Y_OFFSET-v*Y_LIMIT)
-        pygame.draw.circle(surface, BLUE, pos, 2)
+    for o, vals in enumerate(allvals):
+        if vals:
+            for n, v in enumerate(vals):
+                pos = (X_OFFSET+n*ppp/o,Y_OFFSET-v*Y_LIMIT)
+                pygame.draw.circle(surface, BLUE, pos, 2)
+            pygame.draw.circle(surface, GREEN, pos, 2)
     surface.unlock()
 
 
 def mainloop():
+    ppp = PPP
     while 1:
         key = pygame.key.get_pressed()
         for event in pygame.event.get():
@@ -97,12 +119,20 @@ def mainloop():
             if event.type == KEYDOWN and event.key == K_F12:
                 pygame.image.save(surface, "Perlin Noise.png")
             if event.type == KEYDOWN and event.key == K_r:
-                generate()
+                generate(ppp)
+            if event.type == KEYDOWN and event.key == K_p:
+                ppp += 10
+                generate(ppp)
+            if event.type == KEYDOWN and event.key == K_o:
+                ppp -= 10
+                if ppp <= 0:
+                    ppp = 20
+                generate(ppp)
         
         screen.blit(surface,(0,0))
         pygame.display.flip()
 
-generate()
+generate(PPP)
 mainloop()
 
 
