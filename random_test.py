@@ -47,7 +47,9 @@ PPP = 400
 # Random seed, this specifies what the output will look like
 R = 50
 # Persistence, this specifies how much smaller details affect the end result
-PERSISTENCE = 0.2
+PERSISTENCE = 0.6
+# Octaves, number of frequency ranges
+OCTAVES = 6
 
 # Setup display surfaces
 screen = pygame.display.set_mode([X_SCREEN, Y_SCREEN])
@@ -78,15 +80,15 @@ def regen_seed():
     r = random.randint(0,100)
     return r
 
-def generate(ppp, r, persistence):
+def generate(ppp, r, persistence, octaves):
     random.seed(r)
     allvals = []
     # First generate the seeds for each octave
     randoms = []
-    for o in range(num_octaves):
+    for o in range(octaves):
         randoms.append(random.randint(0,100))
     # Octaves in range 1, num_octaves+1
-    for o in range(num_octaves):
+    for o in range(octaves):
         random.seed(randoms[o])
         # Calculate length of one period for this octave in pixels
         # Total x length divided by the pixels per period value divided by the octave
@@ -111,7 +113,7 @@ def generate(ppp, r, persistence):
     colours = []
     b = 100.0 / num_octaves
     c = 200.0 / num_octaves
-    for d in range(num_octaves):
+    for d in range(octaves):
         colours.append((255 - int(c * d), 100, 155 + int(b * d)))
 
     surface.lock()
@@ -133,8 +135,10 @@ def generate(ppp, r, persistence):
             # Amplitude = pow(persistence, o)
             amps.append(pow(persistence, o))
             surface.set_at((X_OFFSET_LEFT+x,Y_TOP_OFFSET-y*Y_LIMIT*amps[o]), colours[o])
-                
-        y = reduce(lambda x, y: x+(y[0]*y[1]), zip(yvals, amps), 0)# / len(yvals)
+
+        # sum of random values multiplied by decaying persistence divided by
+        # the sum of the persistence values to cap it to within the -1 < n < 1 range
+        y = reduce(lambda x, y: x+(y[0]*y[1]), zip(yvals, amps), 0) / sum(amps)
         
         surface.set_at((X_OFFSET_LEFT+x,Y_BOTTOM_OFFSET-y*Y_LIMIT), RED)
         
@@ -156,7 +160,8 @@ def mainloop():
     ppp = PPP
     r = R
     persistence = PERSISTENCE
-    generate(ppp, r, persistence)
+    octaves = OCTAVES
+    generate(ppp, r, persistence, octaves)
     while 1:
         key = pygame.key.get_pressed()
         for event in pygame.event.get():
@@ -166,25 +171,35 @@ def mainloop():
                 pygame.image.save(surface, "Perlin Noise.png")
             if event.type == KEYDOWN and event.key == K_r:
                 r = regen_seed()
-                generate(ppp, r, persistence)
+                generate(ppp, r, persistence, octaves)
             if event.type == KEYDOWN and event.key == K_p:
                 ppp += 10
-                generate(ppp, r, persistence)
+                generate(ppp, r, persistence, octaves)
             if event.type == KEYDOWN and event.key == K_o:
                 ppp -= 10
                 if ppp <= 0:
                     ppp = 20
-                generate(ppp, r, persistence)
+                generate(ppp, r, persistence, octaves)
             if event.type == KEYDOWN and event.key == K_l:
                 persistence += 0.05
                 if persistence > 1:
                     persistence = 1
-                generate(ppp, r, persistence)
+                generate(ppp, r, persistence, octaves)
             if event.type == KEYDOWN and event.key == K_k:
                 persistence -= 0.05
                 if persistence < 0.05:
                     persistence = 0.05
-                generate(ppp, r, persistence)
+                generate(ppp, r, persistence, octaves)
+            if event.type == KEYDOWN and event.key == K_m:
+                octaves += 1
+                if octaves > 8:
+                    octaves = 8
+                generate(ppp, r, persistence, octaves)
+            if event.type == KEYDOWN and event.key == K_n:
+                octaves -= 1
+                if octaves < 1:
+                    octaves = 1
+                generate(ppp, r, persistence, octaves)
 
         screen.blit(surface,(0,0))
         pygame.display.flip()
