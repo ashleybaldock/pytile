@@ -27,6 +27,16 @@ Y_MIDPOINT = Y_SCREEN / 2
 X_LIMIT = X_SCREEN - X_OFFSET_LEFT - X_OFFSET_RIGHT
 Y_LIMIT = Y_SCREEN / 4
 
+D3_WIDTH = 100
+D3_HEIGHT = 100
+D3_X = 100
+D3_Y = 100
+
+D3_OFF_X = X_SCREEN - 60 - D3_WIDTH
+D3_OFF_Y = Y_SCREEN - 60 - D3_HEIGHT
+
+D3_STRETCH = 2
+
 # Colours
 WHITE = (255,255,255)
 SILVER = (128,128,128)
@@ -99,7 +109,6 @@ def generate(ppp, r, persistence, octaves):
         else:
             allvals.append(gen_1D_values(length + 1))
 
-
     surface.fill(BLACK)
     # draw top x axis
     pygame.draw.line(surface, SILVER, (X_OFFSET_LEFT,Y_TOP_OFFSET), (X_OFFSET_LEFT+X_LIMIT,Y_TOP_OFFSET))
@@ -142,7 +151,7 @@ def generate(ppp, r, persistence, octaves):
         y = reduce(lambda x, y: x+(y[0]*y[1]), zip(yvals, amps), 0) / sum(amps)
         
         surface.set_at((X_OFFSET_LEFT+x,Y_BOTTOM_OFFSET-y*Y_LIMIT), RED)
-        
+
 
     # draw all random points on the line at correct interval
     for o, vals in enumerate(allvals):
@@ -156,6 +165,19 @@ def generate(ppp, r, persistence, octaves):
         pygame.draw.circle(surface, RED, pos, 3)
     surface.unlock()
 
+    # Draw the 3D graph representation
+    surface.lock()
+    for x in range(D3_WIDTH):
+        for y in range(D3_HEIGHT):
+            xx = D3_WIDTH/2 + x - y
+            yy = (D3_HEIGHT + x + y) / 2
+            for z in range(20):
+                surface.set_at((D3_OFF_X+xx, D3_OFF_Y+yy-z), (x,y,z*128/20))
+
+    surface.unlock()
+
+##D3_OFF_X = X_SCREEN - 50 - D3_WIDTH
+##D3_OFF_Y = Y_SCREEN - 50 - D3_HEIGHT
 
 def mainloop():
     ppp = PPP
