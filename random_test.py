@@ -97,31 +97,33 @@ def generate(ppp, r):
         colours.append((255 - int(c * d), 100, 155 + int(b * d)))
 
     surface.lock()
-    for o, vals in enumerate(allvals):
-        if vals:
-            for x in range(X_LIMIT):
-                # Number of units along, number of pixels in one unit along
-                xdiv, xmod = divmod(x, ppp / pow(2,o))
-##                print xdiv, xmod
-                if xmod != 0:
-                    # Convert number of pixels along in a period into a % value for the interpolation function
-                    percentalong = float(xmod) / ppp * pow(2,o)
-                else:
-                    percentalong = 0
-                y = CosineInterpolate(vals[xdiv], vals[xdiv+1], percentalong)
-                surface.set_at((X_OFFSET_LEFT+x,Y_OFFSET-y*Y_LIMIT), colours[o])
-##    surface.unlock()
+    for x in range(X_LIMIT):
+        yvals = []
+        for o, vals in enumerate(allvals):
+            # Number of units along, number of pixels in one unit along
+            xdiv, xmod = divmod(x, ppp / pow(2,o))
+            if xmod != 0:
+                # Convert number of pixels along in a period into a % value for the interpolation function
+                percentalong = float(xmod) / ppp * pow(2,o)
+            else:
+                percentalong = 0
+            yvals.append(CosineInterpolate(vals[xdiv], vals[xdiv+1], percentalong))
+        # Finally draw the individual and resultant lines
+        for o, y in enumerate(yvals):
+            surface.set_at((X_OFFSET_LEFT+x,Y_OFFSET-y*Y_LIMIT), colours[o])
+        y = sum(yvals) / len(yvals)
+        surface.set_at((X_OFFSET_LEFT+x,Y_OFFSET*2-y*Y_LIMIT), RED)
+        
 
     # draw all random points on the line at correct interval
-##    surface.lock()
     for o, vals in enumerate(allvals):
-        if vals:
-            for n, v in enumerate(vals):
-                pos = (X_OFFSET_LEFT+n*ppp/pow(2,o),Y_OFFSET-v*Y_LIMIT)
-                pygame.draw.circle(surface, GREEN, pos, 2)
-                if o == 0:
-                    pygame.draw.circle(surface, RED, (pos[0], Y_OFFSET), 3)
-            pygame.draw.circle(surface, RED, pos, 3)
+        for n, v in enumerate(vals):
+            pos = (X_OFFSET_LEFT+n*ppp/pow(2,o),Y_OFFSET-v*Y_LIMIT)
+            pygame.draw.circle(surface, GREEN, pos, 2)
+            # For the main period also draw some red markers on the axis line
+            if o == 0:
+                pygame.draw.circle(surface, RED, (pos[0], Y_OFFSET), 3)
+        pygame.draw.circle(surface, RED, pos, 3)
     surface.unlock()
 
 
