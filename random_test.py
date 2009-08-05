@@ -96,13 +96,12 @@ def generate(ppp, r, persistence):
         else:
             allvals.append(gen_1D_values(length + 1))
 
-    print allvals
 
     surface.fill(BLACK)
     # draw top x axis
     pygame.draw.line(surface, WHITE, (X_OFFSET_LEFT,Y_TOP_OFFSET), (X_OFFSET_LEFT+X_LIMIT,Y_TOP_OFFSET))
     # draw midline
-    pygame.draw.line(surface, YELLOW, (0,Y_MIDPOINT), (X_SCREEN,Y_MIDPOINT))
+    pygame.draw.line(surface, WHITE, (0,Y_MIDPOINT), (X_SCREEN,Y_MIDPOINT))
     # draw bottom x axis
     pygame.draw.line(surface, WHITE, (X_OFFSET_LEFT,Y_BOTTOM_OFFSET), (X_OFFSET_LEFT+X_LIMIT,Y_BOTTOM_OFFSET))
     # draw y axis
@@ -143,11 +142,12 @@ def generate(ppp, r, persistence):
     # draw all random points on the line at correct interval
     for o, vals in enumerate(allvals):
         for n, v in enumerate(vals):
-            pos = (X_OFFSET_LEFT+n*ppp/pow(2,o),Y_TOP_OFFSET-v*Y_LIMIT)
+            amp = pow(persistence, o)
+            pos = (X_OFFSET_LEFT+n*ppp/pow(2,o),Y_TOP_OFFSET-v*Y_LIMIT*amp)
             pygame.draw.circle(surface, GREEN, pos, 2)
             # For the main period also draw some red markers on the axis line
             if o == 0:
-                pygame.draw.circle(surface, RED, (pos[0], Y_TOP_OFFSET), 3)
+                pygame.draw.circle(surface, RED, (pos[0], Y_MIDPOINT), 3)
         pygame.draw.circle(surface, RED, pos, 3)
     surface.unlock()
 
