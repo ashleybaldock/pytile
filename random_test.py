@@ -29,6 +29,7 @@ Y_LIMIT = Y_SCREEN / 4
 
 # Colours
 WHITE = (255,255,255)
+SILVER = (128,128,128)
 BLACK = (0,0,0)
 RED = (255,0,0)
 GREEN = (0,255,0)
@@ -101,11 +102,11 @@ def generate(ppp, r, persistence, octaves):
 
     surface.fill(BLACK)
     # draw top x axis
-    pygame.draw.line(surface, WHITE, (X_OFFSET_LEFT,Y_TOP_OFFSET), (X_OFFSET_LEFT+X_LIMIT,Y_TOP_OFFSET))
+    pygame.draw.line(surface, SILVER, (X_OFFSET_LEFT,Y_TOP_OFFSET), (X_OFFSET_LEFT+X_LIMIT,Y_TOP_OFFSET))
     # draw midline
     pygame.draw.line(surface, WHITE, (0,Y_MIDPOINT), (X_SCREEN,Y_MIDPOINT))
     # draw bottom x axis
-    pygame.draw.line(surface, WHITE, (X_OFFSET_LEFT,Y_BOTTOM_OFFSET), (X_OFFSET_LEFT+X_LIMIT,Y_BOTTOM_OFFSET))
+    pygame.draw.line(surface, SILVER, (X_OFFSET_LEFT,Y_BOTTOM_OFFSET), (X_OFFSET_LEFT+X_LIMIT,Y_BOTTOM_OFFSET))
     # draw y axis
     pygame.draw.line(surface, WHITE, (X_OFFSET_LEFT,0), (X_OFFSET_LEFT,Y_SCREEN))
 
