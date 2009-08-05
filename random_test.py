@@ -9,14 +9,23 @@ pygame.init()
 X_SCREEN = 1000
 Y_SCREEN = 500
 
+# Padding around the screen
+PADDING = 10
+
 # Set offsets of origin of depiction of 1D noise
 X_OFFSET_LEFT = 10
 X_OFFSET_RIGHT = 200
-Y_OFFSET = Y_SCREEN / 2
+
+# Midpoints of the two sets of axis
+Y_TOP_OFFSET = Y_SCREEN / 4
+Y_BOTTOM_OFFSET = Y_SCREEN / 4 * 3
+
+# Midline of the screen
+Y_MIDPOINT = Y_SCREEN / 2
 
 # Set size of the 1D noise output
 X_LIMIT = X_SCREEN - X_OFFSET_LEFT - X_OFFSET_RIGHT
-Y_LIMIT = Y_SCREEN / 2 - 10
+Y_LIMIT = Y_SCREEN / 4
 
 # Colours
 WHITE = (255,255,255)
@@ -24,24 +33,30 @@ BLACK = (0,0,0)
 RED = (255,0,0)
 GREEN = (0,255,0)
 BLUE = (0,0,255)
+YELLOW = (255,255,0)
+CYAN = (0,255,255)
+MAGENTA = (255,0,255)
 
 period = 1
-num_octaves = 4
+num_octaves = 8
 # Octaves from 0 to X
 # Octave 1 is period 1, Octave 2 is period 1/2, Octave 3 is period 1/4 etc.
 
 # pixels per period (in x dimension), 20 is smallest which looks good
 PPP = 400
-# In y dimension the equivalent value is taken by multiplying by the Y_LIMIT, assuming a value between 0 and 1
+# Random seed, this specifies what the output will look like
+R = 50
+# Persistence, this specifies how much smaller details affect the end result
+PERSISTENCE = 0.2
 
-
+# Setup display surfaces
 screen = pygame.display.set_mode([X_SCREEN, Y_SCREEN])
 surface = pygame.Surface([X_SCREEN, Y_SCREEN])
 
-persistence = 0.2
 
 # Random values should always be between 0 and 1
 def get_random():
+    return random.uniform(-1,1)
     return random.random()
 
 def gen_1D_values(length):
@@ -63,7 +78,7 @@ def regen_seed():
     r = random.randint(0,100)
     return r
 
-def generate(ppp, r):
+def generate(ppp, r, persistence):
     random.seed(r)
     allvals = []
     # First generate the seeds for each octave
@@ -84,10 +99,14 @@ def generate(ppp, r):
     print allvals
 
     surface.fill(BLACK)
-    # draw x axis
-    pygame.draw.line(surface, WHITE, (X_OFFSET_LEFT,Y_OFFSET), (X_OFFSET_LEFT+X_LIMIT,Y_OFFSET))
+    # draw top x axis
+    pygame.draw.line(surface, WHITE, (X_OFFSET_LEFT,Y_TOP_OFFSET), (X_OFFSET_LEFT+X_LIMIT,Y_TOP_OFFSET))
+    # draw midline
+    pygame.draw.line(surface, YELLOW, (0,Y_MIDPOINT), (X_SCREEN,Y_MIDPOINT))
+    # draw bottom x axis
+    pygame.draw.line(surface, WHITE, (X_OFFSET_LEFT,Y_BOTTOM_OFFSET), (X_OFFSET_LEFT+X_LIMIT,Y_BOTTOM_OFFSET))
     # draw y axis
-    pygame.draw.line(surface, WHITE, (X_OFFSET_LEFT,Y_OFFSET-Y_LIMIT), (X_OFFSET_LEFT,Y_OFFSET+Y_LIMIT))
+    pygame.draw.line(surface, WHITE, (X_OFFSET_LEFT,0), (X_OFFSET_LEFT,Y_SCREEN))
 
     # Generate array of colours, divide 255 by number of octaves
     colours = []
@@ -101,6 +120,7 @@ def generate(ppp, r):
         yvals = []
         for o, vals in enumerate(allvals):
             # Number of units along, number of pixels in one unit along
+            # Frequency = pow(2,o)
             xdiv, xmod = divmod(x, ppp / pow(2,o))
             if xmod != 0:
                 # Convert number of pixels along in a period into a % value for the interpolation function
@@ -109,27 +129,34 @@ def generate(ppp, r):
                 percentalong = 0
             yvals.append(CosineInterpolate(vals[xdiv], vals[xdiv+1], percentalong))
         # Finally draw the individual and resultant lines
+        amps = []
         for o, y in enumerate(yvals):
-            surface.set_at((X_OFFSET_LEFT+x,Y_OFFSET-y*Y_LIMIT), colours[o])
-        y = sum(yvals) / len(yvals)
-        surface.set_at((X_OFFSET_LEFT+x,Y_OFFSET*2-y*Y_LIMIT), RED)
+            # Amplitude = pow(persistence, o)
+            amps.append(pow(persistence, o))
+            surface.set_at((X_OFFSET_LEFT+x,Y_TOP_OFFSET-y*Y_LIMIT*amps[o]), colours[o])
+                
+        y = reduce(lambda x, y: x+(y[0]*y[1]), zip(yvals, amps), 0)# / len(yvals)
+        
+        surface.set_at((X_OFFSET_LEFT+x,Y_BOTTOM_OFFSET-y*Y_LIMIT), RED)
         
 
     # draw all random points on the line at correct interval
     for o, vals in enumerate(allvals):
         for n, v in enumerate(vals):
-            pos = (X_OFFSET_LEFT+n*ppp/pow(2,o),Y_OFFSET-v*Y_LIMIT)
+            pos = (X_OFFSET_LEFT+n*ppp/pow(2,o),Y_TOP_OFFSET-v*Y_LIMIT)
             pygame.draw.circle(surface, GREEN, pos, 2)
             # For the main period also draw some red markers on the axis line
             if o == 0:
-                pygame.draw.circle(surface, RED, (pos[0], Y_OFFSET), 3)
+                pygame.draw.circle(surface, RED, (pos[0], Y_TOP_OFFSET), 3)
         pygame.draw.circle(surface, RED, pos, 3)
     surface.unlock()
 
 
 def mainloop():
     ppp = PPP
-    r = 50
+    r = R
+    persistence = PERSISTENCE
+    generate(ppp, r, persistence)
     while 1:
         key = pygame.key.get_pressed()
         for event in pygame.event.get():
@@ -139,73 +166,29 @@ def mainloop():
                 pygame.image.save(surface, "Perlin Noise.png")
             if event.type == KEYDOWN and event.key == K_r:
                 r = regen_seed()
-                generate(ppp, r)
+                generate(ppp, r, persistence)
             if event.type == KEYDOWN and event.key == K_p:
                 ppp += 10
-                generate(ppp, r)
+                generate(ppp, r, persistence)
             if event.type == KEYDOWN and event.key == K_o:
                 ppp -= 10
                 if ppp <= 0:
                     ppp = 20
-                generate(ppp, r)
-        
+                generate(ppp, r, persistence)
+            if event.type == KEYDOWN and event.key == K_l:
+                persistence += 0.05
+                if persistence > 1:
+                    persistence = 1
+                generate(ppp, r, persistence)
+            if event.type == KEYDOWN and event.key == K_k:
+                persistence -= 0.05
+                if persistence < 0.05:
+                    persistence = 0.05
+                generate(ppp, r, persistence)
+
         screen.blit(surface,(0,0))
         pygame.display.flip()
 
-generate(PPP, 50)
 mainloop()
 
 
-##def LinearInterpolate(a, b, x):
-##    return a*(1-x) + b*x
-##
-##def CubicInterpolate(v0, v1, v2, v3, x):
-##    P = (v3 - v2) - (v0 - v1)
-##    Q = (v0 - v1) - P
-##    R = v2 - v0
-##    S = v1
-##    return P*math.pow(x,3) + Q*math.pow(x,2) + R*x + S
-##
-##def Noise(i, x, y):
-####    random.seed(i)
-##    return random.random()
-##
-##def SmoothedNoise(i, x, y):
-##    corners = (Noise(i, x-1, y-1) + Noise(i, x+1, y-1) + Noise(i, x-1, y+1) + Noise(i, x+1, y+1)) / 16
-##    sides = (Noise(i, x-1, y) + Noise(i, x+1, y) + Noise(i, x, y-1) + Noise(i, x, y+1) ) / 8
-##    center = Noise(i, x, y) / 4
-##    return corners + sides + center
-##
-##def InterpolatedNoise(i, x, y):
-##    x_int = int(x)
-##    x_frac = x - x_int
-##    y_int = int(y)
-##    y_frac = y - y_int
-####    print x, y, x_int, y_int, x_frac, y_frac
-##
-##    v1 = SmoothedNoise(i, x_int, y_int)
-##    v2 = SmoothedNoise(i, x_int+1, y_int)
-##    v3 = SmoothedNoise(i, x_int, y_int+1)
-##    v4 = SmoothedNoise(i, x_int+1, y_int+1)
-##
-####    i1 = LinearInterpolate(v1, v2, x_frac)
-####    i2 = LinearInterpolate(v3, v4, x_frac)
-####    return LinearInterpolate(i1, i2, y_frac)
-##
-##    return CubicInterpolate(v1, v2, v3, v4, x_frac)
-##
-##def PerlinNoise_2D(x, y):
-####    print x, y
-##    total = 0
-##    p = persistence
-##    n = num_octaves
-##
-##    for i in range(0, n):
-##        frequency = math.pow(2,i)
-##        amplitude = math.pow(p,i)
-##
-##        total += InterpolatedNoise(i, x*frequency, y*frequency) * amplitude
-##
-##    return total
-##
-##
