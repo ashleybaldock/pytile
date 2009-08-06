@@ -175,8 +175,8 @@ def generate(ppp, r, persistence, octaves):
         for y in range(D3_HEIGHT):
             xx = (D3_WIDTH/2 + x - y) * 2
             yy = (D3_HEIGHT + x + y)
-            xvals, amps, xresult = get_at_point(x, randomsX, ppp, 0.4, octaves)
-            yvals, amps, yresult = get_at_point(y, randomsY, ppp, 0.4, octaves)
+            xvals, amps, xresult = get_at_point(x, randomsX, 200, 0.7, octaves)
+            yvals, amps, yresult = get_at_point(y, randomsY, 200, 0.7, octaves)
             zval = (xresult + yresult)
             # zval will be in range -1<n<1
             # Multiply this by the graph's height extent
@@ -194,11 +194,7 @@ def generate(ppp, r, persistence, octaves):
                 R = abs(z/SCALE*100+155)
                 B = 0
             surface.set_at((D3_OFF_X+xx, D3_OFF_Y+yy-z), (R, 0, B))
-
     surface.unlock()
-
-##D3_OFF_X = X_SCREEN - 50 - D3_WIDTH
-##D3_OFF_Y = Y_SCREEN - 50 - D3_HEIGHT
 
 def mainloop():
     ppp = PPP
