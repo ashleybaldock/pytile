@@ -14,7 +14,7 @@ PADDING = 10
 
 # Set offsets of origin of depiction of 1D noise
 X_OFFSET_LEFT = 10
-X_OFFSET_RIGHT = 200
+X_OFFSET_RIGHT = 400
 
 # Midpoints of the two sets of axis
 Y_TOP_OFFSET = Y_SCREEN / 4
@@ -32,8 +32,8 @@ D3_HEIGHT = 100
 D3_X = 100
 D3_Y = 100
 
-D3_OFF_X = X_SCREEN - 60 - D3_WIDTH
-D3_OFF_Y = Y_SCREEN - 60 - D3_HEIGHT
+D3_OFF_X = X_SCREEN - 60 - D3_WIDTH * 2.5
+D3_OFF_Y = Y_SCREEN / 2 - D3_HEIGHT * 2
 
 D3_STRETCH = 2
 
@@ -49,12 +49,12 @@ CYAN = (0,255,255)
 MAGENTA = (255,0,255)
 
 period = 1
-num_octaves = 8
+num_octaves = 2
 # Octaves from 0 to X
 # Octave 1 is period 1, Octave 2 is period 1/2, Octave 3 is period 1/4 etc.
 
 # pixels per period (in x dimension), 20 is smallest which looks good
-PPP = 400
+PPP = 100
 # Random seed, this specifies what the output will look like
 R = 50
 # Persistence, this specifies how much smaller details affect the end result
@@ -77,6 +77,12 @@ def gen_1D_values(length):
     for l in range(length):
         vals.append(get_random())
     return vals
+def gen_1D_value(r, position):
+    random.seed(r)
+    val = 0
+    for l in range(position):
+        val = get_random()
+    return val
 
 def LinearInterpolate(a, b, x):
     return a*(1-x) + b*x
@@ -91,88 +97,108 @@ def regen_seed():
     r = random.randint(0,100)
     return r
 
-def generate(ppp, r, persistence, octaves):
+def get_at_point(p, r, ppp, persistence, octaves):
     random.seed(r)
+    # Returns an array of points representing the raw octave values and resultant value at a point
+    # Takes the point, ppp, persistence and octaves values
     allvals = []
-    # First generate the seeds for each octave
+    # Generate randoms array
     randoms = []
     for o in range(octaves):
         randoms.append(random.randint(0,100))
-    # Octaves in range 1, num_octaves+1
+
+    # Divide p by ppp to find how many random points along we are, do this for each octave
     for o in range(octaves):
-        random.seed(randoms[o])
-        # Calculate length of one period for this octave in pixels
-        # Total x length divided by the pixels per period value divided by the octave
-        length, remainder = divmod(X_LIMIT, ppp / pow(2,o))
+        position, remainder = divmod(p, ppp / pow(2,o))
+        # Then calculate the random value at position and position+1 (to use in generation of the smoothed value)
         if remainder > 0:
-            allvals.append(gen_1D_values(length + 2))
+            allvals.append([gen_1D_value(randoms[o],position), gen_1D_value(randoms[o],position+1)])
         else:
-            allvals.append(gen_1D_values(length + 1))
+            allvals.append([gen_1D_value(randoms[o],position), gen_1D_value(randoms[o],position+1)])
+    yvals = []
+    for o, vals in enumerate(allvals):
+        # We have x, and x+1, our actual value lies somewhere between x and x+1 (the remainder value)
+        # Calculate the 
+
+        xdiv, xmod = divmod(p, ppp / pow(2,o))
+        if xmod != 0:
+            # Convert number of pixels along in a period into a % value for the interpolation function
+            percentalong = float(xmod) / ppp * pow(2,o)
+        else:
+            percentalong = 0
+        yvals.append(CosineInterpolate(vals[0], vals[1], percentalong))
+    # Finally calculate the individual and resultant lines
+    amps = []
+    for o, y in enumerate(yvals):
+        # Amplitude = pow(persistence, o)
+        amps.append(pow(persistence, o))
+
+    return (yvals, amps, reduce(lambda x, y: x+(y[0]*y[1]), zip(yvals, amps), 0) / sum(amps))
+
+
+def generate(ppp, r, persistence, octaves):
+    # Generate array of colours, divide 255 by number of octaves
+    colours = []
+    b = 100.0 / octaves
+    c = 200.0 / octaves
+    for d in range(octaves):
+        colours.append((255 - int(c * d), 100, 155 + int(b * d)))
 
     surface.fill(BLACK)
     # draw top x axis
     pygame.draw.line(surface, SILVER, (X_OFFSET_LEFT,Y_TOP_OFFSET), (X_OFFSET_LEFT+X_LIMIT,Y_TOP_OFFSET))
     # draw midline
-    pygame.draw.line(surface, WHITE, (0,Y_MIDPOINT), (X_SCREEN,Y_MIDPOINT))
+    pygame.draw.line(surface, WHITE, (0,Y_MIDPOINT), (X_OFFSET_LEFT+X_LIMIT,Y_MIDPOINT))
     # draw bottom x axis
     pygame.draw.line(surface, SILVER, (X_OFFSET_LEFT,Y_BOTTOM_OFFSET), (X_OFFSET_LEFT+X_LIMIT,Y_BOTTOM_OFFSET))
     # draw y axis
     pygame.draw.line(surface, WHITE, (X_OFFSET_LEFT,0), (X_OFFSET_LEFT,Y_SCREEN))
 
-    # Generate array of colours, divide 255 by number of octaves
-    colours = []
-    b = 100.0 / num_octaves
-    c = 200.0 / num_octaves
-    for d in range(octaves):
-        colours.append((255 - int(c * d), 100, 155 + int(b * d)))
-
     surface.lock()
     for x in range(X_LIMIT):
-        yvals = []
-        for o, vals in enumerate(allvals):
-            # Number of units along, number of pixels in one unit along
-            # Frequency = pow(2,o)
-            xdiv, xmod = divmod(x, ppp / pow(2,o))
-            if xmod != 0:
-                # Convert number of pixels along in a period into a % value for the interpolation function
-                percentalong = float(xmod) / ppp * pow(2,o)
-            else:
-                percentalong = 0
-            yvals.append(CosineInterpolate(vals[xdiv], vals[xdiv+1], percentalong))
-        # Finally draw the individual and resultant lines
-        amps = []
-        for o, y in enumerate(yvals):
-            # Amplitude = pow(persistence, o)
-            amps.append(pow(persistence, o))
-            surface.set_at((X_OFFSET_LEFT+x,Y_TOP_OFFSET-y*Y_LIMIT*amps[o]), colours[o])
-
-        # sum of random values multiplied by decaying persistence divided by
-        # the sum of the persistence values to cap it to within the -1 < n < 1 range
-        y = reduce(lambda x, y: x+(y[0]*y[1]), zip(yvals, amps), 0) / sum(amps)
-        
-        surface.set_at((X_OFFSET_LEFT+x,Y_BOTTOM_OFFSET-y*Y_LIMIT), RED)
-
-
-    # draw all random points on the line at correct interval
-    for o, vals in enumerate(allvals):
-        for n, v in enumerate(vals):
-            amp = pow(persistence, o)
-            pos = (X_OFFSET_LEFT+n*ppp/pow(2,o),Y_TOP_OFFSET-v*Y_LIMIT*amp)
-            pygame.draw.circle(surface, GREEN, pos, 2)
-            # For the main period also draw some red markers on the axis line
-            if o == 0:
-                pygame.draw.circle(surface, RED, (pos[0], Y_MIDPOINT), 3)
-        pygame.draw.circle(surface, RED, pos, 3)
+        yvals, amps, result = get_at_point(x, r, ppp, persistence, octaves)
+        for n, amp, y in map(lambda x,y: (x[0],x[1],y), enumerate(amps), yvals):
+            surface.set_at((X_OFFSET_LEFT+x,Y_TOP_OFFSET-y*Y_LIMIT*amp), colours[n])
+        surface.set_at((X_OFFSET_LEFT+x,Y_BOTTOM_OFFSET-result*Y_LIMIT), RED)
     surface.unlock()
+
+
+##    # draw all random points on the line at correct interval
+##    for o, vals in enumerate(allvals):
+##        for n, v in enumerate(vals):
+##            amp = pow(persistence, o)
+##            pos = (X_OFFSET_LEFT+n*ppp/pow(2,o),Y_TOP_OFFSET-v*Y_LIMIT*amp)
+##            pygame.draw.circle(surface, GREEN, pos, 2)
+##            # For the main period also draw some red markers on the axis line
+##            if o == 0:
+##                pygame.draw.circle(surface, RED, (pos[0], Y_MIDPOINT), 3)
+##        pygame.draw.circle(surface, RED, pos, 3)
 
     # Draw the 3D graph representation
     surface.lock()
     for x in range(D3_WIDTH):
         for y in range(D3_HEIGHT):
-            xx = D3_WIDTH/2 + x - y
-            yy = (D3_HEIGHT + x + y) / 2
-            for z in range(20):
-                surface.set_at((D3_OFF_X+xx, D3_OFF_Y+yy-z), (x,y,z*128/20))
+            xx = (D3_WIDTH/2 + x - y) * 2
+            yy = (D3_HEIGHT + x + y)
+            xvals, amps, xresult = get_at_point(x, r, ppp, persistence, octaves)
+            yvals, amps, yresult = get_at_point(y, r+100, ppp, persistence, octaves)
+            zval = (xresult + yresult)
+            # zval will be in range -1<n<1
+            # Multiply this by the graph's height extent
+            SCALE = 100.0
+            if zval < 0:
+                zs = -1
+            else:
+                zs = 1
+##            for z in range(0, int(zval*SCALE), zs):
+            z = zval*SCALE
+            if z < 0:
+                R = 0
+                B = abs(z/SCALE*100+155)
+            else:
+                R = abs(z/SCALE*100+155)
+                B = 0
+            surface.set_at((D3_OFF_X+xx, D3_OFF_Y+yy-z), (R, 0, B))
 
     surface.unlock()
 
