@@ -97,42 +97,34 @@ def regen_seed():
     r = random.randint(0,100)
     return r
 
-def get_at_point(p, r, ppp, persistence, octaves):
+def regen_seeds(r, octaves):
     random.seed(r)
-    # Returns an array of points representing the raw octave values and resultant value at a point
-    # Takes the point, ppp, persistence and octaves values
-    allvals = []
-    # Generate randoms array
     randoms = []
     for o in range(octaves):
         randoms.append(random.randint(0,100))
+    return randoms
 
+def get_at_point(p, randoms, ppp, persistence, octaves):
+    # Returns an array of points representing the raw octave values and resultant value at a point
+    # Takes the point, ppp, persistence and octaves values
+    amps = []
+    yvals = []
     # Divide p by ppp to find how many random points along we are, do this for each octave
     for o in range(octaves):
-        position, remainder = divmod(p, ppp / pow(2,o))
-        # Then calculate the random value at position and position+1 (to use in generation of the smoothed value)
-        if remainder > 0:
-            allvals.append([gen_1D_value(randoms[o],position), gen_1D_value(randoms[o],position+1)])
-        else:
-            allvals.append([gen_1D_value(randoms[o],position), gen_1D_value(randoms[o],position+1)])
-    yvals = []
-    for o, vals in enumerate(allvals):
-        # We have x, and x+1, our actual value lies somewhere between x and x+1 (the remainder value)
-        # Calculate the 
-
-        xdiv, xmod = divmod(p, ppp / pow(2,o))
-        if xmod != 0:
-            # Convert number of pixels along in a period into a % value for the interpolation function
-            percentalong = float(xmod) / ppp * pow(2,o)
+        pow2o = pow(2,o)
+        position, remainder = divmod(p, ppp / pow2o)
+        # Convert number of pixels along in a period into a % value for the interpolation function
+        if remainder != 0:
+            percentalong = float(remainder) / ppp * pow2o
         else:
             percentalong = 0
-        yvals.append(CosineInterpolate(vals[0], vals[1], percentalong))
-    # Finally calculate the individual and resultant lines
-    amps = []
-    for o, y in enumerate(yvals):
-        # Amplitude = pow(persistence, o)
+        yval = CosineInterpolate(gen_1D_value(randoms[o],position),
+                                 gen_1D_value(randoms[o],position+1),
+                                 percentalong)
+        yvals.append(yval)
         amps.append(pow(persistence, o))
 
+    # Return yvalues for component points, amplitudes for those yvalues and the overall output for this point
     return (yvals, amps, reduce(lambda x, y: x+(y[0]*y[1]), zip(yvals, amps), 0) / sum(amps))
 
 
@@ -155,8 +147,9 @@ def generate(ppp, r, persistence, octaves):
     pygame.draw.line(surface, WHITE, (X_OFFSET_LEFT,0), (X_OFFSET_LEFT,Y_SCREEN))
 
     surface.lock()
+    randoms = regen_seeds(r, octaves)
     for x in range(X_LIMIT):
-        yvals, amps, result = get_at_point(x, r, ppp, persistence, octaves)
+        yvals, amps, result = get_at_point(x, randoms, ppp, persistence, octaves)
         for n, amp, y in map(lambda x,y: (x[0],x[1],y), enumerate(amps), yvals):
             surface.set_at((X_OFFSET_LEFT+x,Y_TOP_OFFSET-y*Y_LIMIT*amp), colours[n])
         surface.set_at((X_OFFSET_LEFT+x,Y_BOTTOM_OFFSET-result*Y_LIMIT), RED)
@@ -176,12 +169,14 @@ def generate(ppp, r, persistence, octaves):
 
     # Draw the 3D graph representation
     surface.lock()
+    randomsX = regen_seeds(r, octaves)
+    randomsY = regen_seeds(r+100, octaves)
     for x in range(D3_WIDTH):
         for y in range(D3_HEIGHT):
             xx = (D3_WIDTH/2 + x - y) * 2
             yy = (D3_HEIGHT + x + y)
-            xvals, amps, xresult = get_at_point(x, r, ppp, persistence, octaves)
-            yvals, amps, yresult = get_at_point(y, r+100, ppp, persistence, octaves)
+            xvals, amps, xresult = get_at_point(x, randomsX, ppp, 0.4, octaves)
+            yvals, amps, yresult = get_at_point(y, randomsY, ppp, 0.4, octaves)
             zval = (xresult + yresult)
             # zval will be in range -1<n<1
             # Multiply this by the graph's height extent
