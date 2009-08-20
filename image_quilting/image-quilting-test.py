@@ -7,6 +7,7 @@
 # Test 2, Mk.4 - Implement minimum error cut along output tiles (partially complete)
 # Test 2, Mk.5 - Make method to turn tiles into wang tiles through edge
 #                cutting and some sort of transform
+# Test 2, Mk.6 - Improve everything so it isn't crap
 
 import os, sys
 import pygame
@@ -15,7 +16,7 @@ import Image
 import math
 
 # paksize   
-p = 64
+p = 150
 # Width/height of tile fragment
 w = 32
 # Overlap
@@ -28,7 +29,7 @@ Y = 2
 # Error threshold
 R = 0.2
 # Repitition (number of random tile combos to check)
-rep = 1000
+rep = 500
 
 # Value of transparent
 TRANSPARENT = (231,255,255)
@@ -55,11 +56,25 @@ WangTiles.append(((0,1,1,0), 6))     # 6
 WangTiles.append(((1,0,0,1), 7))     # 9
 
 
+class Node:
+    """A square used in pathfinding"""
+    def __init__(self, coords, parent, cost):
+        # Information contained by the square
+        self.coords = coords
+        self.parent = parent
+        self.cost = cost
+        self.path_cost = cost
+    def ChangeParent(self, newparent):
+        self.parent = newparent
+    def ChangePathCost(self, pathcost):
+        self.path_cost = pathcost
+            
+
 # First, need a class which represents the input texture
 class Texture:
     """Texture object for tiling"""    
     def __init__(self, rect=None, val=0):
-        self.texture = pygame.image.load("texture3.png")
+        self.texture = pygame.image.load("texture3a.png")
         self.texture.set_alpha(None)
         self.texture = self.texture.convert()
 
@@ -77,175 +92,127 @@ class Texture:
         esurf = []
         im = image.load()
 
-        if edge in [1,3]:
-            # esurf now in form [y][x]
-            for y in range(len(error_surface[0])):
-                aa = []
-                for x in range(len(error_surface)):
-                    aa.append(error_surface[x][y])
-                esurf.append(aa)
-            
-            # Now do cutting
-            for y in range(len(esurf)):
-                # Find the minimum error value in this row
-                minimum = min(esurf[y])
-                # And find its list index
-                k = esurf[y].index(minimum)
-                
-                for x in range(len(esurf[0])):
-                    if x < k:
-                        im[x,y] = (0,0,0,0)
-        else:
-            esurf = error_surface
-            # Now do cutting
-            for y in range(len(esurf)):
-                # Find the minimum error value in this row
-                minimum = min(esurf[y])
-                # And find its list index
-                k = esurf[y].index(minimum)
-                
-                for x in range(len(esurf[0])):
-                    if x < k:
-                        im[y,x] = (0,0,0,0)
-
-
-        return image
-
-
-    def CutImageEdge(self, error_surface, image, edge):
-        """Uses an error surface to cut the edge of an image"""
-        
-        # edge of the form 0: top, 1: left, 2: bottom, 3: right
-        if edge == 0:      # top
-            off_x = 0
-            off_y = 0
-        elif edge == 1:    # left
-            off_x = 0
-            off_y = 0
-        elif edge == 2:    # bottom
-            off_x = 0
-            off_y = w - v
-        elif edge == 3:    # right
-            off_x = w - v
-            off_y = 0
-
-        # error_surface is a 2 dimensional array, [x][y],
-        # which represents a graph describing the error between
-        # the two images. We can move down through the rows, but
-        # not back up again
-        # For each value in the width (height for horizontal...)
-        # we find a path of least error, then we pick the minimum
-        # path found and use it to set pixels transparent if they
-        # are on the wrong side of that path
-        open_list = []
         closed_list = []
-        # values on either list are of the form:
-        # (a, b, c) where a = (x,y) coords of current square (for lookup
-        # in error_surface) and b = (x,y) coords of parent, c = the
-        # total error involved in getting to this square
-        paths = []
-##        for i in range(len(error_surface[0])):
-        for i in range(1):
-            # First make a copy of the error surface for this path
-            esurf = []
-            for x in range(len(error_surface[0])):
-                a = []
-                for y in range(len(error_surface)):
-                    a.append(error_surface[y][x])
-                esurf.append(a)
-                
-            # Make open and closed lists
-            open_list = []
-            closed_list = []
-            
-            # For each of the potential starting squares in the first row
-            # of the error surface
-            open_list.append(((0,i), (0,i), esurf[0][i]))
-            # Now start the main pathfinding loop
-            j = 0
-            while j == 0:
-                # Find the lowest error square on the open list
+        open_list = []
+        # Nodes start off on the node_list, then they are moved to the open
+        # or closed lists as required
+        node_list = []
+        
+        size_y = len(error_surface[0])
+        size_x = len(error_surface)
+
+        for y in range(size_y):
+            for x in range(size_x):
+                node_list.append(Node((x,y), (-1,-1), error_surface[x][y]))
+
+        # Move the first node from the node_list to the open_list
+        for i in range(len(node_list)-1):
+            if node_list[i].coords == (0,0):
+                open_list.append(node_list.pop(i))
+
+        j = 0
+        # Now onto the main pathfinding loop
+        while j == 0:
+            if open_list == []:
+                # No path is possible (this should never happen!)
+                j = 2
+            else:
+                # Start by finding the lowest pathcost square on the open list
                 aa = []
-                for m in range(len(open_list)):
-                    aa.append(open_list[m][2])
-                # Set current_square to be the smallest error value in the open list
-                bb = min(aa)
-                k = aa.index(bb)
-                current_square = open_list[k]
-                # Move the current square to the closed list
-                closed_list.append(open_list.pop(k))
+                for i in range(len(open_list)):
+                    aa.append(open_list[i].path_cost)
+
+                current_node = open_list[aa.index(min(aa))]
+                # Now switch the current node over to the closed_list
+                closed_list.append(open_list.pop(aa.index(min(aa))))
                 
-                if current_square[0][1] == len(error_surface) - 1:
-                    # We have found a target square (at the bottom of the
-                    # error surface) so finish up
+                if current_node.coords[1] == size_y - 1:
+                    # We have found the target, so go no further
                     j = 1
                 else:
-                    # Now, add the squares on the line below current_square to the
-                    # open list IF:
-                    #   - They are "below" the current square
-                    #   - They are not on the closed list
-                    # If they are already on the open list
-                    n = current_square[0][1] + 1
-                    for m in range(len(error_surface[0])):
-                        if ((m,n), current_square[0], esurf[m][n]) not in closed_list:
-                            # If this square already on the closed list, don't do anything
-                            
-                            if ((m,n), current_square[0], esurf[m][n]) in open_list:
-                                # If this square already on the open list
-                                if esurf[m][n] + current_square[2] < open_list[m][n][3]:
-                                    # If path error via this parent is lower than path error
-                                    # already existing on this square, then change the square
-                                    # to go via this parent
-                                    open_list[m][n] = ((m,n), current_square[0], esurf[m][n] + current_square[2])
-                                #else:
-                                    # Otherwise, don't do anything, as this path to that square would be worse
-                                
-                            else:
-                                # If this square isn't on the open or closed lists
-                                #       coords of this square, coords of parent square, error of path to this square
-                                open_list.append(((m,n), current_square[0], esurf[m][n] + current_square[2]))
-            # Now, we need to add this path to the list of paths
-            # First find the path...
-            this_path = []
-            this_path_cost = current_square[2]
-            path_costs = []
-            j = 0
-            print "closed_list" + str(closed_list)
-            print "open_list: " + str(open_list)
-            while j == 0:
-                # If the current square has itself as a parent, this is the origin square
-                if current_square[0] == current_square[1]:
-                    j = 1
-                # Otherwise, add the current square to the path
+                    # Now, we have the lowest cost square, we check
+                    # each of the squares we can now possibly move to,
+                    # these are the touching squares on the row below
+                    xx, yy = current_node.coords
+                    for i in [(xx-1,yy+1), (xx,yy+1), (xx+1,yy+1)]:
+                        # First, check to see if this is in the closed_list
+                        # If it is on the closed list, do nothing
+                        for aa in range(len(open_list)):
+                            if open_list[aa].coords == i:
+                                # If it's on the open_list, check to see if this
+                                # path to the square is better than its current path
+                                # and if so change the parent & path costs
+                                if open_list[aa].path_cost > current_node.path_cost + open_list[aa].cost:
+                                    open_list[aa].path_cost = current_node.path_cost + open_list[aa].cost
+                                    open_list[aa].parent = current_node.coords
+                        for aa in range(len(node_list) - 1):
+                            if node_list[aa].coords == i:
+                                # If it's on the node_list, move it to the
+                                # open list and set its parent to be the current
+                                # square, then calculate the path cost
+                                node_list[aa].parent = current_node.coords
+                                node_list[aa].path_cost = current_node.path_cost + node_list[aa].cost
+                                open_list.append(node_list.pop(aa))
+        path = []
+        if j == 1:
+            # We have found a path, so now we just need to read out
+            # that path and then mask the image
+            k = 0
+            while k == 0:
+                path.insert(0, current_node.coords)
+                if current_node.coords == (0,0):
+                    # Path is complete
+                    k = 1
                 else:
-                    this_path.insert(0, current_square)
-                    # Then make the current square the parent of the current square
-                    parents = []
-                    for m in range(len(closed_list)):
-                        parents.append(closed_list[m][1])
+                    for aa in range(len(closed_list)):
+                        if closed_list[aa].coords == current_node.parent:
+                            current_node = closed_list[aa]
+        # Now we have our path, so we can use it to mask the output
+        # image...
 
-                    k = parents.index((current_square[1][0], current_square[1][1]))
-                    current_square = closed_list[k]
-            paths.append(this_path)
-            path_costs.append(this_path_cost)
+        for y in range(len(path)):
+            for x in range(size_x):
+                if x < path[y][0]:
+                    im[x,y] = (0,0,0,0)
 
-        # Now, which of the paths costs the least?
-        sel = min(path_costs)
-        k = path_costs.index(sel)
-        best_path = paths[0]
-        print str(best_path)
-        # So now we have the best path represented as a list of pixel coords
-        # in the best_path variable
-        # Make pixel access object
-        im = image.load()
-        for x in range(len(error_surface) - 1):
-            for y in range(len(error_surface[0])):
-                # For each row, set all pixels to the left of the pixel
-                # in the path to be transparent
-                if y < best_path[x][1]:
-                    im[x,y] = (0,0,0)
+##        apple.append(b)
+##        # This uses a very basic pathfinding system,
+##        # it searches each row for the lowest value and takes
+##        # that to be the next step in the path
+##        # This needs to be replaced with a better pathfinding system!
+##        if edge in [1,3]:
+##            # esurf now in form [y][x]
+##            for y in range(len(error_surface[0])):
+##                aa = []
+##                for x in range(len(error_surface)):
+##                    aa.append(error_surface[x][y])
+##                esurf.append(aa)
+##            
+##            # Now do cutting
+##            for y in range(len(esurf)):
+##                # Find the minimum error value in this row
+##                minimum = min(esurf[y])
+##                # And find its list index
+##                k = esurf[y].index(minimum)
+##                
+##                for x in range(len(esurf[0])):
+##                    if x < k:
+##                        im[x,y] = (0,0,0,0)
+##        else:
+##            esurf = error_surface
+##            # Now do cutting
+##            for y in range(len(esurf)):
+##                # Find the minimum error value in this row
+##                minimum = min(esurf[y])
+##                # And find its list index
+##                k = esurf[y].index(minimum)
+##                
+##                for x in range(len(esurf[0])):
+##                    if x < k:
+##                        im[y,x] = (0,0,0,0)
+
+
         return image
-            
 
     def CompareRegionError2(self, regions):
         """Compares two images to find the error between them"""
