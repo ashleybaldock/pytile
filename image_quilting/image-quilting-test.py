@@ -3,18 +3,20 @@
 # Test 2, Mk.1 - Re-write system to output only two tiles
 #                which will be fitted together using best-
 #                fit algorythm and path of least error
+# Test 2, Mk.3 - Implement cut path along two tiles
 
 import os, sys
 import pygame
 import random
 import Image
 import math
+
 # paksize
 p = 64
 # Width/height of tile fragment
 w = 32
 # Overlap
-v = 5
+v = 6
 # Number of tile-fragments (for wang-tile generation)
 # X-dimension (left-right)
 X = 2
@@ -65,10 +67,16 @@ class Texture:
 
     def CompareRegionError2(self, regions):
         """Compares two images to find the error between them"""
-        reg1, part1, reg2, part2 = regions
+        reg1, type1, part1, reg2, type2, part2 = regions
 
-        region1 = self.tiles_X[reg1]
-        region2 = self.tiles_X[reg2]
+        if type1 in [0,2]:
+            region1 = self.tiles_X[reg1]
+        else:
+            region1 = self.tiles_Y[reg1]
+        if type2 in [0,2]:
+            region2 = self.tiles_X[reg2]
+        else:
+            region2 = self.tiles_Y[reg2]
 
         # Make pixel access objects
         r1 = region1.load()
@@ -112,7 +120,7 @@ class Texture:
 
         # Now go through for all pixels and calculate the difference
         # between the two images
-        
+
         diff_total = 0
         max_total = width * height * 255 * 3.0
         for x in range(width):
@@ -157,7 +165,6 @@ class Texture:
 ##        self.tiles_X = []
 ##        self.tiles_Y = []
         possibles = []
-##        for s in range(rep):
 
 
         error_list = []
@@ -166,64 +173,114 @@ class Texture:
         self.tiles_X = []
         self.tiles_X.append(Image.new("RGB",(w,w)))
         self.tiles_X.append(Image.new("RGB",(w,w)))
-        
-        xx1 = random.randint(0, self.tex_x - w)
-        yy1 = random.randint(0, self.tex_y - w)
-        
-        a = texture.crop((xx1, yy1, xx1 + w, yy1 + w))
-        self.tiles_X[0].paste(a,(0,0,w,w))
-        
-        for xx2 in range(self.tex_x - w):
-            for yy2 in range(self.tex_y - w):
-##                print str(xx1) + ", " + str(yy1) + ", " + str(xx2) + ", " + str(yy2) 
 
-                # First, obtain some random samples from the texture
-                # 2 for the X direction
-                a = texture.crop((xx2, yy2, xx2 + w, yy2 + w))
-                self.tiles_X[1].paste(a,(0,0,w,w))
+        self.tiles_Y = []
+        self.tiles_Y.append(Image.new("RGB",(w,w)))
+        self.tiles_Y.append(Image.new("RGB",(w,w)))
 
-                # Comparisons are added to a list, which keeps track of what has
-                # been compared, comparisons are tuples of form:
-                #   (X, direction, Y, direction, comp_error)
-                # Where X is which X tile it is, Y is which Y tile it is
-                # and direction indicates the edge of X and Y which are compared
-                # (i.e. 0: top, 1: left, 2: bottom, 3: right
-                # comp_error is the comparison error value obtained, this needs to
-                # be added to the running total for each instance of this comparison
+        for s in range(rep):
+            # Generate 4 sets of coordinates for the 4 random patches of texture
+            # These are stored each time in the possibles array
+            possibles = []
+            for i in range(X + Y):
+                possibles.append((random.randint(0, self.tex_x - w), random.randint(0, self.tex_y - w)))
 
-                # For each WangTile in the WangTiles list, perform all comparisons
-                # between the tiles in the relavent arrays (unless this test has
-                # already been performed, in which case skip it)
+            # Now actually crop those sections out of the texture and store them in two lists
+            # one for X and one for Y
+            for i in range(X):
+                a = texture.crop((possibles[i][0], possibles[i][1], possibles[i][0] + w, possibles[i][1] + w))
+                self.tiles_X[i].paste(a,(0,0,w,w))
+
+            for i in range(Y):
+                a = texture.crop((possibles[i+X][0], possibles[i+X][1], possibles[i+X][0] + w, possibles[i+X][1] + w))
+                self.tiles_Y[i].paste(a,(0,0,w,w))
 
 
-                # Test with just two tiles
-                # Optimizing so that the right/left edges match up
-                comparison = (0, 3, 1, 1)
-                error = self.CompareRegionError2(comparison)
-                error_list.append(error)
-                possible_list.append((xx1, yy1, xx2, yy2))
+            # Comparisons are added to a list, which keeps track of what has
+            # been compared, comparisons are tuples of form:
+            #   (X, direction, Y, direction, comp_error)
+            # Where X is which X tile it is, Y is which Y tile it is
+            # and direction indicates the edge of X and Y which are compared
+            # (i.e. 0: top, 1: left, 2: bottom, 3: right
+            # comp_error is the comparison error value obtained, this needs to
+            # be added to the running total for each instance of this comparison
+
+            # For each WangTile in the WangTiles list, perform all comparisons
+            # between the tiles in the relavent arrays (unless this test has
+            # already been performed, in which case skip it)
 
 
+            # Test with just two tiles
+            # Optimizing so that the right/left edges match up
+
+            skip_list = []
+            skip_error = []
+            total_error = 0
+            for i in range(len(WangTiles)):
+
+                # top, left, bottom, right
+                tile = WangTiles[i][0]
+                comparison = []
+                # comp AB
+                #               tile varient number, X or Y type, comparison type
+                comparison.append((tile[0], 0, 2, tile[1], 1, 0))
+                # comp BC
+                comparison.append((tile[1], 1, 3, tile[2], 2, 1))
+                # comp CD
+                comparison.append((tile[2], 2, 0, tile[3], 3, 2))
+                # comp DA
+                comparison.append((tile[3], 3, 1, tile[0], 0, 3))
+                for j in range(4):
+                    if comparison[j] in skip_list:
+                        total_error = total_error + skip_error[skip_list.index(comparison[j])]
+                    else:
+                        skip_list.append(comparison[j])
+                        error = self.CompareRegionError2(comparison[j])
+                        total_error = total_error + error
+                        skip_error.append(error)
+
+                error_list.append(total_error)
+                possible_list.append(possibles)
 
 
         sel = min(error_list)
         k = error_list.index(sel)
-        xx1, yy1, xx2, yy2 = possible_list[k]
+        possibles = possible_list[k]
 
-        self.tiles_X.append(Image.new("RGB",(w,w)))
-        a = texture.crop((xx1, yy1, xx1 + w, yy1 + w))
-        self.tiles_X[0].paste(a,(0,0,w,w))
+        for i in range(X):
+            a = texture.crop((possibles[i][0], possibles[i][1], possibles[i][0] + w, possibles[i][1] + w))
+            self.tiles_X[i].paste(a,(0,0,w,w))
 
-        self.tiles_X.append(Image.new("RGB",(w,w)))
-        a = texture.crop((xx2, yy2, xx2 + w, yy2 + w))
-        self.tiles_X[1].paste(a,(0,0,w,w))
+        for i in range(Y):
+            a = texture.crop((possibles[i+X][0], possibles[i+X][1], possibles[i+X][0] + w, possibles[i+X][1] + w))
+            self.tiles_Y[i].paste(a,(0,0,w,w))
 
-        # If the error is below the threshold, return this tile for blitting
-        ret = pygame.Surface((w*2,w*2))
-        aa = pygame.image.frombuffer((self.tiles_X[0].tostring()), (w,w), "RGB")
-        ret.blit(aa, (0,0))
-        aa = pygame.image.frombuffer((self.tiles_X[1].tostring()), (w,w), "RGB")
-        ret.blit(aa, (w-v,0))
+        # Go through blitting all the wang tiles formed by these input tiles
+        # to the example output image
+        ret = pygame.Surface((w*2*(len(WangTiles)),w*2))
+        for i in range(len(WangTiles)):
+            aa = pygame.image.frombuffer((self.tiles_X[WangTiles[i][0][0]].tostring()), (w,w), "RGB")
+            ret.blit(aa, (0+(i*w*2),0))
+            aa = pygame.image.frombuffer((self.tiles_Y[WangTiles[i][0][1]].tostring()), (w,w), "RGB")
+            ret.blit(aa, (0+(i*w*2),w-v))
+            aa = pygame.image.frombuffer((self.tiles_Y[WangTiles[i][0][2]].tostring()), (w,w), "RGB")
+            ret.blit(aa, (w-v+(i*w*2),0))
+            aa = pygame.image.frombuffer((self.tiles_X[WangTiles[i][0][3]].tostring()), (w,w), "RGB")
+            ret.blit(aa, (w-v+(i*w*2),w-v))
+
+
+##    WangTiles.append(((0,0,0,0), 0))     # 0
+
+##        # If the error is below the threshold, return this tile for blitting
+##        ret = pygame.Surface((w*2,w*2))
+##        aa = pygame.image.frombuffer((self.tiles_X[0].tostring()), (w,w), "RGB")
+##        ret.blit(aa, (0,0))
+##        aa = pygame.image.frombuffer((self.tiles_Y[0].tostring()), (w,w), "RGB")
+##        ret.blit(aa, (0,w-v))
+##        aa = pygame.image.frombuffer((self.tiles_Y[1].tostring()), (w,w), "RGB")
+##        ret.blit(aa, (w-v,0))
+##        aa = pygame.image.frombuffer((self.tiles_X[1].tostring()), (w,w), "RGB")
+##        ret.blit(aa, (w-v,w-v))
 
         return ret
 
