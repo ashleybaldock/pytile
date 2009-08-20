@@ -2,6 +2,7 @@
 # Development of image quilting algorythm implementation
 # Test 1, Mk.2 - Implement random tiling
 # Test 1, Mk.3 - Implement overlapping tiles
+# Test 1, Mk.4 - Optimization
 
 import os, sys
 import pygame
@@ -10,7 +11,7 @@ import Image
 
 # paksize
 p = 64
-# Width of tile fragment
+# Width/height of tile fragment
 w = 32
 # Overlap
 v = 5
@@ -21,25 +22,22 @@ TRANSPARENT = (231,255,255)
 
 # First, need a class which represents the input texture
 class Texture:
-    """A texture object, has methods related to it"""    
+    """Texture object for tiling"""    
     def __init__(self, rect=None, val=0):
         self.texture = pygame.image.load("texture3a.png")
         self.texture.set_alpha(None)
         self.texture = self.texture.convert()
-        self.texture2 = pygame.image.load("texture4.png")
-        self.texture2.set_alpha(None)
-        self.texture2 = self.texture2.convert()
+
         self.tex_x = self.texture.get_width()
         self.tex_y = self.texture.get_height()
-    def GetMatchingSquare(self, x_pos, y_pos):
-        """Finds a square that matches the edges of the existing pattern"""
-        return 0
 
-    def CompareRegionError(self, region1a, region2a):
+        self.texture_pil = Image.fromstring("RGBX", (self.tex_x,self.tex_y), pygame.image.tostring(self.texture, "RGBX"))
+
+    def CompareRegionError(self, region1, region2):
         """Compares two surfaces to find the error between them"""
-        # Convert to PIL format
-        region1 = Image.fromstring("RGBX", (v,w), pygame.image.tostring(region1a, "RGBX"))
-        region2 = Image.fromstring("RGBX", (v,w), pygame.image.tostring(region2a, "RGBX"))
+##        # Convert to PIL format
+##        region1 = Image.fromstring("RGBX", (v,w), pygame.image.tostring(region1a, "RGBX"))
+##        region2 = Image.fromstring("RGBX", (v,w), pygame.image.tostring(region2a, "RGBX"))
         
 ##        # The two regions must be of the same size, else this will fail
 ##        if region1.size != region2.size:
@@ -50,15 +48,15 @@ class Texture:
         # Make pixel access objects
         r1 = region1.load()
         r2 = region2.load()
-        
+
         # Now go through for all pixels and calculate the difference
         # between the two images
         
         diff_total = 0
         for x in range(width):
             for y in range(height):
-                r1_r, r1_g, r1_b, r1_a = r1[x,y]
-                r2_r, r2_g, r2_b, r1_a = r2[x,y]
+                r1_r, r1_g, r1_b = r1[x,y]
+                r2_r, r2_g, r2_b = r2[x,y]
                 
                 if r1_r > r2_r:
                     diff_r = r1_r - r2_r
@@ -94,14 +92,18 @@ class Texture:
     def GetSurfaceToCompare(self, x, y, existing):
         """Gets the right shaped bit from the output image to compare
         to the next square"""
-        a = pygame.Surface((v,w))
+##        a = pygame.Surface((v,w))
+##        a.blit(existing, (0,0), ((x*w)-(x*v),(y*w)-(y*v), (x*w)-(x*v)+v,(y*w)-(y*v)+w))
+        a = existing.crop(((x*w)-(x*v),(y*w)-(y*v), (x*w)-(x*v)+v,(y*w)-(y*v)+w))
 
-
-        a.blit(existing, (0,0), ((x*w)-(x*v),(y*w)-(y*v), (x*w)-(x*v)+v,(y*w)-(y*v)+w))
         return a
 
     def GetRegion(self, x, y, x_pos, y_pos, existing):
+        """Returns a square of texture which will neatly match with the existing
+        texture available"""
         bleh = 0
+
+        existing_pil = Image.fromstring("RGBX", (existing.get_width(),existing.get_height()), pygame.image.tostring(existing, "RGBX"))
 
         if x_pos == 0:# and y_pos == 0:
             ret = pygame.Surface((x,y))
@@ -114,15 +116,23 @@ class Texture:
             error_list = []
             for i in range(self.tex_x - w):
                 for j in range(self.tex_y - w):
-                    ret = pygame.Surface((x,y))
-##                    from_x = random.randint(0, self.tex_x - x)
-##                    from_y = random.randint(0, self.tex_y - y)
-##                    ret.blit(self.texture, (0,0), (from_x, from_y, from_x + x, from_y + y))
-                    ret.blit(self.texture, (0,0), (i, j, i + x, j + y))
+##                    ret = pygame.Surface((x,y))
+####                    from_x = random.randint(0, self.tex_x - x)
+####                    from_y = random.randint(0, self.tex_y - y)
+####                    ret.blit(self.texture, (0,0), (from_x, from_y, from_x + x, from_y + y))
+##                    ret.blit(self.texture, (0,0), (i, j, i + x, j + y))
 
-                    reg1 = self.GetSurfaceToCompare(x_pos, y_pos, existing)
-                    reg2 = pygame.Surface((v,w))
-                    reg2.blit(ret, (0,0), (0,0, v,w))
+                    r2 = self.texture_pil.crop((i, j, i + v, j + w))
+                    reg2 = Image.new("RGB",(v,w))
+                    reg2.paste(r2,(0,0,v,w))
+
+                    r1 = self.GetSurfaceToCompare(x_pos, y_pos, existing_pil)
+                    reg1 = Image.new("RGB",(v,w))
+                    reg1.paste(r1,(0,0,v,w))
+
+##                    reg1 = self.GetSurfaceToCompare(x_pos, y_pos, existing)
+##                    reg2 = pygame.Surface((v,w))
+##                    reg2.blit(ret, (0,0), (0,0, v,w))
 
 
                     error = self.CompareRegionError(reg1, reg2)
