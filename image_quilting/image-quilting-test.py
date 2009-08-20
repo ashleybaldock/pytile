@@ -3,6 +3,7 @@
 # Test 1, Mk.2 - Implement random tiling
 # Test 1, Mk.3 - Implement overlapping tiles
 # Test 1, Mk.4 - Optimization
+# Test 1, Mk.5 - Implement 2-D overlapping tiles (y dimension also)
 
 import os, sys
 import pygame
@@ -53,6 +54,7 @@ class Texture:
         # between the two images
         
         diff_total = 0
+        max_total = width * height * 255 * 3.0
         for x in range(width):
             for y in range(height):
                 r1_r, r1_g, r1_b = r1[x,y]
@@ -82,8 +84,9 @@ class Texture:
                 # The smaller the value of diff_total, the smaller
                 # the overall difference or error
                 diff_total = diff_total + (diff_r + diff_g + diff_b)
-                
-        return diff_total
+
+        percent_error = diff_total / max_total
+        return percent_error
 
 ##        # Now convert back to pygame format
 ##        region1 = pygame.image.frombuffer((region1.tostring()), (p,p), "RGBX")
@@ -105,49 +108,95 @@ class Texture:
 
         existing_pil = Image.fromstring("RGBX", (existing.get_width(),existing.get_height()), pygame.image.tostring(existing, "RGBX"))
 
-        if x_pos == 0:# and y_pos == 0:
-            ret = pygame.Surface((x,y))
-            from_x = random.randint(0, self.tex_x - x)
-            from_y = random.randint(0, self.tex_y - y)
-            ret.blit(self.texture, (0,0), (from_x, from_y, from_x + x, from_y + y))
-##            ret.blit(self.texture2, (0,0), (0, 0, w, w))
+        # If x is 0, this is the top row, so only compare
+        # the left values
+        if x_pos == 0:
+            # If x and y are 0, this is the top-left corner,
+            # thus pick a start tile at random
+            if y_pos == 0:
+                ret = pygame.Surface((x,y))
+                from_x = random.randint(0, self.tex_x - x)
+                from_y = random.randint(0, self.tex_y - y)
+                ret.blit(self.texture, (0,0), (from_x, from_y, from_x + x, from_y + y))
+                return ret
+            # Otherwise, compare only the left-hand overlap
+            else:
+                # If x is 0 then this is the left-most column,
+                # thus only consider the top overlap
+                possible_list = []
+                error_list = []
+                for i in range(self.tex_x - w):
+                    for j in range(self.tex_y - w):
+                        r2 = self.texture_pil.crop((i, j, i + w, j + v))
+                        reg2 = Image.new("RGB",(w,v))
+                        reg2.paste(r2,(0,0,w,v))
+
+                        r1 = existing_pil.crop(((x_pos*w)-(x_pos*v),(y_pos*w)-(y_pos*v), (x_pos*w)-(x_pos*v)+w,(y_pos*w)-(y_pos*v)+v))
+                        reg1 = Image.new("RGB",(w,v))
+                        reg1.paste(r1,(0,0,w,v))
+
+                        error = self.CompareRegionError(reg1, reg2)
+
+                        possible_list.append((i, j))
+                        error_list.append(error)
         else:
-            possible_list = []
-            error_list = []
-            for i in range(self.tex_x - w):
-                for j in range(self.tex_y - w):
-##                    ret = pygame.Surface((x,y))
-####                    from_x = random.randint(0, self.tex_x - x)
-####                    from_y = random.randint(0, self.tex_y - y)
-####                    ret.blit(self.texture, (0,0), (from_x, from_y, from_x + x, from_y + y))
-##                    ret.blit(self.texture, (0,0), (i, j, i + x, j + y))
+            if y_pos == 0:
+                possible_list = []
+                error_list = []
+                for i in range(self.tex_x - w):
+                    for j in range(self.tex_y - w):
+                        r2 = self.texture_pil.crop((i, j, i + v, j + w))
+                        reg2 = Image.new("RGB",(v,w))
+                        reg2.paste(r2,(0,0,v,w))
 
-                    r2 = self.texture_pil.crop((i, j, i + v, j + w))
-                    reg2 = Image.new("RGB",(v,w))
-                    reg2.paste(r2,(0,0,v,w))
+                        r1 = self.GetSurfaceToCompare(x_pos, y_pos, existing_pil)
+                        reg1 = Image.new("RGB",(v,w))
+                        reg1.paste(r1,(0,0,v,w))
 
-                    r1 = self.GetSurfaceToCompare(x_pos, y_pos, existing_pil)
-                    reg1 = Image.new("RGB",(v,w))
-                    reg1.paste(r1,(0,0,v,w))
+                        error = self.CompareRegionError(reg1, reg2)
 
-##                    reg1 = self.GetSurfaceToCompare(x_pos, y_pos, existing)
-##                    reg2 = pygame.Surface((v,w))
-##                    reg2.blit(ret, (0,0), (0,0, v,w))
-
-
-                    error = self.CompareRegionError(reg1, reg2)
-                    if error <= 32000:
                         possible_list.append((i, j))
                         error_list.append(error)
 
+            # Otherwise, consider both top and left overlaps
+            else:
+                possible_list = []
+                error_list = []
+                for i in range(self.tex_x - w):
+                    for j in range(self.tex_y - w):
+                        # First compare left
+                        r2 = self.texture_pil.crop((i, j, i + v, j + w))
+                        reg2 = Image.new("RGB",(v,w))
+                        reg2.paste(r2,(0,0,v,w))
 
-            sel = min(error_list)
-            k = error_list.index(sel)
+                        r1 = self.GetSurfaceToCompare(x_pos, y_pos, existing_pil)
+                        reg1 = Image.new("RGB",(v,w))
+                        reg1.paste(r1,(0,0,v,w))
+
+                        error1 = self.CompareRegionError(reg1, reg2)
+
+                        # Now compare the top
+                        r2 = self.texture_pil.crop((i, j, i + w, j + v))
+                        reg2 = Image.new("RGB",(w,v))
+                        reg2.paste(r2,(0,0,w,v))
+
+                        r1 = existing_pil.crop(((x_pos*w)-(x_pos*v),(y_pos*w)-(y_pos*v), (x_pos*w)-(x_pos*v)+w,(y_pos*w)-(y_pos*v)+v))
+                        reg1 = Image.new("RGB",(w,v))
+                        reg1.paste(r1,(0,0,w,v))
+
+                        error2 = self.CompareRegionError(reg1, reg2)
+
+                        possible_list.append((i, j))
+                        error_list.append(error1 + error2)
+
+
+        sel = min(error_list)
+        k = error_list.index(sel)
 ##            k = random.randint(0,len(error_list))
-            si, sj = possible_list[k]
-            
-            ret = pygame.Surface((x,y))
-            ret.blit(self.texture, (0,0), (si, sj, si + x, sj + y))
+        si, sj = possible_list[k]
+        
+        ret = pygame.Surface((x,y))
+        ret.blit(self.texture, (0,0), (si, sj, si + x, sj + y))
 
         return ret
 
@@ -155,7 +204,7 @@ class DisplayMain:
     """This handles the main initialisation
     and startup for the display"""
 
-    def __init__(self, width=1024,height=600):
+    def __init__(self, width=800,height=600):
         # Initialize PyGame
         pygame.init()
         
@@ -176,7 +225,7 @@ class DisplayMain:
     def MainLoop(self):
         """This is a testing loop to display the output of the rendering tests"""
 
-        """Create the background"""
+        # Create the background
         self.background = pygame.Surface(self.screen.get_size())
         self.background = self.background.convert()
         #self.background.set_colorkey((231,255,255))
@@ -186,16 +235,16 @@ class DisplayMain:
         # Find the width and height of the screen as multiples of w
 ##        tiles_wide = self.width / (w - v)
 ##        tiles_high = self.height / (w - v)
-        tiles_wide = 10
-        tiles_high = 1
+        tiles_wide = 4
+        tiles_high = 5
 
         #array = self.MakeTileArray(tiles_high, tiles_wide)
 
-        for x in range(tiles_wide):
-            for y in range(tiles_high):
+        for y in range(tiles_high):
+            for x in range(tiles_wide):
 
 ##                self.background.blit(self.texture.GetRegion(w,w, x, y, self.background.copy()), ((x*w),(y*w)))
-                self.background.blit(self.texture.GetRegion(w,w, x, y, self.background), ((x * w) - (x * v),(y * w)))# - (y * v)))
+                self.background.blit(self.texture.GetRegion(w,w, x, y, self.background), ((x * w) - (x * v),(y * w) - (y * v)))
                 self.screen.blit(self.background, (0, 0))
                 pygame.display.flip()
                 
