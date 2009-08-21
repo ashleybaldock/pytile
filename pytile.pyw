@@ -58,6 +58,56 @@ FPS_REFRESH = 500
 WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 600
 
+class TextSprite(pygame.sprite.Sprite):
+    """Subclass of sprite to draw text to the screen"""
+    def __init__(self, position, textstring, font, fg=(0,0,0), bg=None,
+                 borderwidth=0, bordercolour=(0,0,0),
+                 bold=False, italic=False, underline=False,
+                 line_spacing=3, padding=5):
+        pygame.sprite.Sprite.__init__(self)
+
+        self.position = position
+        self.font = font
+        self.fg = fg
+        self.bg = bg
+        self.borderwidth = borderwidth
+        self.bordercolour = bordercolour
+        self.line_spacing = line_spacing
+        self.padding = padding
+        self.font.set_bold(bold)
+        self.font.set_italic(italic)
+        self.font.set_underline(underline)
+
+        self.text = textstring
+        self.update()
+
+    def update(self):
+        """"""
+        textimages = []
+        # Render all lines of text
+        for t in self.text:
+            textimages.append(self.font.render(t, False, self.fg, self.bg))
+
+        # Find the largest width line of text
+        debug(str(textimages))
+        maxwidth = max(textimages, key=lambda x: x.get_width()).get_width()
+        debug(str(maxwidth))
+        # Produce an image to hold all of the text strings
+        self.image = pygame.Surface((maxwidth + 2 * (self.borderwidth + self.padding),
+                                     textimages[0].get_height() * len(textimages) \
+                                     + self.line_spacing * (len(textimages) - 1) \
+                                     + 2 * (self.borderwidth + self.padding)))
+        self.image.fill(self.bg)
+        if self.borderwidth > 0:
+            pygame.draw.rect(self.image, self.bordercolour,
+                             (0, 0, self.image.get_width(), self.image.get_height()), self.borderwidth)
+        for n, t in enumerate(textimages):
+            self.image.blit(t, (self.borderwidth + self.padding,
+                                self.borderwidth + self.padding + (self.line_spacing + t.get_height()) * n))
+
+        self.rect = (self.position[0], self.position[1], self.image.get_width(), self.image.get_height())
+        return self.rect
+
 
 class TileSprite(pygame.sprite.Sprite):
     """Ground tiles"""
@@ -278,8 +328,22 @@ class DisplayMain(object):
         self.lmb_tool = tools.Test()
         self.rmb_tool = tools.Move()
 
-        # Array of tiles which should have highlighting applied to them
+        # overlay_sprites is for text that overlays the terrain in the background
+        self.overlay_sprites = pygame.sprite.LayeredUpdates()
+
+        # Set up instructions font
+        font_size = 18
+        instructions_offx = 10
+        instructions_offy = 10
         
+##        instructions_font = pygame.font.SysFont("Arial", font_size)
+        instructions_font = pygame.font.SysFont(pygame.font.get_default_font(), font_size)
+        # Make a text sprite to display the instructions
+        self.active_tool_sprite = TextSprite((10,10), ["test text2"], instructions_font, 
+                                             fg=(0,0,0), bg=(255,255,255), bold=False)
+        self.overlay_sprites.add(self.active_tool_sprite, layer=100)
+
+
         while True:
             self.clock.tick(0)
             # If there's a quit event, don't bother parsing the event queue
@@ -298,7 +362,18 @@ class DisplayMain(object):
                     if not self.lmb_tool.process_key(event.key):
                         # process_key() will always return False if it hasn't processed the key,
                         # so that keys can be used for other things if a tool doesn't want them
-                        pass
+                        if event.key == pygame.K_t:
+                            # Activate track drawing mode
+                            debug("Track drawing mode active")
+                            self.lmb_tool = tools.Track()
+                            self.active_tool_sprite.text = ["Track drawing"]
+                            self.dirty.append(self.active_tool_sprite.update())
+                        if event.key == pygame.K_h:
+                            # Activate terrain modification mode
+                            debug("Terrain modification mode active")
+                            self.lmb_tool = tools.Test()
+                            self.active_tool_sprite.text = ["Terrain modification"]
+                            self.dirty.append(self.active_tool_sprite.update())
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     # LMB
@@ -373,12 +448,14 @@ class DisplayMain(object):
             if self.refresh_screen == 1:
                 self.screen.fill((0,0,0))
                 rectlist = self.orderedSprites.draw(self.screen)
+                rectlist = self.overlay_sprites.draw(self.screen)
                 pygame.display.update()
                 self.refresh_screen = 0
             else:
                 for r in self.dirty:
                     self.screen.fill((0,0,0), r)
                 rectlist = self.orderedSprites.draw(self.screen)
+                rectlist = self.overlay_sprites.draw(self.screen)
                 pygame.display.update(self.dirty)
 
 

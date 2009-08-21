@@ -147,6 +147,139 @@ class Move(Tool):
         World.set_offset(World.dxoff + rel_x, World.dyoff + rel_y)
 ##        print "rel_x: %s, World.dxoff: %s, rel_y: %s, World.dyoff: %s" % (rel_x, World.dxoff, rel_y, World.dyoff)
 
+class Track(Tool):
+    """Track drawing tool"""
+    start = None
+    aoe = []
+    width = 1
+    def __init__(self):
+        """"""
+        # Call init method of parent
+        super(Track, self).__init__()
+        # The tile found through collision detection
+        self.tile = None
+        # The subtile of that tile
+        self.subtile = None
+        # tiles - all the tiles in the primary area of effect (ones which are modified first)
+        self.tiles = []
+        # Whether to redraw areas of the screen for aoe/highlight
+        self.aoe_changed = False
+        self.highlight_changed = False
+        self.highlight = []
+        self.aoe = []
+    def process_key(self, key):
+        """Process keystrokes sent to this tool"""
+        keyname = pygame.key.name(key)
+        ret = False
+        if keyname == "1":
+            self.width = 1
+            ret = True
+        elif keyname == "2":
+            self.width = 2
+            ret = True
+        print keyname
+        return ret
+    def active(self):
+        """Return true if tool currently being used and screen needs updating"""
+        # Used to test whether the tiles being returned need to be updated
+        if self.start:
+            return True
+        else:
+            return False
+    def get_aoe(self):
+        """Return the current area of effect for this tool"""
+        return self.aoe
+    def has_aoe_changed(self):
+        """Return True if the area of effect of this tool has changed since the last call to this function"""
+        return self.aoe_changed
+    def set_aoe_changed(self, v):
+        """When aoe changes, call this to tell the main program that the area of effect on the screen must be updated"""
+        self.aoe_changed = v
+    def clear_aoe(self):
+        """Clear the area of effect, changes will only be drawn if has_aoe_changed returns True"""
+        self.aoe = []
+        return True
+
+    # Highlight related access functions
+    # External
+    def get_highlight(self):
+        """Return the current highlight area for this tool"""
+        return self.highlight
+    def get_last_highlight(self):
+        """Return the previous highlight"""
+        return self.last_highlight
+    def has_highlight_changed(self):
+        """Return True if the area of effect of this tool has changed since last call to update()"""
+        return self.highlight_changed
+    # Internal
+    def set_highlight(self, value):
+        """Set the current highlight for this tool"""
+        self.last_highlight = self.highlight
+        self.highlight = value
+    def set_highlight_changed(self, v):
+        """When highlight changes (e.g. mouse cursor moves) set this to have the appropriate bit of the screen refreshed"""
+        self.highlight_changed = v
+    def find_highlight(self, x, y, subtile):
+        """Find the primary area of effect of the tool, based on tool dimensions
+        Return a list of tiles to modify in [(x,y), modifier] form
+        Used to specify region which will be highlighted"""
+        tiles = []
+        if Test.xdims > 1 or Test.ydims > 1:
+            for xx in range(Test.xdims):
+                for yy in range(Test.ydims):
+                    tiles.append([(x + xx, y + yy), 9])
+        else:
+            tiles = [[(x, y), subtile]]
+        return tiles
+
+
+    def find_rect_aoe(self, x, y):
+        """Return a list of tiles for the primary area of effect of the tool based on a box pattern"""
+        tiles = []
+        for xx in range(Test.xdims):
+            for yy in range(Test.ydims):
+                tiles.append((x + xx, y + yy))
+        return tiles
+
+    def begin(self, start):
+        """Reset the start position for a new operation"""
+        self.start = start
+        self.addback = 0
+    def end(self, final):
+        """End of application of tool"""
+        self.current = final
+        self.tiles = []
+        self.start = None
+    def update(self, current, collisionlist):
+        """Tool updated, current cursor position is newpos"""
+        # If start is None, then there's no dragging operation ongoing, just update the position of the highlight
+        self.current = current
+        if self.start == None:
+            tile = self.collide_locate(self.current, collisionlist)
+            if tile and not tile.exclude:
+                subtile = self.subtile_position(self.current, tile)
+                # Only update the highlight if the cursor has changed enough to require it
+                if tile != self.tile or subtile != self.subtile:
+                    self.set_highlight(self.find_highlight(tile.xWorld, tile.yWorld, subtile))
+                    self.set_highlight_changed(True)
+                else:
+                    self.set_highlight_changed(False)
+                self.tile = tile
+                self.subtile = subtile
+            else:
+                self.set_highlight(None)
+                self.set_highlight_changed(True)
+                self.tile = None
+                self.subtile = None
+ 
+
+
+
+
+
+
+
+
 
 class Test(Tool):
     """Testing tool"""
@@ -171,27 +304,34 @@ class Test(Tool):
         self.highlight = []
         self.aoe = []
     def process_key(self, key):
-        """Process a keystroke during a drag operation"""
+        """Process keystrokes sent to this tool"""
         keyname = pygame.key.name(key)
+        ret = False
         if keyname == "k":
             Test.xdims += 1
+            ret = True
         elif keyname == "o":
             Test.xdims -= 1
             if Test.xdims < 1:
                 Test.xdims = 1
+            ret = True
         elif keyname == "l":
             Test.ydims += 1
+            ret = True
         elif keyname == "i":
             Test.ydims -= 1
             if Test.ydims < 1:
                 Test.ydims = 1
+            ret = True
         elif keyname == "s":
             Test.smooth = not(Test.smooth)
+            ret = True
         if keyname in ["i","o","k","l"]:
             self.set_highlight(self.find_highlight(self.tile.xWorld, self.tile.yWorld, self.subtile))
             self.set_highlight_changed(True)
-        print keyname
-        return True
+            ret = True
+        return ret
+
     def active(self):
         """Return true if tool currently being used and screen needs updating"""
         # Used to test whether the tiles being returned need to be updated
