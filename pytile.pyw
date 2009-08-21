@@ -30,6 +30,16 @@
 # BUG - background isn't blanked to black when raise/lower on the edges of the world        - Fixed
 
 
+# To add tracks - 
+#   Need to extend World schema to have slots for the track data on tiles
+#   Extend world painting to include drawing of tracks
+#   Port over the bezier curve drawing system
+#   Port over perspective transform for the flat images the bezier curve system produces
+#   Add Different highlight types (indexable by name)
+#   Add methods to track tool to actually draw tracks
+#       Extend this method with pathfinding to draw more than one tile's worth of track
+
+
 import os, sys
 import pygame
 import random, math
@@ -107,6 +117,7 @@ class TextSprite(pygame.sprite.Sprite):
 
         self.rect = (self.position[0], self.position[1], self.image.get_width(), self.image.get_height())
         return self.rect
+
 
 
 class TileSprite(pygame.sprite.Sprite):
@@ -328,6 +339,7 @@ class DisplayMain(object):
         self.lmb_tool = tools.Test()
         self.rmb_tool = tools.Move()
 
+
         # overlay_sprites is for text that overlays the terrain in the background
         self.overlay_sprites = pygame.sprite.LayeredUpdates()
 
@@ -336,7 +348,6 @@ class DisplayMain(object):
         instructions_offx = 10
         instructions_offy = 10
         
-##        instructions_font = pygame.font.SysFont("Arial", font_size)
         instructions_font = pygame.font.SysFont(pygame.font.get_default_font(), font_size)
         # Make a text sprite to display the instructions
         self.active_tool_sprite = TextSprite((10,10), ["test text2"], instructions_font, 
