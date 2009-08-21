@@ -1,10 +1,12 @@
 #!/usr/bin/python
 # Development of the rendered grounds system
 # Test 1, Mk.2 - merging textures
+# Test 1, Mk.3 - PIL tranforms to map rgb maps onto tiles
 
 import os, sys
 import pygame
 import random
+import Image
 
 #paksize
 p = 64
@@ -107,11 +109,14 @@ class DisplayMain:
 
         self.output = []
         for i in range(4):
-            self.output.append(self.MergeRGB(RGBmap.maps[i], Texture.textures[0], Texture.textures[1]))
+            self.output.append(self.MergeRGB((self.RGBtoTile(RGBmap.maps[i])), Texture.textures[0], Texture.textures[1]))
 
         self.output2 = []
         for i in range(15):
             self.output2.append(self.TextureTile(Lightmap.lightmap_tiles[i] ,Texture.textures[1]))
+
+        self.output3 = []
+        self.output3.append(self.RGBtoTile(RGBmap.maps[1]))
 
     def MainLoop(self):
         """This is the Main Loop of the Game"""
@@ -136,10 +141,62 @@ class DisplayMain:
                 self.background.blit(self.output2[i], ((3 * p),(p * i)))
             for i in range(7):
                 self.background.blit(self.output2[(i + 8)], ((4 * p),(p * i)))
+                
+            self.background.blit(self.output3[0], ((5 * p),(p * i)))
+            
             self.screen.blit(self.background, (0, 0))
 
             pygame.display.flip()
 
+            pygame.time.wait(100)
+
+    def RGBtoTile(self, rgbmap, tile=0):
+        """Deforms a square rgb map image to the shape of a tile,
+           tile shape is given by a bitmask representing the heights
+           at the corners of a tile, in order top, right, bottom, left"""
+        
+        # First transfer image data to PIL format
+        rgbmap_pil = Image.fromstring("RGBX", (p,p), pygame.image.tostring(rgbmap, "RGBX"))
+
+
+        root2 = 1.4142135623730950488016887242097
+        
+
+        
+        # Now use transform to fuck around with it
+##        rgbmap_changed = rgbmap_pil.transform((p,p), Image.AFFINE, ((root2), (1/-root2), ((p/2) - (p/root2)), 1/root2, root2, -p))
+##        rgbmap_changed = rgbmap_pil.transform((p,p), Image.AFFINE, (root2, (1/-root2), ((p/2) - (p/root2)), 1/(2 * root2), 2 * root2, -p/4))
+##        rgbmap_changed = rgbmap_pil.transform((p,p), Image.AFFINE, ((1/root2), (-1/root2), p/2 - p/root2, 1/root2, 1/root2, -p/2))
+
+
+        #rgbmap_pil = rgbmap_pil.transform((p,p), Image.QUAD, (0,0, 0,p, p + p/4,p, p,0))
+
+
+        #rgbmap_pil = rgbmap_pil.transform((p,p), Image.QUAD, (-p/4,0, 0,p, p,p, p,-p/4))
+
+                                                                    #a,b,c, d,e,f, g,h
+        #rgbmap_pil = rgbmap_pil.transform((p,p), Image.PERSPECTIVE, (11.0/36.0, 7.0/36.0, 0, -1.0/3.0,1.0/4.0,p/3.0, -1.0/(12*p),-5.0/(12.0*p)))
+##        rgbmap_pil = rgbmap_pil.transform((p,p), Image.PERSPECTIVE, (168.0/61.0, -84.0/61.0, 28.0*p/61.0,
+##                                                                     132.0/61.0, 132.0/61.0, -44.0*p/61.0,
+##                                                                     69.0/(61*p),48.0/(61.0*p)))
+
+        rgbmap_pil = rgbmap_pil.transform((p,p), Image.PERSPECTIVE, (1, 2, -(3.0*p)/2.0,
+                                                                     -1, 2, -p/2.0,
+                                                                     0,0))
+
+        #rgbmap_pil = rgbmap_pil.transform((p,p), Image.AFFINE, (1, -2, 3.0/2*p, 1, 2, -3.0/2*p))
+        #rgbmap_pil = rgbmap_pil.transform((p,p), Image.AFFINE, (1/root2, -1/root2, p/2 + p/(2*root2), 1/root2, 1/root2, p/2 + p/(2*root2)))
+
+
+        #rgbmap_pil = rgbmap_pil.transform((p,p), Image.AFFINE, (1/root2,-1/root2,0, 1/root2,1/root2,0))
+
+        #rgbmap_pil = rgbmap_pil.transform((p,p), Image.AFFINE, (1, 0, 0, 0, 1, -p/root2))
+
+        # Now convert back to pygame format
+        output = pygame.image.frombuffer((rgbmap_pil.tostring()), (p,p), "RGBX")
+
+        # Return the output
+        return output
 
     def MergeRGB(self, map, redtex, bluetex, greentex=None):
         """Merges together two or three textures based on the rgb values of the
@@ -166,19 +223,23 @@ class DisplayMain:
                     bt_r, bt_g, bt_b, bt_a = bluetex.get_at((x, y))
                     #
                     red, green, blue, alpha = map.get_at((x, y))
-                    #
-                    # Calc % values
-                    percent_red = (float(red) / 255.0)
-                    percent_blue = (float(blue) / 255.0)
-                    # Calc red value
-                    red_out = int(((float(rt_r) * percent_red) + (float(bt_r) * percent_blue)) / (percent_red + percent_blue))
-                    # Calc green value
-                    green_out = int(((float(rt_g) * percent_red) + (float(bt_g) * percent_blue)) / (percent_red + percent_blue))
-                    # Calc blue value
-                    blue_out = int(((float(rt_b) * percent_red) + (float(bt_b) * percent_blue)) / (percent_red + percent_blue))
+                    # Remove this!
+                    if red == 0 and blue == 0:
+                        output.set_at((x, y), TRANSPARENT)
+                    else:
+                        #
+                        # Calc % values
+                        percent_red = (float(red) / 255.0)
+                        percent_blue = (float(blue) / 255.0)
+                        # Calc red value
+                        red_out = int(((float(rt_r) * percent_red) + (float(bt_r) * percent_blue)) / (percent_red + percent_blue))
+                        # Calc green value
+                        green_out = int(((float(rt_g) * percent_red) + (float(bt_g) * percent_blue)) / (percent_red + percent_blue))
+                        # Calc blue value
+                        blue_out = int(((float(rt_b) * percent_red) + (float(bt_b) * percent_blue)) / (percent_red + percent_blue))
 
-                    # Set output surface pixel to this value
-                    output.set_at((x, y), (red_out, green_out, blue_out, 255))
+                        # Set output surface pixel to this value
+                        output.set_at((x, y), (red_out, green_out, blue_out, 255))
                     
         # Finally, unlock all and return output
         redtex.unlock()
