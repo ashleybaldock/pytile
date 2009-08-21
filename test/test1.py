@@ -2,6 +2,15 @@
 # Second test of the ground display system
 # Test3 - new slope decision system based on rotated wildcard grids
 # Test4 - slope decision system improved, raise and lower tools implemented
+# Test5 - adding vertical slopes/cliffs
+
+# Level 0 = sea level, anything below this is automatically aquatic terrain,
+#           the level of sea level cannot change in the game, below sea level
+#           there can be as many levels as needed, cliffs are drawn at the edge
+#           of the map for 4 layers below the lowest layer of sea, or for 8 layers
+#           whichever is more
+#
+# Level 1+ = ground levels, can have as many layers above sea level as required.
 
 import os, sys
 import pygame
@@ -12,6 +21,40 @@ p = 64
 
 #tile height difference
 ph = 8
+
+
+
+class Cliff(pygame.sprite.Sprite):
+    """All types of ground cliff"""
+    image = None
+    
+    def __init__(self, rect=None, val=0):
+
+        pygame.sprite.Sprite.__init__(self)
+        if Cliff.image is None:
+            Cliff.image = pygame.image.load("ground.png")
+            Cliff.image = Cliff.image.convert()
+            #Cliff.image.convert_alpha()
+            Cliff.cliff_images = []
+            # Now load the cliff components,
+            # First set face east
+            for i in range(0,5):
+                Cliff.cliff_images.append(pygame.Surface((p,p), pygame.HWSURFACE, Cliff.image))
+                Cliff.cliff_images[i].blit(Cliff.image, (0,0), ((i * p), (10 * p), p,p))
+
+            i = 0
+            # Now load the south-facing set
+            for i in range(0,5):
+                Cliff.cliff_images.append(pygame.Surface((p,p), pygame.HWSURFACE, Cliff.image))
+                Cliff.cliff_images[(i+5)].blit(Cliff.image, (0,0), ((i * p), (11 * p), p,p))
+
+        # Pre-load this sprite's image, so that it is only loaded once
+        self.image = Cliff.cliff_images[val]
+        self.rect = self.image.get_rect()
+        
+        if rect != None:
+            self.rect = rect
+
 
 class Tile(pygame.sprite.Sprite):
     """All types of ground tile"""
@@ -26,20 +69,28 @@ class Tile(pygame.sprite.Sprite):
         # isinstance(obj, pygame.sprite.Sprite) return true on it.
         pygame.sprite.Sprite.__init__(self)
         if Tile.image is None:
-            Tile.image = pygame.image.load("ground.png")
-            Tile.image.convert_alpha()
+            bb = pygame.image.load("ground.png")
+            Tile.image = bb.convert()
+            Tile.image.set_colorkey((231,255,255), pygame.RLEACCEL)
+            #Tile.image.convert_alpha()
             Tile.tile_images = []
             for i in range(0,15):
                 Tile.tile_images.append(pygame.Surface((p,p), pygame.HWSURFACE, Tile.image))
                 Tile.tile_images[i].blit(Tile.image, (0,0), ((i * p), 0, p,p))
+                Tile.tile_images[i] = Tile.tile_images[i].convert()
+                Tile.tile_images[i].set_colorkey((231,255,255), pygame.RLEACCEL)
                 
             Tile.tile_images.append(pygame.Surface((p,p), pygame.HWSURFACE, Tile.image))
+            Tile.tile_images[15].set_alpha(128)
             Tile.tile_images[15].blit(Tile.image, (0,0), ((0 * p), (6 * p), p,p))
             
             Tile.tile_images.append(pygame.Surface((p,p), pygame.HWSURFACE, Tile.image))
             Tile.tile_images[16].blit(Tile.image, (0,0), ((0 * p), (1 * p), p,p))
+            Tile.tile_images[16] = Tile.tile_images[16].convert()
+            Tile.tile_images[16].set_colorkey((231,255,255), pygame.RLEACCEL)
         # Pre-load this sprite's image, so that it is only loaded once
         self.image = Tile.tile_images[val]
+        self.image.set_colorkey((231,255,255), pygame.RLEACCEL)
         self.rect = self.image.get_rect()
         
         if rect != None:
@@ -52,7 +103,7 @@ class World:
     dxoff = 0       # Horizontal offset position of displayed area
     dyoff = 0       # Vertical offset (from top)
 
-    def __init__(self, width=640,height=480):
+    def __init__(self, width=800,height=600):
         self.dxoff = 0
         self.dyoff = 0
 
@@ -74,11 +125,11 @@ class World:
                    [[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [-1,14], [-1,14], [-1,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
                    [[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [-1,14], [-1,14], [-1,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
                    [[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
+                   [[0,14], [-1,14], [-1,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
+                   [[0,14], [-1,14], [-1,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
                    [[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
                    [[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
                    [[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
-                   [[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
-                   [[0,14], [0,14], [0,14], [0,14], [1,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
                     ]
 
 
@@ -654,7 +705,7 @@ class DisplayMain:
     x_dist = 20     # Distance to move the screen when arrow keys are pressed
     y_dist = 20     # in x and y dimensions
 
-    def __init__(self, width=640,height=480):
+    def __init__(self, width=800,height=600):
         """Initialize"""
         """Initialize PyGame"""
         pygame.init()
@@ -663,7 +714,7 @@ class DisplayMain:
         self.height = height
         """Create the Screen"""
         self.screen = pygame.display.set_mode((self.width
-                                               , self.height))
+                                               , self.height), pygame.DOUBLEBUF|pygame.HWSURFACE|pygame.RESIZABLE)
 
         self.array = world.MakeArray()   # array of tiles, make or load
         self.WorldX = len(self.array[0])      #lazy method, needs change
@@ -679,6 +730,9 @@ class DisplayMain:
         """Load All of our Sprites"""
         self.LoadSprites()
         self.PaintLand()
+
+        # Initiate the clock
+        self.gameclock = pygame.time.Clock()
         
         """tell pygame to keep sending up keystrokes when they are
         held down"""
@@ -687,7 +741,8 @@ class DisplayMain:
         """Create the background"""
         self.background = pygame.Surface(self.screen.get_size())
         self.background = self.background.convert()
-        self.background.fill((0,0,0))
+        self.background.set_colorkey((231,255,255))
+        #self.background.fill((0,0,0))
         
         #Must ensure mouse is over screen (needs fixing properly)
         pygame.mouse.set_pos(((self.background.get_width()/2),(self.background.get_height()/2)))
@@ -696,7 +751,10 @@ class DisplayMain:
 
         while 1:
             blit_all = 0
+            redraw_background = 0
+            redraw_highlight = 0
             self.textitems = []
+            self.dirty = []
             for event in pygame.event.get():
                 if event.type == pygame.QUIT: 
                     sys.exit()
@@ -732,32 +790,70 @@ class DisplayMain:
                         # Is the right mouse button held? If so, do scrolling & refresh whole screen
                     if (event.buttons == (0,0,1)):
                         self.MoveScreen("mouse")
-                        blit_all = 1
+                        redraw_background = 1
                         # If neither mouse button held, then simply
                         # check which tile is active, and highlight it
                     else:
                         pygame.mouse.get_rel()  #Reset mouse position for scrolling
                         self.HighlightTile()
+                        redraw_highlight = 1
                         
                         
             #self.screen.blit(self.background, (0, 0))
             #if blit_all == 1:
-            self.screen.blit(self.background, (0, 0))
-            self.tile_sprites.draw(self.screen)
-            #self.water_sprites.draw(self.screen)
+            #if redraw_background == 1:
+            #self.background.fill((0, 0, 0))
+            self.tile_sprites.clear(self.screen, self.background)
+            self.water_sprites.clear(self.screen, self.background)
+            self.cliff_sprites.clear(self.screen, self.background)
+            self.highlight.clear(self.screen, self.background)
+
+
+            
+            self.tile_sprites.draw(self.background)
+
+
+            bb = self.water_sprites.draw(self.background)
+            for i in range(len(bb)):
+                self.dirty.append(bb.pop(0))
+                
+            bb = self.cliff_sprites.draw(self.background)
+            for i in range(len(bb)):
+                self.dirty.append(bb.pop(0))
+
+            
+            #if redraw_highlight == 1:
+            #b = self.background
+            bb = self.highlight.draw(self.background)
+            for i in range(len(bb)):
+                self.dirty.append(bb.pop(0))
+
+            
+            fps = self.gameclock.tick(60)
+            get_fps = self.gameclock.get_fps()
+            if pygame.font:
+                font = pygame.font.Font(None, 24)
+                self.textitems.append(font.render("FPS: " + str(get_fps), 1, (255, 255, 255)))
+
+
+            # Seems that updating the whole screen is actually quicker... odd
+            
+            #pygame.display.update(self.dirty)
+            pygame.display.flip()
+
             if pygame.font:
                 font = pygame.font.Font(None, 2)
                 for j in range(len(self.textitems)):
                     self.screen.blit(self.textitems[j], (0,j*20))
-            self.highlight.draw(self.screen)
-            pygame.display.flip()
+                    pygame.display.update((0,j*20,200,20))
 
     def LoadSprites(self):
         """Load the sprites that we need"""
 
-        self.tile_sprites = pygame.sprite.Group()
-        self.water_sprites = pygame.sprite.Group()
-        self.highlight = pygame.sprite.Group()
+        self.tile_sprites = pygame.sprite.OrderedUpdates()
+        self.water_sprites = pygame.sprite.RenderUpdates()
+        self.highlight = pygame.sprite.RenderUpdates()
+        self.cliff_sprites = pygame.sprite.RenderUpdates()
 
     def MoveScreen(self, key):
         """Moves the screen"""
@@ -838,13 +934,16 @@ class DisplayMain:
 
         xpos = (self.WidthX / 2) + (x * (p/2)) - (y * (p/2)) - (p/2) + self.dxoff
         ypos = (x * (p/4)) + (y * (p/4)) - (self.array[x][y][0] * ph) + self.dyoff
-        self.highlight.add(Tile(pygame.Rect(xpos, ypos, p, p), 16))
+        self.highlight.add(Tile(pygame.Rect(xpos, ypos, p, p), 0))
 
 
         
     def PaintLand(self):
         """Paint the land tiles on the screen"""
         self.tile_sprites.empty()
+
+
+
 
         for y in range(self.WorldY):
             for x in range(self.WorldX):
@@ -856,16 +955,45 @@ class DisplayMain:
                 ypos = (x * (p/4)) + (y * (p/4)) - (hh * ph) + self.dyoff
                 self.tile_sprites.add(Tile(pygame.Rect(xpos, ypos, p, p), self.array[x][y][1]))
 
+        # Paint the cliff tiles at edge of map
+        self.cliff_sprites.empty()
+
+        # We need only bother with tiles at the east and south edges of the map
+        # where y is of max value or x is of max value, thus...
+        x = (self.WorldX - 1)
+        for y in range(self.WorldY):
+            xpos = (self.WidthX / 2) + (x * (p/2)) - (y * (p/2)) - (p/2) + self.dxoff
+            ypos = (x * (p/4)) + (y * (p/4)) - (hh * ph) + self.dyoff
+
+            for z in range(1,9):
+                self.cliff_sprites.add(Cliff(pygame.Rect(xpos, (ypos + (ph * z)), p, p), 4))
+
+        x = 0
+        y = (self.WorldY - 1)
+        for x in range(self.WorldX):
+            xpos = (self.WidthX / 2) + (x * (p/2)) - (y * (p/2)) - (p/2) + self.dxoff
+            ypos = (x * (p/4)) + (y * (p/4)) - (hh * ph) + self.dyoff
+
+            for z in range(1,9):
+                self.cliff_sprites.add(Cliff(pygame.Rect(xpos, (ypos + (ph * z)), p, p), 9))
+
+
         # Paint the water tiles
         self.water_sprites.empty()
 
         for y in range(self.WorldY):
             for x in range(self.WorldX):
                 xpos = (self.WidthX / 2) + (x * (p/2)) - (y * (p/2)) - (p/2) + self.dxoff
-                ypos = (x * (p/4)) + (y * (p/4)) - ((hh + 1) * ph) + self.dyoff
-                if self.array[x][y][0] < 1:
+                ypos = (x * (p/4)) + (y * (p/4)) - (hh * ph) + self.dyoff
+                if self.array[x][y][0] < 0:
                     self.water_sprites.add(Tile(pygame.Rect(xpos, ypos, p, p), 15))
+##                if self.array[x][y][0] < -1:
+##                    self.water_sprites.add(Tile(pygame.Rect(xpos, (ypos + (ph * 1)), p, p), 15))
+##                if self.array[x][y][0] < -2:
+##                    self.water_sprites.add(Tile(pygame.Rect(xpos, (ypos + (ph * 2)), p, p), 15))
 
+
+                    
 if __name__ == "__main__":
     world = World()
     MainWindow = DisplayMain()
