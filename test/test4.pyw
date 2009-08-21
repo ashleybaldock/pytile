@@ -1,7 +1,8 @@
 #!/usr/bin/python
-# Test 4-0
+# Test 4-1
 # Map dimensions fixed relative to 3-series tests, uneven maps a possibility
 # Implementing map-section drawing
+
 
 import os, sys
 import pygame
@@ -73,7 +74,7 @@ class HighlightSprite(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
         if HighlightSprite.image is None:
-            groundImage = pygame.image.load("ground4.png")
+            groundImage = pygame.image.load("ground3.png")
             HighlightSprite.image = groundImage.convert()
             # Tile images will be composited using rendering later, for now just read them in
             HighlightSprite.tile_images = {}
@@ -220,6 +221,9 @@ class TileSprite(pygame.sprite.Sprite):
         self.image = TileSprite.tile_images[val]
         self.xpos = xpos
         self.ypos = ypos
+        # Potential for a speed boost here by restricting the rect to only encompass the visible bit of the tile
+        # But this requires change of the highlight/collision detection thing
+##        self.rect = (self.xpos - xoff, self.ypos - yoff + p2, p, p2)
         self.rect = (self.xpos - xoff, self.ypos - yoff, p, p)
         self.type = val
         self.xWorld = xWorld
@@ -283,6 +287,8 @@ class DisplayMain:
 
         highlightSprite = None
         self.refresh_screen = 1
+        self.last_pos = None
+        coltile = None
         while 1:
             self.clock.tick(0)
             self.dirty = []
@@ -301,21 +307,25 @@ class DisplayMain:
 
 
 
-            self.last_pos = pygame.mouse.get_pos()
-            # Draw mouseSprite at cursor position
-            mouseSprite = pygame.sprite.GroupSingle(MouseSprite(pygame.mouse.get_pos()))
-            mouseSprite.draw(self.screen)
-            self.dirty.append(mouseSprite.sprite.rect)
-            # Find sprites that the mouseSprite intersects with
-            collision_list1 = pygame.sprite.spritecollide(mouseSprite.sprite, self.orderedSprites, False)#, pygame.sprite.collide_mask)
-            collision_list = pygame.sprite.spritecollide(mouseSprite.sprite, collision_list1, False, pygame.sprite.collide_mask)
-            coltile = None
-            if collision_list:
-                collision_list.reverse()
-                for t in collision_list:
-                    if t.exclude == False:
-                        coltile = t
-                        break
+            if self.last_pos != pygame.mouse.get_pos():
+                self.last_pos = pygame.mouse.get_pos()
+                # Draw mouseSprite at cursor position
+                mouseSprite = pygame.sprite.GroupSingle(MouseSprite(pygame.mouse.get_pos()))
+                # Find sprites that the mouseSprite intersects with
+                collision_list1 = pygame.sprite.spritecollide(mouseSprite.sprite, self.orderedSprites, False)#, pygame.sprite.collide_mask)
+                collision_list = pygame.sprite.spritecollide(mouseSprite.sprite, collision_list1, False, pygame.sprite.collide_mask)
+                if collision_list:
+                    collision_list.reverse()
+                    for t in collision_list:
+                        if t.exclude == False:
+                            coltile = t
+                            break
+                        else:
+                            # None of the collided sprites has collision enabled
+                            coltile = None
+                else:
+                    # No collision means nothing to select
+                    coltile = None
 
             # Find position of cursor relative to the confines of the selected tile
             # Use first item in the list
@@ -326,7 +336,7 @@ class DisplayMain:
                 y = coltile.yWorld
                 # Find where this tile would've been drawn on the screen, and subtract the mouse's position
                 mousex, mousey = pygame.mouse.get_pos()
-                posx = (self.WorldWidth / 2) - (x * (p2)) + (y * (p2)) - (p2)
+                posx = self.WorldWidth2 - (x * (p2)) + (y * (p2)) - p2
                 posy = (x * (p4)) + (y * (p4)) - (self.array[x][y][0] * ph)
                 offx = mousex - (posx - self.dxoff)
                 offy = mousey - (posy - self.dyoff)
@@ -337,7 +347,10 @@ class DisplayMain:
                 offy16 = offy / p16
                 
                 # Then lookup the mask number based on this, this should be drawn on the screen
-                tilesubposition = type0[offy16][offx8]
+                try:
+                    tilesubposition = type0[offy16][offx8]
+                except IndexError:
+                    print "offy16: %s, offx8: %s, coltile: %s" % (offy16, offx8, coltile.type)
                 self.tilesubposition = tilesubposition
                 # Add old dirty area to dirtylist
                 if not highlightSprite:
@@ -359,14 +372,15 @@ class DisplayMain:
                                               0, 0, self.dxoff, self.dyoff, 0, 0)
                     self.dirty.append(highlightSprite.rect)
 
-            if collision_list:
+            if coltile:
                 ii = collision_list[-1]
                 layer = self.orderedSprites.get_layer_of_sprite(ii)
-                pygame.display.set_caption("FPS: %.1f, Tile: (%s,%s) of type: %s | layer: %s | dxoff: %s dyoff: %s" %
+                pygame.display.set_caption("FPS: %i | Tile: (%s,%s) of type: %s, layer: %s | dxoff: %s dyoff: %s" %
                                            (self.clock.get_fps(), ii.xWorld, ii.yWorld, ii.type, layer, self.dxoff, self.dyoff))
             else:
-                pygame.display.set_caption("FPS: %.1f" %
-                                           (self.clock.get_fps()))
+                pygame.display.set_caption("FPS: %i | dxoff: %s dyoff: %s" %
+                                           (self.clock.get_fps(), self.dxoff, self.dyoff))
+
 
             rectlist = self.orderedSprites.draw(self.screen)
 
@@ -374,8 +388,9 @@ class DisplayMain:
             # we need to refresh the entire screen
             if self.refresh_screen == 1:
                 pygame.display.update()
+##                self.orderedSprites.clear(self.screen, background)
+                self.screen.fill((0,0,0))
                 self.refresh_screen = 0
-                self.orderedSprites.clear(self.screen, background)
             else:
                 pygame.display.update(self.dirty)
 
@@ -433,8 +448,8 @@ class DisplayMain:
                                 self.orderedSprites.add(TileSprite("CL01",
                                                         posx, posy, self.dxoff, self.dyoff, x, y, exclude=True), layer=l)
                         # A1/A2 are top and right vertices of tile in front/right of the one we're testing
-                        A1 = self.array[x+1][y][1][3] + self.array[x][y+1][0]
-                        A2 = self.array[x+1][y][1][0] + self.array[x][y+1][0]
+                        A1 = self.array[x][y+1][1][3] + self.array[x][y+1][0]
+                        A2 = self.array[x][y+1][1][0] + self.array[x][y+1][0]
                         # B1/B2 are left and bottom vertices of tile we're testing
                         B1 = self.array[x][y][1][2] + self.array[x][y][0]
                         B2 = self.array[x][y][1][1] + self.array[x][y][0]
