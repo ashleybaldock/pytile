@@ -18,111 +18,32 @@ class World:
     def __init__(self, width=800,height=600):
         self.dxoff = 0
         self.dyoff = 0
-        
-        self.WORLD_X = 20
-        self.WORLD_Y = 22
 
     def MakeArray(self):
 
-##        TileMap = [[[0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
-##                   [[0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
-##                   [[0,0], [1,0], [1,0], [1,0], [0,0], [0,0], [0,0], [0,0], [1,0], [1,0], [1,0], [1,0], [1,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
-##                   [[0,0], [1,0], [1,0], [1,0], [0,0], [0,0], [0,0], [0,0], [1,0], [2,0], [2,0], [2,0], [1,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
-##                   [[0,0], [1,0], [1,0], [1,0], [1,0], [1,0], [0,0], [0,0], [1,0], [2,0], [2,0], [2,0], [1,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
-##                   [[0,0], [0,0], [0,0], [1,0], [1,0], [1,0], [0,0], [0,0], [1,0], [2,0], [2,0], [2,0], [1,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
-##                   [[0,0], [0,0], [0,0], [1,0], [1,0], [1,0], [0,0], [0,0], [1,0], [1,0], [1,0], [1,0], [1,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
-##                   [[0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
-##                   [[0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
-##                   [[0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
-##                   [[0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
-##                   [[0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [-1,0], [-1,0], [-1,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
-##                   [[0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [-1,0], [-1,0], [-1,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
-##                   [[0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [-1,0], [-1,0], [-1,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
-##                   [[0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
-##                   [[0,0], [-1,0], [-1,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
-##                   [[0,0], [-1,0], [-1,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
-##                   [[0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
-##                   [[0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
-##                   [[0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
-##                   [[0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0], [0,0]],
-##                    ]
+        TileMap = [[[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
+                   [[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
+                   [[0,14], [1,14], [1,14], [1,14], [0,14], [0,14], [0,14], [0,14], [1,14], [1,14], [1,14], [1,14], [1,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
+                   [[0,14], [1,14], [1,14], [1,14], [0,14], [0,14], [0,14], [0,14], [1,14], [2,14], [2,14], [2,14], [1,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
+                   [[0,14], [1,14], [1,14], [1,14], [1,14], [1,14], [0,14], [0,14], [1,14], [2,14], [2,14], [2,14], [1,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
+                   [[0,14], [0,14], [0,14], [1,14], [1,14], [1,14], [0,14], [0,14], [1,14], [2,14], [2,14], [2,14], [1,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
+                   [[0,14], [0,14], [0,14], [1,14], [1,14], [1,14], [0,14], [0,14], [1,14], [1,14], [1,14], [1,14], [1,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
+                   [[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
+                   [[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
+                   [[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
+                   [[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
+                   [[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [-1,14], [-1,14], [-1,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
+                   [[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [-1,14], [-1,14], [-1,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
+                   [[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [-1,14], [-1,14], [-1,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
+                   [[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
+                   [[0,14], [-1,14], [-1,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
+                   [[0,14], [-1,14], [-1,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
+                   [[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
+                   [[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
+                   [[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
+                    ]
 
 
-##        TileMap = []
-##        for i in range(20):
-##            a = []
-##            for j in range(20):
-##                a.append([1,0])
-##            TileMap.append(a)
-
-        # Need to generate a Wang Tile number for every square on the map
-        WangTiles = []
-        # ((Tile description), tile image number)
-        WangTiles.append(((0,0,0,0), 0))     # 0
-        WangTiles.append(((1,1,1,1), 1))     # 14
-        WangTiles.append(((0,0,1,1), 2))     # 12
-        WangTiles.append(((1,1,0,0), 3))     # 3
-        WangTiles.append(((0,1,0,1), 4))     # 10
-        WangTiles.append(((1,0,1,0), 5))     # 5
-        WangTiles.append(((0,1,1,0), 6))     # 6
-        WangTiles.append(((1,0,0,1), 7))     # 9
-
-        array = []
-        output = []
-
-
-        for x in range(self.WORLD_X):
-            aa = []
-            aaout = []
-            for y in range(self.WORLD_Y):
-                possible = []
-                if x == 0:
-                    if y == 0:
-                        cc = random.randint(0,7)
-                        aa.append(WangTiles[cc])
-                        aaout.append([1,0,WangTiles[cc][1]])
-                    else:
-                        # Now do the magic...
-                        # If right edge of tile to the left is 1, pick from tiles with
-                        # corresponding left edges
-                        for g in range(len(WangTiles)):
-                            if WangTiles[g][0][1] == aa[y-1][0][3]:
-                                possible.append(WangTiles[g])
-                        
-                        cc = random.randint(0,len(possible) - 1)
-                        toappend = possible[cc]
-                        for g in range(len(WangTiles)):
-                            if WangTiles[g] == toappend:
-                                aa.append(WangTiles[g])
-                                aaout.append([1,0,WangTiles[g][1]])
-                else:
-                    if y == 0:
-                        for g in range(len(WangTiles)):
-                            if WangTiles[g][0][0] == array[x-1][y][0][2]:
-                                possible.append(WangTiles[g])
-                        
-                        cc = random.randint(0,len(possible) - 1)
-                        toappend = possible[cc]
-                        for g in range(len(WangTiles)):
-                            if WangTiles[g] == toappend:
-                                aa.append(WangTiles[g])
-                                aaout.append([1,0,WangTiles[g][1]])
-                    else:
-                        for g in range(len(WangTiles)):
-                            if WangTiles[g][0][1] == aa[y-1][0][3] and WangTiles[g][0][0] == array[x-1][y][0][2]:
-                                possible.append(WangTiles[g])
-                        cc = random.randint(0, len(possible) - 1)
-                        toappend = possible[cc]
-
-                        for g in range(len(WangTiles)):
-                            if WangTiles[g] == toappend:
-                                aa.append(WangTiles[g])
-                                aaout.append([1,0,WangTiles[g][1]])
-
-            array.append(aa)
-            output.append(aaout)
-##        print str(output)
-        TileMap = output
 ##        TileMap = []
 ##
 ##        for i in range(30):
@@ -138,15 +59,15 @@ class World:
         # Go through all tiles, and check to see if any slopes are required (change in height
         # between tile and its neighbours) if so, assign correct slope type
         # to the tile in question
-##        SecondMap = []
-##        for x in range(len(TileMap)):
-##            a = []
-##            for y in range(len(TileMap[0])):
-##                a.append([0,0])
-##            SecondMap.append(a)
-
-        for x in range(len(TileMap)):
-            for y in range(len(TileMap[0])):
+        SecondMap = []
+        for x in range(len(TileMap[0])):
+            a = []
+            for y in range(len(TileMap)):
+                a.append([0,0])
+            SecondMap.append(a)
+                
+        for x in range(len(TileMap[0])):
+            for y in range(len(TileMap)):
                 ret = self.Test9(TileMap, x, y)
                 #SecondMap[x][y][0], SecondMap[x][y][1] = self.Test9(TileMap, x, y)
 
@@ -160,7 +81,7 @@ class World:
         # same height as the one which has been lowered, so, firstly
         # lower the tile in question...
         # But only if the tile is flat, if it's a slope nothing needs to be done
-        if array[x][y][1] == 0:
+        if array[x][y][1] == 14:
             array[x][y][0] = array[x][y][0] - 1
 
         # Now, check 8 surrounding tiles, if they are higher than
@@ -168,8 +89,8 @@ class World:
         # if they are lower we can leave them alone (I think?)
         for xx in range(-1,2):
             for yy in range(-1,2):
-                if (x+xx) >= 0 and (x+xx) < len(array):
-                    if (y+yy) >= 0 and (y+yy) < len(array[0]):
+                if (x+xx) >= 0 and (x+xx) < len(array[0]):
+                    if (y+yy) >= 0 and (y+yy) < len(array):
                         if array[x][y][0] < array[x+xx][y+yy][0]:
                             array[x+xx][y+yy][0] = array[x][y][0]
                             
@@ -184,15 +105,15 @@ class World:
         stack = []
         for xx in range(-1,2):
             for yy in range(-1,2):
-                if (x+xx) >= 0 and (x+xx) < len(array):
-                    if (y+yy) >= 0 and (y+yy) < len(array[0]):
+                if (x+xx) >= 0 and (x+xx) < len(array[0]):
+                    if (y+yy) >= 0 and (y+yy) < len(array):
                         if array[x][y][0] < array[x+xx][y+yy][0]:
                             array[x+xx][y+yy][0] = array[x][y][0]
                             
                         for xxx in range(-1,2):
                             for yyy in range(-1,2):
-                                if (x+xx+xxx) >= 0 and (x+xx+xxx) < len(array):
-                                    if (y+yy+yyy) >= 0 and (y+yy+yyy) < len(array[0]):
+                                if (x+xx+xxx) >= 0 and (x+xx+xxx) < len(array[0]):
+                                    if (y+yy+yyy) >= 0 and (y+yy+yyy) < len(array):
                                         stack.append([(x+xx+xxx), (y+yy+yyy)])
 ##                        else:
 ##                            stack.append([(x+xx), (y+yy)])
@@ -209,8 +130,8 @@ class World:
                 #stack.append([ret[0], ret[1]])
                 for xx in range(-1,2):
                     for yy in range(-1,2):
-                        if (ret[0]+xx) >= 0 and (ret[0]+xx) < len(array):
-                            if (ret[1]+yy) >= 0 and (ret[1]+yy) < len(array[0]):
+                        if (ret[0]+xx) >= 0 and (ret[0]+xx) < len(array[0]):
+                            if (ret[1]+yy) >= 0 and (ret[1]+yy) < len(array):
                                 stack.append([(ret[0]+xx), (ret[1]+yy)])
                                 #ret = world.Test9(self.array, x + xx, y + yy)
 
@@ -230,8 +151,8 @@ class World:
         stack = []
         for xx in range(-1,2):
             for yy in range(-1,2):
-                if (x+xx) >= 0 and (x+xx) < len(array):
-                    if (y+yy) >= 0 and (y+yy) < len(array[0]):
+                if (x+xx) >= 0 and (x+xx) < len(array[0]):
+                    if (y+yy) >= 0 and (y+yy) < len(array):
                         stack.append([(x+xx), (y+yy)])
                         #ret = world.Test9(self.array, x + xx, y + yy)
 
@@ -246,8 +167,8 @@ class World:
                 #stack.append([ret[0], ret[1]])
                 for xx in range(-1,2):
                     for yy in range(-1,2):
-                        if (ret[0]+xx) >= 0 and (ret[0]+xx) < len(array):
-                            if (ret[1]+yy) >= 0 and (ret[1]+yy) < len(array[0]):
+                        if (ret[0]+xx) >= 0 and (ret[0]+xx) < len(array[0]):
+                            if (ret[1]+yy) >= 0 and (ret[1]+yy) < len(array):
                                 stack.append([(ret[0]+xx), (ret[1]+yy)])
                                 #ret = world.Test9(self.array, x + xx, y + yy)
 
@@ -278,8 +199,8 @@ class World:
         diff = 0
         for xx in range(-1,2):
             for yy in range(-1,2):
-                if (x+xx) >= 0 and (x+xx) < len(array):
-                    if (y+yy) >= 0 and (y+yy) < len(array[0]):
+                if (x+xx) >= 0 and (x+xx) < len(array[0]):
+                    if (y+yy) >= 0 and (y+yy) < len(array):
 
                         # Tile is in array, continue with tests...
                         # First, is there a 2+ difference anywhere?
@@ -296,8 +217,8 @@ class World:
         diffneg = 0
         for xx in range(-1,2):
             for yy in range(-1,2):
-                if (x+xx) >= 0 and (x+xx) < len(array):
-                    if (y+yy) >= 0 and (y+yy) < len(array[0]):
+                if (x+xx) >= 0 and (x+xx) < len(array[0]):
+                    if (y+yy) >= 0 and (y+yy) < len(array):
 
                         # Tile is in array, continue with tests...
                         # Second, check all diffs, if all +ve or all -ve,
@@ -365,14 +286,14 @@ class World:
                                                            2,2,2,], 2)
         if q != 0:
             array[x][y][0] = array[x][y][0] + 1
-            array[x][y][1] = 0
+            array[x][y][1] = 14
             return (x, y)
         q = self.TestRule(self.TileSiblings(array, x, y), [1,0,0,
                                                            0,0,1,
                                                            0,1,2,], 2)
         if q != 0:
             array[x][y][0] = array[x][y][0] + 1
-            array[x][y][1] = 0
+            array[x][y][1] = 14
             return (x, y)
 
         # Rules for straight slopes
@@ -381,19 +302,19 @@ class World:
                                                            2,0,0,], 2)
         if q == 1:
             array[x][y][0] = array[x][y][0]
-            array[x][y][1] = 9
+            array[x][y][1] = 0
             return 0
         elif q == 2:
             array[x][y][0] = array[x][y][0]
-            array[x][y][1] = 3
+            array[x][y][1] = 1
             return 0
         elif q == 3:
             array[x][y][0] = array[x][y][0]
-            array[x][y][1] = 6
+            array[x][y][1] = 2
             return 0
         elif q == 4:
             array[x][y][0] = array[x][y][0]
-            array[x][y][1] = 12
+            array[x][y][1] = 3
             return 0
         
         # Rules for "outside" curves
@@ -402,19 +323,19 @@ class World:
                                                            0,0,0,], 2)
         if q == 1:
             array[x][y][0] = array[x][y][0]
-            array[x][y][1] = 1
+            array[x][y][1] = 5
             return 0
         elif q == 2:
             array[x][y][0] = array[x][y][0]
-            array[x][y][1] = 2
+            array[x][y][1] = 6
             return 0
         elif q == 3:
             array[x][y][0] = array[x][y][0]
-            array[x][y][1] = 4
+            array[x][y][1] = 7
             return 0
         elif q == 4:
             array[x][y][0] = array[x][y][0]
-            array[x][y][1] = 8
+            array[x][y][1] = 4
             return 0
 
         # Rules for "inside" curves
@@ -423,57 +344,57 @@ class World:
                                                            2,0,0,], 2)
         if q == 1:
             array[x][y][0] = array[x][y][0]
-            array[x][y][1] = 11
+            array[x][y][1] = 8
             return 0
         elif q == 2:
             array[x][y][0] = array[x][y][0]
-            array[x][y][1] = 7
+            array[x][y][1] = 10
             return 0
         elif q == 3:
             array[x][y][0] = array[x][y][0]
-            array[x][y][1] = 14
+            array[x][y][1] = 12
             return 0
         elif q == 4:
             array[x][y][0] = array[x][y][0]
-            array[x][y][1] = 13
+            array[x][y][1] = 9
             return 0
         q = self.TestRule(self.TileSiblings(array, x, y), [2,1,0,
                                                            0,0,0,
                                                            0,0,1,], 2)
         if q == 4:
             array[x][y][0] = array[x][y][0]
-            array[x][y][1] = 11
+            array[x][y][1] = 8
             return 0
         elif q == 1:
             array[x][y][0] = array[x][y][0]
-            array[x][y][1] = 7
+            array[x][y][1] = 10
             return 0
         elif q == 2:
             array[x][y][0] = array[x][y][0]
-            array[x][y][1] = 14
+            array[x][y][1] = 12
             return 0
         elif q == 3:
             array[x][y][0] = array[x][y][0]
-            array[x][y][1] = 13
+            array[x][y][1] = 9
             return 0
         q = self.TestRule(self.TileSiblings(array, x, y), [0,1,2,
                                                            0,0,0,
                                                            1,0,0,], 2)
         if q == 1:
             array[x][y][0] = array[x][y][0]
-            array[x][y][1] = 11
+            array[x][y][1] = 8
             return 0
         elif q == 2:
             array[x][y][0] = array[x][y][0]
-            array[x][y][1] = 7
+            array[x][y][1] = 10
             return 0
         elif q == 3:
             array[x][y][0] = array[x][y][0]
-            array[x][y][1] = 14
+            array[x][y][1] = 12
             return 0
         elif q == 4:
             array[x][y][0] = array[x][y][0]
-            array[x][y][1] = 13
+            array[x][y][1] = 9
             return 0
 
         # Rules for double curves at corner of two mountains
@@ -482,16 +403,16 @@ class World:
                                                            0,0,1,], 2)
         if q == 1:
             array[x][y][0] = array[x][y][0]
-            array[x][y][1] = 5
+            array[x][y][1] = 13
             return 0
         elif q == 2:
             array[x][y][0] = array[x][y][0]
-            array[x][y][1] = 10
+            array[x][y][1] = 11
             return 0
 
         else:
             array[x][y][0] = array[x][y][0]
-            array[x][y][1] = 0
+            array[x][y][1] = 14
             return 0
 
 ## Check:
@@ -644,9 +565,9 @@ class World:
 
         for xx in range(-1,2):
             for yy in range(-1,2):
-                if (x+xx) < 0 or (x+xx) > (len(array)-1):
+                if (x+xx) < 0 or (x+xx) > (len(array[0])-1):
                     siblings.append(0)
-                elif (y+yy) < 0 or (y+yy) > (len(array[0])-1):
+                elif (y+yy) < 0 or (y+yy) > (len(array)-1):
                     siblings.append(0)
                 else:
                     if array[x+xx][y+yy][0] > array[x][y][0]:

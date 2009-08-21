@@ -10,6 +10,7 @@
 #                which rely on tile-type values so that they
 #                use the new bitmask tile descriptors
 #              - World can now be rectangular
+# Test 3, Mk.3 - Test rgb merged grounds
 
 import os, sys
 import pygame
@@ -43,10 +44,17 @@ class Texture:
             Texture.image = Texture.image.convert()
             Texture.textures = []
             # Now load the individual textures into the textures array
-            for i in range(0,3):
-                Texture.textures.append(pygame.Surface((p,p)))
-                Texture.textures[i].blit(Texture.image, (0,0), (((i + 1) * p), 0, p,p))
-                #Texture.textures[i].set_colorkey(TRANSPARENT, pygame.RLEACCEL)
+            # First load the beach texture
+            Texture.textures.append(pygame.Surface((p,p)))
+            Texture.textures[0].blit(Texture.image, (0,0), ((1 * p), 0, p,p))
+
+            # Now load the grass texture
+            Texture.textures.append(pygame.Surface((p,p)))
+            Texture.textures[1].blit(Texture.image, (0,0), ((2 * p), 0, p,p))
+
+            # Now load the mountain texture
+            Texture.textures.append(pygame.Surface((p,p)))
+            Texture.textures[2].blit(Texture.image, (0,0), ((6 * p), 0, p,p))
 
 class RGBmap:
     """RGBmaps - these define how textures should be blended together
@@ -206,29 +214,47 @@ class Tile:
             Tile.image = Tile.image.convert()
             #Tile.image.set_alpha(128)
             #Tile.image.set_colorkey((231,255,255), pygame.RLEACCEL)
-            # Second, prepare the array to hold all the tiles
+            # Second, prepare the arrays to hold all the tiles
             Tile.tile_images = []
+            Tile.water = []
+            
+            # First load the water tile(s)
+            Tile.water.append(pygame.Surface((p,p)))
+            Tile.water[0].set_alpha(130)
+            Tile.water[0].blit(Tile.image, (0,0), ((0 * p), (6 * p), p,p))
+            Tile.water[0].set_colorkey((231,255,255), pygame.RLEACCEL)
 
-##            for i in range(0,15):
-##                # Load all the basic ground tiles
-##                Tile.tile_images.append(pygame.Surface((p,p)))
-##                Tile.tile_images[i].blit(Tile.image, (0,0), ((i * p), 0, p,p))
-##                Tile.tile_images[i].set_colorkey((231,255,255), pygame.RLEACCEL)
+            # 0-15 = beach, 15-30 = beach/grass, 30-45 = grass, 45-60 = grass/mountain, 60-75 = mountain
 
+            # beach
+            # Load the standard ground tiles first
             for i in range(0,15):
                 #Tile.tile_images.append(pygame.Surface((p,p)))
-                Tile.tile_images.append(render.MakeTile2(1, i, 1, Texture.textures[1], Lightmap.lightmap_tiles))
+                Tile.tile_images.append(render.MakeTile2(0, i, 1, Texture.textures[0], Lightmap.lightmap_tiles))
 
-            # Next load the water tile
-            Tile.tile_images.append(pygame.Surface((p,p)))
-            Tile.tile_images[15].set_alpha(130)
-            Tile.tile_images[15].blit(Tile.image, (0,0), ((0 * p), (6 * p), p,p))
-            Tile.tile_images[15].set_colorkey((231,255,255), pygame.RLEACCEL)
+            # beach/grass
+            # Next, make some which transition between two textures
+            for i in range(0,15):
+                #Tile.tile_images.append(pygame.Surface((p,p)))
+                Tile.tile_images.append(render.MakeTile2(0, i, 1, Texture.textures[1], Lightmap.lightmap_tiles, RGBmap.maps, Texture.textures[0]))
 
-            # And the marker tile
-            Tile.tile_images.append(pygame.Surface((p,p)))
-            Tile.tile_images[16].blit(Tile.image, (0,0), ((0 * p), (1 * p), p,p))
-            Tile.tile_images[i].set_colorkey((231,255,255), pygame.RLEACCEL)
+            # grass
+            # Load the standard ground tiles first
+            for i in range(0,15):
+                #Tile.tile_images.append(pygame.Surface((p,p)))
+                Tile.tile_images.append(render.MakeTile2(0, i, 1, Texture.textures[1], Lightmap.lightmap_tiles))
+                
+            # grass/mountain
+            # Next, make some which transition between two textures
+            for i in range(0,15):
+                #Tile.tile_images.append(pygame.Surface((p,p)))
+                Tile.tile_images.append(render.MakeTile2(0, i, 1, Texture.textures[2], Lightmap.lightmap_tiles, RGBmap.maps, Texture.textures[1]))
+
+            # mountain
+            # Now make some beach tiles
+            for i in range(0,15):
+                #Tile.tile_images.append(pygame.Surface((p,p)))
+                Tile.tile_images.append(render.MakeTile2(0, i, 1, Texture.textures[2], Lightmap.lightmap_tiles))
 
         # As this is just a repository for images, nothing much more needs
         # to be done
@@ -401,10 +427,24 @@ class DisplayMain:
         for y in range(self.WorldY):
             for x in range(self.WorldX):
                 xpos = (self.WidthX / 2) + (x * (p/2)) - (y * (p/2)) - (p/2) + self.dxoff
-
                 ypos = (x * (p/4)) + (y * (p/4)) - (self.array[x][y][0] * ph) + self.dyoff
                 
-                im = Tile.tile_images[self.array[x][y][1]]
+                # Draw the right tile image for this tile, check its height to find what
+                # rendered texture needs to be used
+                # 0-15 = beach, 15-30 = beach/grass, 30-45 = grass, 45-60 = grass/mountain, 60-75 = mountain
+                # lvl<0 = beach, lvl=0 = beach/grass, lvl>0&lvl<3 = grass, lvl=3 = grass/mountain, lvl>3 = mountain
+                if self.array[x][y][0] < 0:
+                    im = Tile.tile_images[self.array[x][y][1]]
+                elif self.array[x][y][0] == 0:
+                    im = Tile.tile_images[self.array[x][y][1] + 15]
+                elif self.array[x][y][0] > 0 and self.array[x][y][0] < 3:
+                    im = Tile.tile_images[self.array[x][y][1] + 30]
+                elif self.array[x][y][0] == 3:
+                    im = Tile.tile_images[self.array[x][y][1] + 45]
+                elif self.array[x][y][0] > 3:
+                    im = Tile.tile_images[self.array[x][y][1] + 60]
+
+
                 self.landsurface.blit(im, (xpos, ypos))
 
 
@@ -487,7 +527,7 @@ class DisplayMain:
 
                 # If a tile is below sea level (less than 0 in height) then draw water over it
                 if self.array[x][y][0] < world.SEA_LEVEL:
-                    im = Tile.tile_images[15]
+                    im = Tile.water[0]
                     self.landsurface.blit(im, (xpos, ypos + (ph * self.array[x][y][0])))
                     
                     # Then if it's at the edge of the map, draw also the water "cliff" effect
