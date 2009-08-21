@@ -18,14 +18,14 @@ class World:
         self.dxoff = 0
         self.dyoff = 0
 
-    # Tile structure [height, heightmap[left, bottom, right, top]]
+    # Tile structure [height, vertexheight[left, bottom, right, top]]
 
     def MakeArray(self):
 ##        TileMap = []
-##        for i in range(100):
+##        for i in range(30):
 ##            t = []
-##            for j in range(100):
-##                t.append([0,[0,0,0,0]])
+##            for j in range(30):
+##                t.append([random.randint(0, 2),[0,0,0,0]])
 ##            TileMap.append(t)
 ##        print len(TileMap), len(TileMap[0])
 
@@ -50,35 +50,6 @@ class World:
                    [[0,[1,0,0,0]],[0,[0,0,0,0]],[0,[0,1,0,0]],[0,[0,0,0,0]],[0,[0,0,1,0]],[0,[0,0,0,0]],[0,[0,0,0,1]],[0,[0,0,0,0]],[0,[1,2,1,0]],[0,[0,0,0,0]],[0,[0,1,2,1]],[0,[0,0,0,0]],[0,[1,0,1,2]],[0,[0,0,0,0]],[0,[2,1,0,1]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],],
                    [[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],],]
                    
-
-
-##        TileMap = []
-##
-##        for i in range(30):
-##            a = []
-##            for j in range(30):
-##                x = random.randint(0, 2)
-##                a.append([0,14])
-##
-##            TileMap.append(a)
-
-
-##        # Find correct slopes - slopes will belong to the higher terrain level
-##        # Go through all tiles, and check to see if any slopes are required (change in height
-##        # between tile and its neighbours) if so, assign correct slope type
-##        # to the tile in question
-##        SecondMap = []
-##        for x in range(len(TileMap[0])):
-##            a = []
-##            for y in range(len(TileMap)):
-##                a.append([0,0])
-##            SecondMap.append(a)
-##                
-##        for x in range(len(TileMap[0])):
-##            for y in range(len(TileMap)):
-##                ret = self.Test9(TileMap, x, y)
-##                #SecondMap[x][y][0], SecondMap[x][y][1] = self.Test9(TileMap, x, y)
-##
         return(TileMap)
 
     def LowerTile(self, array, x, y):
