@@ -1,0 +1,295 @@
+(************** Content-type: application/mathematica **************
+                     CreatedBy='Mathematica 5.2'
+
+                    Mathematica-Compatible Notebook
+
+This notebook can be used with any Mathematica-compatible
+application, such as Mathematica, MathReader or Publicon. The data
+for the notebook starts with the line containing stars above.
+
+To get the notebook into a Mathematica-compatible application, do
+one of the following:
+
+* Save the data starting with the line of stars above into a file
+  with a name ending in .nb, then open the file inside the
+  application;
+
+* Copy the data starting with the line of stars above to the
+  clipboard, then use the Paste menu command inside the application.
+
+Data for notebooks contains only printable 7-bit ASCII and can be
+sent directly in email or through ftp in text mode.  Newlines can be
+CR, LF or CRLF (Unix, Macintosh or MS-DOS style).
+
+NOTE: If you modify the data for this notebook not in a Mathematica-
+compatible application, you must delete the line below containing
+the word CacheID, otherwise Mathematica-compatible applications may
+try to use invalid cache data.
+
+For more information on notebooks and Mathematica-compatible 
+applications, contact Wolfram Research:
+  web: http://www.wolfram.com
+  email: info@wolfram.com
+  phone: +1-217-398-0700 (U.S.)
+
+Notebook reader applications are available free of charge from 
+Wolfram Research.
+*******************************************************************)
+
+(*CacheID: 232*)
+
+
+(*NotebookFileLineBreakTest
+NotebookFileLineBreakTest*)
+(*NotebookOptionsPosition[      9852,        241]*)
+(*NotebookOutlinePosition[     10497,        263]*)
+(*  CellTagsIndexPosition[     10453,        259]*)
+(*WindowFrame->Normal*)
+
+
+
+Notebook[{
+Cell[BoxData[
+    RowBox[{"(", GridBox[{
+          {"\[Placeholder]", "\[Placeholder]", "1", "0", "0", "0", 
+            "\[Placeholder]", "\[Placeholder]"},
+          {"0", "0", "0", "\[Placeholder]", "\[Placeholder]", "1", 
+            "\[Placeholder]", "\[Placeholder]"},
+          {"\[Placeholder]", "\[Placeholder]", "1", "0", "0", "0", 
+            "\[Placeholder]", "\[Placeholder]"},
+          {"0", "0", "0", "\[Placeholder]", "\[Placeholder]", "1", 
+            "\[Placeholder]", "\[Placeholder]"},
+          {"\[Placeholder]", "\[Placeholder]", "1", "0", "0", "0", 
+            "\[Placeholder]", "\[Placeholder]"},
+          {"0", "0", "0", "\[Placeholder]", "\[Placeholder]", "1", 
+            "\[Placeholder]", "\[Placeholder]"},
+          {"\[Placeholder]", "\[Placeholder]", "1", "0", "0", "0", 
+            "\[Placeholder]", "\[Placeholder]"},
+          {"0", "0", "0", "\[Placeholder]", "\[Placeholder]", "1", 
+            "\[Placeholder]", "\[Placeholder]"}
+          }], ")"}]], "Input"],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+    RowBox[{"LinearSolve", "[", 
+      RowBox[{
+        RowBox[{"(", GridBox[{
+              {"0", "0", "1", "0", "0", "0", "0", "0"},
+              {"0", "0", "0", "0", "0", "1", "0", "0"},
+              {"0", "p", "1", "0", "0", "0", "0", "0"},
+              {"0", "0", "0", "0", "p", "1", "0", "0"},
+              {"p", "p", "1", "0", "0", "0", \(-p\^2\), \(-p\^2\)},
+              {"0", "0", "0", "p", "p", 
+                "1", \(\(-p\^2\)/2\), \(\(-p\^2\)/2\)},
+              {"p", "0", "1", "0", "0", "0", \(\(-p\^2\)/3\), "0"},
+              {"0", "0", "0", "p", "0", "1", "0", "0"}
+              }], ")"}], ",", 
+        RowBox[{"(", GridBox[{
+              {"0"},
+              {\(p/3\)},
+              {\(p/3\)},
+              {"0"},
+              {"p"},
+              {\(p/2\)},
+              {\(p/3\)},
+              {"0"}
+              }], ")"}]}], "]"}]], "Input"],
+
+Cell[BoxData[
+    \({{\(-1\)}, {1\/3}, {0}, {\(-\(1\/3\)\)}, {\(-\(1\/3\)\)}, {p\/3}, \
+{\(-\(4\/p\)\)}, {7\/\(3\ p\)}}\)], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{\(xx\_1\  = \ 0; xx\_2\  = \ 0; xx\_3\  = \ p; 
+    xx\_4\  = \ p;\), "\[IndentingNewLine]", 
+    RowBox[{\(yy\_1\  = \ 0; yy\_2\  = \ p; yy\_3\  = \ p; yy\_4\  = \ 0;\), 
+      "\[IndentingNewLine]"}], "\[IndentingNewLine]", \(x\_1 = 0; x\_2 = p/3; 
+    x\_3 = p; x\_4 = p/3;\), "\[IndentingNewLine]", 
+    RowBox[{\(y\_1 = \ p/3; y\_2 = p; y\_3 = p/2; y\_4 = 0;\), 
+      "\[IndentingNewLine]"}], "\[IndentingNewLine]", 
+    RowBox[{"LinearSolve", "[", 
+      RowBox[{
+        RowBox[{"(", GridBox[{
+              {\(x\_1\), \(y\_1\), "1", "0", "0", 
+                "0", \(\(-xx\_1\) x\_1\), \(\(-xx\_1\) y\_1\)},
+              {"0", "0", "0", \(x\_1\), \(y\_1\), 
+                "1", \(\(-yy\_1\) x\_1\), \(\(-yy\_1\) y\_1\)},
+              {\(x\_2\), \(y\_2\), "1", "0", "0", 
+                "0", \(\(-xx\_2\) x\_2\), \(\(-xx\_2\) y\_2\)},
+              {"0", "0", "0", \(x\_2\), \(y\_2\), 
+                "1", \(\(-yy\_2\) x\_2\), \(\(-yy\_2\) y\_2\)},
+              {\(x\_3\), \(y\_3\), "1", "0", "0", 
+                "0", \(\(-xx\_3\) x\_3\), \(\(-xx\_3\) y\_3\)},
+              {"0", "0", "0", \(x\_3\), \(y\_3\), 
+                "1", \(\(-yy\_3\) x\_3\), \(\(-yy\_3\) y\_3\)},
+              {\(x\_4\), \(y\_4\), "1", "0", "0", 
+                "0", \(\(-xx\_4\) x\_4\), \(\(-xx\_4\) y\_4\)},
+              {"0", "0", "0", \(x\_4\), \(y\_4\), 
+                "1", \(\(-yy\_4\) x\_4\), \(\(-yy\_4\) y\_4\)}
+              }], ")"}], ",", 
+        RowBox[{"(", GridBox[{
+              {\(xx\_1\)},
+              {\(yy\_1\)},
+              {\(xx\_2\)},
+              {\(yy\_2\)},
+              {\(xx\_3\)},
+              {\(yy\_3\)},
+              {\(xx\_4\)},
+              {\(yy\_4\)}
+              }], ")"}]}], "]"}]}], "Input"],
+
+Cell[BoxData[
+    \({{168\/61}, {\(-\(84\/61\)\)}, {\(28\ p\)\/61}, {132\/61}, {132\/61}, {\
+\(-\(\(44\ p\)\/61\)\)}, {69\/\(61\ p\)}, {48\/\(61\ p\)}}\)], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{\(xx\_1\  = \ 0; xx\_2\  = \ 0; xx\_3\  = \ p; 
+    xx\_4\  = \ p;\), "\[IndentingNewLine]", 
+    RowBox[{\(yy\_1\  = \ 0; yy\_2\  = \ p; yy\_3\  = \ p; yy\_4\  = \ 0;\), 
+      "\[IndentingNewLine]"}], "\[IndentingNewLine]", \(x\_1 = p/2; x\_2 = 0; 
+    x\_3 = p/2; x\_4 = p;\), "\[IndentingNewLine]", 
+    RowBox[{\(y\_1 = \ p/2; y\_2 = 3  p/4; y\_3 = p; y\_4 = 3  p/4;\), 
+      "\[IndentingNewLine]"}], "\[IndentingNewLine]", 
+    RowBox[{"LinearSolve", "[", 
+      RowBox[{
+        RowBox[{"(", GridBox[{
+              {\(x\_1\), \(y\_1\), "1", "0", "0", 
+                "0", \(\(-xx\_1\) x\_1\), \(\(-xx\_1\) y\_1\)},
+              {"0", "0", "0", \(x\_1\), \(y\_1\), 
+                "1", \(\(-yy\_1\) x\_1\), \(\(-yy\_1\) y\_1\)},
+              {\(x\_2\), \(y\_2\), "1", "0", "0", 
+                "0", \(\(-xx\_2\) x\_2\), \(\(-xx\_2\) y\_2\)},
+              {"0", "0", "0", \(x\_2\), \(y\_2\), 
+                "1", \(\(-yy\_2\) x\_2\), \(\(-yy\_2\) y\_2\)},
+              {\(x\_3\), \(y\_3\), "1", "0", "0", 
+                "0", \(\(-xx\_3\) x\_3\), \(\(-xx\_3\) y\_3\)},
+              {"0", "0", "0", \(x\_3\), \(y\_3\), 
+                "1", \(\(-yy\_3\) x\_3\), \(\(-yy\_3\) y\_3\)},
+              {\(x\_4\), \(y\_4\), "1", "0", "0", 
+                "0", \(\(-xx\_4\) x\_4\), \(\(-xx\_4\) y\_4\)},
+              {"0", "0", "0", \(x\_4\), \(y\_4\), 
+                "1", \(\(-yy\_4\) x\_4\), \(\(-yy\_4\) y\_4\)}
+              }], ")"}], ",", 
+        RowBox[{"(", GridBox[{
+              {\(xx\_1\)},
+              {\(yy\_1\)},
+              {\(xx\_2\)},
+              {\(yy\_2\)},
+              {\(xx\_3\)},
+              {\(yy\_3\)},
+              {\(xx\_4\)},
+              {\(yy\_4\)}
+              }], ")"}]}], "]"}]}], "Input"],
+
+Cell[BoxData[
+    \({{1}, {2}, {\(-\(\(3\ p\)\/2\)\)}, {\(-1\)}, {2}, {\(-\(p\/2\)\)}, {0}, \
+{0}}\)], "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{\(p = 64;\), "\[IndentingNewLine]", \(xx\_1\  = \ 0; 
+    xx\_2\  = \ 0; xx\_3\  = \ p; xx\_4\  = \ p;\), "\[IndentingNewLine]", 
+    RowBox[{\(yy\_1\  = \ 0; yy\_2\  = \ p; yy\_3\  = \ p; yy\_4\  = \ 0;\), 
+      "\[IndentingNewLine]"}], "\[IndentingNewLine]", \(x\_1 = p/2; x\_2 = 0; 
+    x\_3 = p/2; x\_4 = p;\), "\[IndentingNewLine]", 
+    RowBox[{\(y\_1 = \ p/2 - h\_1; y\_2 = 3  p/4 - h\_2; y\_3 = p - h\_3; 
+      y\_4 = 3  p/4 - h\_4;\), 
+      "\[IndentingNewLine]"}], "\[IndentingNewLine]", \(h\_1 = 
+        0;\), "\[IndentingNewLine]", \(h\_2 = 
+        0;\), "\[IndentingNewLine]", \(h\_3 = 
+        0;\), "\[IndentingNewLine]", \(h\_4 = 0;\), "\[IndentingNewLine]", 
+    RowBox[{"LinearSolve", "[", 
+      RowBox[{
+        RowBox[{"(", GridBox[{
+              {\(x\_1\), \(y\_1\), "1", "0", "0", 
+                "0", \(\(-xx\_1\) x\_1\), \(\(-xx\_1\) y\_1\)},
+              {"0", "0", "0", \(x\_1\), \(y\_1\), 
+                "1", \(\(-yy\_1\) x\_1\), \(\(-yy\_1\) y\_1\)},
+              {\(x\_2\), \(y\_2\), "1", "0", "0", 
+                "0", \(\(-xx\_2\) x\_2\), \(\(-xx\_2\) y\_2\)},
+              {"0", "0", "0", \(x\_2\), \(y\_2\), 
+                "1", \(\(-yy\_2\) x\_2\), \(\(-yy\_2\) y\_2\)},
+              {\(x\_3\), \(y\_3\), "1", "0", "0", 
+                "0", \(\(-xx\_3\) x\_3\), \(\(-xx\_3\) y\_3\)},
+              {"0", "0", "0", \(x\_3\), \(y\_3\), 
+                "1", \(\(-yy\_3\) x\_3\), \(\(-yy\_3\) y\_3\)},
+              {\(x\_4\), \(y\_4\), "1", "0", "0", 
+                "0", \(\(-xx\_4\) x\_4\), \(\(-xx\_4\) y\_4\)},
+              {"0", "0", "0", \(x\_4\), \(y\_4\), 
+                "1", \(\(-yy\_4\) x\_4\), \(\(-yy\_4\) y\_4\)}
+              }], ")"}], ",", 
+        RowBox[{"(", GridBox[{
+              {\(xx\_1\)},
+              {\(yy\_1\)},
+              {\(xx\_2\)},
+              {\(yy\_2\)},
+              {\(xx\_3\)},
+              {\(yy\_3\)},
+              {\(xx\_4\)},
+              {\(yy\_4\)}
+              }], ")"}]}], "]"}]}], "Input"],
+
+Cell[BoxData[
+    \({{1}, {2}, {\(-96\)}, {\(-1\)}, {2}, {\(-32\)}, {0}, {0}}\)], "Output"]
+}, Open  ]]
+},
+FrontEndVersion->"5.2 for Microsoft Windows",
+ScreenRectangle->{{0, 1280}, {0, 725}},
+WindowSize->{693, 693},
+WindowMargins->{{277, Automatic}, {2, Automatic}}
+]
+
+(*******************************************************************
+Cached data follows.  If you edit this Notebook file directly, not
+using Mathematica, you must remove the line containing CacheID at
+the top of  the file.  The cache data will then be recreated when
+you save this file from within Mathematica.
+*******************************************************************)
+
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+
+(*NotebookFileOutline
+Notebook[{
+Cell[1754, 51, 1006, 18, 137, "Input"],
+
+Cell[CellGroupData[{
+Cell[2785, 73, 893, 23, 145, "Input"],
+Cell[3681, 98, 133, 2, 44, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[3851, 105, 1756, 36, 274, "Input"],
+Cell[5610, 143, 165, 2, 44, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[5812, 150, 1764, 36, 274, "Input"],
+Cell[7579, 188, 112, 2, 42, "Output"]
+}, Open  ]],
+
+Cell[CellGroupData[{
+Cell[7728, 195, 2014, 40, 374, "Input"],
+Cell[9745, 237, 91, 1, 29, "Output"]
+}, Open  ]]
+}
+]
+*)
+
+
+
+(*******************************************************************
+End of Mathematica Notebook file.
+*******************************************************************)
+
