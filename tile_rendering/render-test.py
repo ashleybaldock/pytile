@@ -3,6 +3,7 @@
 # Test 1, Mk.2 - merging textures
 # Test 1, Mk.3 - PIL tranforms to map rgb maps onto tiles
 # Test 1, Mk.4 - Using perspective transforms now
+# Test 1, Mk.5 - Tweaking transforms, and extending the system to different height tiles
 
 import os, sys
 import pygame
@@ -84,11 +85,20 @@ class Lightmap:
             # Second, prepare the array to hold all the tiles
             Lightmap.lightmap_tiles = []
 
+            # Tiles 0-14 are for height 1, 15-29 for height 2, 30-44 for height 3
+            # and 45-59 for height 4
+            # i.e. (height - 1) * 14 + tilevalue
             for i in range(0,15):
                 # Load all the basic ground tiles
                 Lightmap.lightmap_tiles.append(pygame.Surface((p,p)))
                 Lightmap.lightmap_tiles[i].blit(Lightmap.image, (0,0), ((i * p), p, p,p))
                 #Lightmap.lightmap_tiles[i].set_colorkey(TRANSPARENT, pygame.RLEACCEL)
+            for i in range(0,15):
+                Lightmap.lightmap_tiles.append(pygame.Surface((p,p)))
+                Lightmap.lightmap_tiles[(i + 15)].blit(Lightmap.image, (0,0), ((i * p), p * 2, p,p))
+            for i in range(0,15):
+                Lightmap.lightmap_tiles.append(pygame.Surface((p,p)))
+                Lightmap.lightmap_tiles[(i + 30)].blit(Lightmap.image, (0,0), ((i * p), p * 3, p,p))
 
         # As this is just a repository for images, nothing much more needs
         # to be done
@@ -101,7 +111,7 @@ class DisplayMain:
     x_dist = 20     # Distance to move the screen when arrow keys are pressed
     y_dist = 20     # in x and y dimensions
 
-    def __init__(self, width=800,height=600):
+    def __init__(self, width=1024,height=600):
         # Initialize PyGame
         pygame.init()
         
@@ -129,8 +139,15 @@ class DisplayMain:
         # Merge tile lightmaps with a texture
         self.output2 = []
         for i in range(15):
-            self.output2.append(self.TextureTile(Lightmap.lightmap_tiles[i] ,Texture.textures[1]))
+            self.output2.append(self.MakeTile2(0, i, 1, Texture.textures[1], Lightmap.lightmap_tiles))
+            
+        for i in range(15):
+            self.output2.append(self.MakeTile2(0, i, 2, Texture.textures[1], Lightmap.lightmap_tiles))
 
+        for i in range(15):
+            self.output2.append(self.MakeTile2(0, i, 3, Texture.textures[1], Lightmap.lightmap_tiles))
+
+        
 ##        # Transform RGB maps to tiles
 ##        self.output3 = []
 ##        for i in range(15):
@@ -144,7 +161,7 @@ class DisplayMain:
         self.output3 = []
         for i in range(15):
             #MakeTile2(self, mode, tile, tileheight, tex1, rgbmap=None, tex2=None, tex3=None, transparency=255)
-            self.output3.append(self.MakeTile2(0, i, ph, Texture.textures[1], RGBmap.maps, Texture.textures[0]))
+            self.output3.append(self.MakeTile2(0, i, 1, Texture.textures[1], Lightmap.lightmap_tiles, RGBmap.maps, Texture.textures[0]))
 
     def MainLoop(self):
         """This is a testing loop to display the output of the rendering tests"""
@@ -165,15 +182,27 @@ class DisplayMain:
             for i in range(4):
                 self.background.blit(RGBmap.maps[i], (p,(p * i)))
                 self.background.blit(self.output[i], ((2 * p),(p * i)))
+
             for i in range(8):
                 self.background.blit(self.output2[i], ((3 * p),(p * i)))
             for i in range(7):
                 self.background.blit(self.output2[(i + 8)], ((4 * p),(p * i)))
-                
+
             for i in range(8):
-                self.background.blit(self.output3[i], ((5 * p),(p * i)))
+                self.background.blit(self.output2[(i + 15)], ((5 * p),(p * i)))
             for i in range(7):
-                self.background.blit(self.output3[(i + 8)], ((6 * p),(p * i)))
+                self.background.blit(self.output2[(i + 8 + 15)], ((6 * p),(p * i)))
+
+            for i in range(8):
+                self.background.blit(self.output2[(i + 30)], ((7 * p),(p * i)))
+            for i in range(7):
+                self.background.blit(self.output2[(i + 8 + 30)], ((8 * p),(p * i)))
+
+
+            for i in range(8):
+                self.background.blit(self.output3[i], ((9 * p),(p * i)))
+            for i in range(7):
+                self.background.blit(self.output3[(i + 8)], ((10 * p),(p * i)))
             self.screen.blit(self.background, (0, 0))
 
             pygame.display.flip()
@@ -261,7 +290,7 @@ class DisplayMain:
         else:
             return 0
 
-    def MakeTile2(self, mode, tile, tileheight, tex1, rgbmap=None, tex2=None, tex3=None, transparency=255):
+    def MakeTile2(self, mode, tile, tileheight, tex1, lmap, rgbmap=None, tex2=None, tex3=None, transparency=255):
         """Combines a lightmap, rgbmap and a number of textures to make a tile
             Required:
                 mode        - The operational mode for the funtion:
@@ -270,11 +299,12 @@ class DisplayMain:
                     1: - Transforms rgbmap first, then maps textures onto it
                 tile number - The standard tile number of the tile to be rendered,
                               this is used to work out the transforms required
-                tileheight  - The height offset of the tile, either ph, 2ph or 3ph,
+                tileheight  - The height offset of the tile, multiple of ph between 1 and 4
                               used to work out the transform
                 lightmap    - The tile lightmap used to mask the transformed texture
                               and to apply shading to it
                 tex1        - Texture to map onto the tile
+                lmap    - array of all defined lightmaps
             Optional:
                 rgbmap      - Allows blending of two textures, should be an array of 4
                               rgbmaps, in order:
@@ -291,9 +321,9 @@ class DisplayMain:
         if tile not in range(0,15):
             # No tile supplied, should throw error here!
             tile = 0    # but for now, just assume tile=0
-        if tileheight not in [ph,(2*ph),(3*ph)]:
+        if tileheight not in [1,2,3,4]:
             # Tileheight is not good, again, error should be thrown here...
-            tileheight = ph     # But we will just ignore it and assume default value
+            tileheight = 1     # But we will just ignore it and assume default value
         if tex1 == None:
             # Should fail here!
             print "no texture!"
@@ -303,7 +333,7 @@ class DisplayMain:
                 # even if supplied
                 rgbmap = None
 
-        lightmap = Lightmap.lightmap_tiles[tile]
+        lightmap = lmap[tile + ((tileheight - 1) * 15)]
 
         # Now determine from the tile value what transforms need to be performed
         # First, find out the corner-height map
@@ -346,7 +376,7 @@ class DisplayMain:
             # First transfer image data to PIL format
             trans_im = Image.fromstring("RGBX", (p,p), pygame.image.tostring(texmerged, "RGBX"))
             # Next define the variables we're going to be using as floats
-            hh = float(tileheight)
+            hh = float(tileheight) * ph
             pp = 64.0
             # These were already found earlier...
             # h1, h2, h3, h4 = self.GetHeights(tile)
@@ -382,6 +412,10 @@ class DisplayMain:
             y2 = (3.0*pp)/4.0 - h2
             y3 = pp - h3
             y4 = (3.0*pp)/4.0 - h4
+
+            if y2 == y3 and y3 == y4:
+                yy3 = yy3 + 1
+                y3 = y3 + 1
 
             # Now, enter all of these variables into the big matrix
             big_matrix = numpy.array([[x1,y1,1,0,0,0,(-xx1*x1),(-xx1*y1)],
@@ -434,11 +468,11 @@ class DisplayMain:
         elif mode == 1:
             if tex2 != None:
                 if tex3 != None:
-                    output = TextureTile(lightmap, tex1, tex2, tex3, rendered_tile)
+                    output = self.TextureTile(lightmap, tex1, tex2, tex3, rendered_tile)
                 else:
-                    output = TextureTile(lightmap, tex1, tex2, rgb=rendered_tile)
+                    output = self.TextureTile(lightmap, tex1, tex2, rgb=rendered_tile)
             else:
-                output = TextureTile(lightmap, rendered_tile)
+                output = self.TextureTile(lightmap, rendered_tile)
 
 
         return output
@@ -454,95 +488,6 @@ class DisplayMain:
 
 
 
-    def MakeTile(self, rgbmap, tile=0):
-        """Deforms a square rgb map image to the shape of a tile,
-           tile shape is given by a bitmask representing the heights
-           at the corners of a tile, in order top, left, bottom, right"""
-        
-        # First transfer image data to PIL format
-        rgbmap_pil = Image.fromstring("RGBX", (p,p), pygame.image.tostring(rgbmap, "RGBX"))
-
-        # Standard flat tile                                          a,b,c, d,e,f, g,h
-##        rgbmap_pil = rgbmap_pil.transform((p,p), Image.PERSPECTIVE, (1, 2, -(3.0*p)/2.0,
-##                                                                     -1, 2, -p/2.0,
-##                                                                     0,0))
-        hh = float(ph)
-        pp = 64.0
-
-        h1, h2, h3, h4 = self.GetHeights(tile)
-
-        # h values are multiples of the ph value, up to 3 times (for ph value of 8, up to 2 times for ph value of 16)
-        h1 = float(h1) * hh
-        h2 = float(h2) * hh
-        h3 = float(h3) * hh
-        h4 = float(h4) * hh
-
-        # First define the variables which represent the "input" image
-        # Need to add/subtract one from all these values, to ensure the output
-        # image is larger than the lightmap mask
-        # Could be corrected by fine-tuning input values so that output
-        # tiles are perfect... but that'd be really hard
-        xx1 = 0.0 + 1
-        xx2 = 0.0 + 1
-        xx3 = pp - 1
-        xx4 = pp - 1
-        
-        yy1 = 0.0 + 1
-        yy2 = pp - 1
-        yy3 = pp - 1
-        yy4 = 0.0 + 1
-
-        # Next define the variables which represent the "output" image
-        x1 = pp/2.0
-        x2 = 0.0
-        x3 = pp/2.0
-        x4 = pp
-
-        y1 = pp/2.0 - h1
-        y2 = (3.0*pp)/4.0 - h2
-        y3 = pp - h3
-        y4 = (3.0*pp)/4.0 - h4
-
-        # Now, enter all of these variables into the big matrix
-        big_matrix = numpy.array([[x1,y1,1,0,0,0,(-xx1*x1),(-xx1*y1)],
-                                  [0,0,0,x1,y1,1,(-yy1*x1),(-yy1*y1)],
-                                  [x2,y2,1,0,0,0,(-xx2*x2),(-xx2*y2)],
-                                  [0,0,0,x2,y2,1,(-yy2*x2),(-yy2*y2)],
-                                  [x3,y3,1,0,0,0,(-xx3*x3),(-xx3*y3)],
-                                  [0,0,0,x3,y3,1,(-yy3*x3),(-yy3*y3)],
-                                  [x4,y4,1,0,0,0,(-xx4*x4),(-xx4*y4)],
-                                  [0,0,0,x4,y4,1,(-yy4*x4),(-yy4*y4)],
-                                  ])
-
-        # And enter the values into the small matrix...
-        small_matrix = numpy.array([[xx1],
-                                    [yy1],
-                                    [xx2],
-                                    [yy2],
-                                    [xx3],
-                                    [yy3],
-                                    [xx4],
-                                    [yy4],
-                                    ])
-
-        # Now, do a linear solve based on these two arrays, to find the transform matrix
-        sol = linalg.solve(big_matrix, small_matrix)
-
-        # Now use that solution to perform the transformation
-        rgbmap_pil = rgbmap_pil.transform((p,p), Image.PERSPECTIVE, (sol[0][0],sol[1][0],sol[2][0],
-                                                                     sol[3][0],sol[4][0],sol[5][0],
-                                                                     sol[6][0],sol[7][0],1))
-
-        # Debugging info
-##        print str(sol[0][0]) + ", " + str(sol[1][0]) + ", " + str(sol[2][0]) + "\n"
-##        print str(sol[3][0]) + ", " + str(sol[4][0]) + ", " + str(sol[5][0]) + "\n"
-##        print str(sol[6][0]) + ", " + str(sol[7][0])
-
-        # Now convert back to pygame format
-        output = pygame.image.frombuffer((rgbmap_pil.tostring()), (p,p), "RGBX")
-
-        # Return the output
-        return output
 
     def MergeRGB(self, map, redtex, bluetex, greentex=None):
         """Merges together two or three textures based on the rgb values of the
