@@ -55,7 +55,9 @@ WINDOW_HEIGHT = 800
 xWorld = 6
 yWorld = 6
 
-TILE_SIZE = 200
+TILE_SIZE = 64
+
+DRAW_HINTS = False
 
 class World(object):
     """Global world object for all Tiles to reference"""
@@ -192,6 +194,8 @@ class Tile(pygame.sprite.Sprite):
             Tile.sleeper_length = track_width * 1.5
             Tile.rail_spacing = track_width
             Tile.rail_width = track_width * 0.2
+	    if Tile.rail_width < 1:
+		Tile.rail_width = 1
             Tile.ballast_width = track_width * 2.3
             Tile.curve_factor = curve_factor
             Tile.curve_multiplier = curve_factor * 0.02
@@ -385,12 +389,13 @@ class Tile(pygame.sprite.Sprite):
             pygame.draw.circle(self.image, red, (int(p[0][0]),int(p[0][1])), 3)
             # Draw normal lines indicating the path endpoints
 ##            pygame.draw.line(self.image, darkblue, p[0], p[0] + 20 * p[1])
-            # Draw text indicating which path endpoint the dot is
-            s = Tile.font.render(str(self.box_endpoints.index(p)), False, green)
-            x,y = s.get_size()
-            x = x/2
-            y = y/2
-            self.image.blit(s, p[0] + 8 * p[1] - (x,y))
+            if DRAW_HINTS:
+                # Draw text indicating which path endpoint the dot is
+                s = Tile.font.render(str(self.box_endpoints.index(p)), False, green)
+                x,y = s.get_size()
+                x = x/2
+                y = y/2
+                self.image.blit(s, p[0] + 8 * p[1] - (x,y))
 
     def draw_sleepers(self, control_points):
         """Draw the sleeper component of the track"""
