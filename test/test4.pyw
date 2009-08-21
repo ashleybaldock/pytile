@@ -1,10 +1,12 @@
 #!/usr/bin/python
-# Test 4-2
+# Test 4-3
+# Implementation of more comprehensive event parsing
+# Implementation of subtile raise
 
 import os, sys
 import pygame
 import random, math
-from copy import copy as copy
+from copy import copy
 
 import World4 as World
 
@@ -128,7 +130,10 @@ class HighlightSprite(pygame.sprite.Sprite):
             self.image.blit(HighlightSprite.tile_images["%sXX%s" % (tiletype[0], tiletype[3])], (0,0))
         self.xpos = xpos
         self.ypos = ypos
-        self.rect = (self.xpos - xoff, self.ypos - yoff, p, p)
+        if type == 0:
+            self.rect = (self.xpos - xoff, self.ypos - yoff, 1, 1)
+        else:
+            self.rect = (self.xpos - xoff, self.ypos - yoff, p, p)
 ##        self.rect = (self.xpos, self.ypos, p, p)
         self.type = type
         self.xWorld = xWorld
@@ -254,31 +259,30 @@ class DisplayMain:
         self.PaintLand2()
 
         highlightSprite = None
-        mouseSprite = None
+        self.mouseSprite = None
         self.refresh_screen = 1
         self.last_pos = None
         coltile = None
         self.buttontext = ""
-        while 1:
+        self.last_mouse_buttons = pygame.mouse.get_pressed()
+        self.last_mouse_position = pygame.mouse.get_pos()
+        lmb_current_drag = False
+        rmb_current_drag = False
+        while True:
             self.clock.tick(0)
             self.dirty = []
-            self.lmb = False
+            # If there's a quit event, don't bother parsing the event queue
+            if pygame.event.peek(pygame.QUIT):
+                pygame.display.quit()
+                sys.exit()
+            lmb_drags = []
+            rmb_drags = []
             for event in pygame.event.get():
-                # First check current mousebutton statuses
-                # If L/RMB down to begin with, begin a new L/RMB move duration to add to the list
-                # MOUSEMOTION events, if a L/RMB duration is active, motion events contribute to the
-                # running total of that button's move amount, else they do nothing
-                # When an L/RMB up event detected, end the appropriate move duration and add it to the list
-                # Start a new one each time an L/RMB down event occurs
-                # If L/RMB move duration active at the end of the queue, close them and add to list
-                # Move events should go to RMB first (screen motion) followed by LMB (everything else)
-                # Given that screen motion events need occur only once per frame, RMB list should be
-                # truncated to a single ending value (e.g. instead of generating a sequence of motions,
-                # only one overall one should be kept)
-                # LMB and RMB event positions should be in absolute world coordinates, so that RMB dragging
-                # does not affect the positioning of LMB events!!
-                # All LMB-related durations kept seperate and processed accordingly
-                #
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        pygame.display.quit()
+                        sys.exit()
+
                 # Modifier keys will also need to be dealt with in sequence, as these affect the actions
                 # required by mouse motions (probably best to have a tool be "active", and for this to be
                 # stored along with the move durations in the list of LMB events
@@ -286,109 +290,142 @@ class DisplayMain:
                 # RMB click and drag moves the screen, scrollwheel in/out zooms in inspection mode,
                 # alters tool settings in tool modes (unless RMB down, in which case scrollwheel always
                 # zooms in/out)
-                if event.type == pygame.QUIT:
-                    pygame.display.quit()
-                    sys.exit()
-                elif event.type == pygame.MOUSEMOTION:
-                    # When the mouse is moved, check to see if...
-                    b = event.buttons
-                    # Is the right mouse button held? If so, do scrolling & refresh whole screen
-                    if (event.buttons == (0,0,1)):
-                        self.MoveScreen("mouse")
-                    else:
-                        pygame.mouse.get_rel()  #Reset mouse position for scrolling
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    if (event.button == 1):
-                        self.buttontext = "LMB DOWN"
-                        self.lmb = True
-                elif event.type == pygame.MOUSEBUTTONUP:
-                    if (event.button == 1):
-                        self.buttontext = "LMB UP"
-
-            if self.last_pos != pygame.mouse.get_pos():
-                self.last_pos = pygame.mouse.get_pos()
-                # Draw mouseSprite at cursor position
-                if mouseSprite:
-                    mouseSprite.sprite.update(pygame.mouse.get_pos())
-                else:
-                    mouseSprite = pygame.sprite.GroupSingle(MouseSprite(pygame.mouse.get_pos()))
-                # Find sprites that the mouseSprite intersects with
-                collision_list1 = pygame.sprite.spritecollide(mouseSprite.sprite, self.orderedSprites, False)#, pygame.sprite.collide_mask)
-                collision_list = pygame.sprite.spritecollide(mouseSprite.sprite, collision_list1, False, pygame.sprite.collide_mask)
-                if collision_list:
-                    collision_list.reverse()
-                    for t in collision_list:
-                        if t.exclude == False:
-                            coltile = t
-                            break
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if event.button == 1:
+                        # LMB down - start a new LMB drag
+                        lmb_current_drag = [event.pos, event.pos, False]
+                    if event.button == 3:
+                        # RMB down - start a new RMB drag and stop current LMB drag (if present)
+                        rmb_current_drag = [event.pos, event.pos]
+                        if lmb_current_drag:
+                            lmb_drags.append(lmb_current_drag)
+                            lmb_current_drag = False
+                if event.type == pygame.MOUSEBUTTONUP:
+                    if event.button == 1:
+                        # LMB up - end current LMB drag (if present, could've been ended in other ways)
+                        if lmb_current_drag:
+                            lmb_drags.append(lmb_current_drag)
+                            lmb_current_drag = False
+                    if event.button == 3:
+                        # RMB up - end current RMB drag
+                        rmb_drags.append(rmb_current_drag)
+                        rmb_current_drag = False
+                if event.type == pygame.MOUSEMOTION:
+                    self.last_mouse_position = event.pos
+                    if event.buttons[2] == 1:
+                        # RMB pressed, change rmb_drag endpoint
+                        rmb_current_drag[1] = event.pos
+                    elif event.buttons[0] == 1:
+                        # LMB pressed, change lmb_drag endpoint
+                        if lmb_current_drag:
+                            lmb_current_drag[1] = event.pos
                         else:
-                            # None of the collided sprites has collision enabled
-                            coltile = None
-                else:
-                    # No collision means nothing to select
-                    coltile = None
+                            lmb_current_drag = [event.pos, event.pos, False]
 
+            # Must then end any currently active drags, but leave the mouse button states open for the next
+            # frame (e.g. take a snapshot of the current drag progress, but don't delete it
+            if lmb_current_drag:
+                lmb_drags.append(lmb_current_drag)
+            if rmb_current_drag:
+                rmb_drags.append(rmb_current_drag)
+
+##            if rmb_drags or lmb_drags:
+##                print "LMB drags: %s, RMB drags: %s" % (lmb_drags, rmb_drags)
+
+            if rmb_drags:
+                # Do screen movement
+                total_drag = [rmb_drags[0][0], rmb_drags[-1][1]]
+                if total_drag[0][0] != total_drag[1][0] or total_drag[0][1] != total_drag[1][1]:
+                    self.MoveScreen2(total_drag)
+                # As this part of the current drag has been processed, set the start point of the next
+                # bit to the end point of this bit
+                # Remove this to enable constant drag scrolling (though using it this way would require
+                # some kind of modifier based on the framerate, to ensure that it scrolls at a consistent
+                # speed on all speeds of platform)
+                if rmb_current_drag:
+                    rmb_current_drag[0] = rmb_current_drag[1]
+
+            if lmb_drags:
+                # Do selection, interaction etc.
+                # First locate collision position of the start and end point of the drag (if these differ)
+                for drag in lmb_drags:
+                    if not drag[2]:
+                        tileposition = self.CollideLocate(drag[0], self.orderedSprites)
+                        if tileposition:
+                            subtileposition = self.SubTilePosition(drag[0], tileposition)
+                        else:
+                            subtileposition = None
+                        drag[2] = (tileposition, subtileposition)
+                    else:
+                        tileposition, subtileposition = drag[2]
+                    # Drag or click must be on a sprite
+                    if tileposition:
+                        start = drag[0]
+                        if drag[0] != drag[1]:
+                            end = drag[1]
+                        else:
+                            end = None
+                        if end:
+                            # Addback keeps the cursor on the 0 level of the terrain and ensures that the user
+                            # must bring the mouse back up to the 0 level before the raising function will
+                            # work again
+                            addback = 0
+                            # Raise height by y difference / ph
+                            diff = (end[1] - start[1]) / ph
+                            if diff != 0:
+                                invdiff = 0 - diff
+                                self.modify_tile(tileposition, subtileposition, invdiff)
+                                x = tileposition.xWorld
+                                y = tileposition.yWorld
+                                # Raise the tile by the calculated number of graduations
+##                                self.array[x][y][0] -= diff
+                                # Also raise the height of the stored copy of the tile in the drag object
+                                drag[2][0].ypos += diff * ph
+                                if self.array[x][y][0] < 0:
+                                    # If an attempt has been made to drag the tile below the 0 level, need to
+                                    # set the tile's height to 0 and add the -ve amount to both the position
+                                    # for the highlight and the start location for dragging (addback amount)
+                                    addback = self.array[x][y][0] * ph
+                                    drag[2][0].ypos += addback
+                                    self.array[x][y][0] = 0
+                                # This could be optimised to not recreate the entire sprite array
+                                # and only correct the tiles which have been modified
+                                self.PaintLand2()
+                            if drag == lmb_current_drag:
+                                # If this is a drag operation which is split across multiple frames then
+                                # the start location for the next frame needs to be modified to reflect the bits
+                                # which were processed this frame
+                                lmb_current_drag[0] = (lmb_current_drag[1][0], lmb_current_drag[1][1] - ((end[1] - start[1]) % ph) + addback)
+
+            # Lastly draw highlight at current position of mouse
+            # If there is an active drag operation ongoing, then the highlight needs to be affected by this
+
+            if lmb_current_drag and lmb_current_drag[2]:
+                self.last_pos = self.last_mouse_position
+                coltile = lmb_current_drag[2][0]
+                subtileposition = lmb_current_drag[2][1]
+            elif self.last_pos != self.last_mouse_position:
+                self.last_pos = self.last_mouse_position
+                coltile = self.CollideLocate(self.last_mouse_position, self.orderedSprites)
+                if coltile:
+                    subtileposition = self.SubTilePosition(self.last_mouse_position, coltile)
             # Find position of cursor relative to the confines of the selected tile
             # Use first item in the list
             if coltile:
-                x = coltile.xWorld
-                y = coltile.yWorld
-                # Find where this tile would've been drawn on the screen, and subtract the mouse's position
-                mousex, mousey = pygame.mouse.get_pos()
-                posx = self.WorldWidth2 - (x * (p2)) + (y * (p2)) - p2
-                posy = (x * (p4)) + (y * (p4)) - (self.array[x][y][0] * ph)
-                offx = mousex - (posx - self.dxoff)
-                offy = mousey - (posy - self.dyoff)
-                # Then compare these offsets to the table of values for this particular kind of tile
-                # to find which overlay selection sprite should be drawn
-                # Height in 16th incremenets, width in 8th increments
-                offx8 = offx / p8
-                offy16 = offy / p16
-                # Then lookup the mask number based on this, this should be drawn on the screen
-                try:
-                    tilesubposition = type[coltile.type][offy16][offx8]
-                except IndexError:
-                    print "offy16: %s, offx8: %s, coltile: %s" % (offy16, offx8, coltile.type)
-                self.tilesubposition = tilesubposition
-                # Always perform check to ensure no tiles with vertices [1,1,1,1]
-                # In case of raising corner
-                # If raising corner is 0, raise corner, check if this makes the tile [1,1,1,1] in
-                # which case raise height of entire tile
-                # If raising corner is 1 check tile to see if there is already a 2, if so increase
-                # tile's height by one, set any 0's to be 1's and then subtract 1 from everything
-                # If raising corner is 1 and no 2's exist, set raising corner to be 2, neighbours to be 1
-                # and the opposite corner to 0
-                # In case of raising edge
-                # Equalise height of edge first, then raise higher, so if one corner 0, and another 1,
-                # then raise to 1:1, then to 2:2 etc. Same on lowering
-                # So if not the same, and either is 0, increase that one to 1
-                # If the same, and both 0, raise both to 1
-                # If the same, and both 1, raise tile by 1 and set to the appropriate edge-slope
-                #   (e.g. flatten tile, then raise up the edge we're dealing with)
-                # In case of raising whole tile
-                # If all 0, increase height by 1, if all 1 or 0, set all to 0 and raise height by 1
-                # if any 2, raise tile by 1 and set the corner which was 2 to be 1
-                #
-                # Could also use a mode which maintains the slope of the tile, and simply increases its height
-                #
-                if self.lmb:
-                    self.array[x][y][0] += 1
-                    self.PaintLand2()
-                    # Move mouse up as well to keep it in the same place
-                    mpx, mpy = pygame.mouse.get_pos()
-                    mpy -= ph
-                    pygame.mouse.set_pos((mpx, mpy))
-                # Add old dirty area to dirtylist
                 if not highlightSprite:
                     highlightSprite = HighlightSprite()
                 if not self.orderedSprites.has(highlightSprite):
-                    self.orderedSprites.add(highlightSprite, layer=(x+y))
+                    self.orderedSprites.add(highlightSprite, layer=(coltile.xWorld + coltile.yWorld))
                 if highlightSprite.rect:
                     self.dirty.append(highlightSprite.rect)
-                highlightSprite.changepos(tilesubposition, str(coltile.type),
-                                          posx, posy, self.dxoff, self.dyoff, x, y)
+                # This whole coltile thing really ought to change, since it bears little resemblance to the
+                # tile which highlightSprite represents - maybe better to set attributes of the highlight
+                # directly?
+                highlightSprite.changepos(subtileposition, str(self.ArrayToString(self.array[coltile.xWorld][coltile.yWorld][1])),
+                                          coltile.xpos, coltile.ypos, self.dxoff, self.dyoff,
+                                          coltile.xWorld, coltile.yWorld)
                 self.dirty.append(highlightSprite.rect)
-                self.orderedSprites.change_layer(highlightSprite, (x+y))
+                self.orderedSprites.change_layer(highlightSprite, (coltile.xWorld + coltile.yWorld))
             else:
                 # No collision, cursor outside game area, set highlight to nothing
                 if highlightSprite:
@@ -410,6 +447,8 @@ class DisplayMain:
                                             self.buttontext))
 
 
+
+
             rectlist = self.orderedSprites.draw(self.screen)
 
             # If land height has been altered, or the screen has been moved
@@ -425,7 +464,218 @@ class DisplayMain:
 
 # Only mark dirty when the cursor position has significantly changed (i.e. new graphic)
 
+# Could also use a mode which maintains the slope of the tile, and simply increases its height
+# shift+LMBdrag - preserve slope and move up/down (whole tile only)
+# ctrl+LMBdrag  - vertex, modify this vertex and its neighbours
+#               - edge, modify this edge, its facing neighbour and the vertices at either end
+#               - tile, modify this tile, its surrounding neighbour edges and vertices
+#
 
+    def modify_vertex(self, tgrid, t, st, step):
+        """Raise or lower one corner of a tile"""
+        if step > 0:
+            if tgrid[st] == 0:
+                tgrid[st] += 1
+                if tgrid == [1,1,1,1]:
+                    tgrid = [0,0,0,0]
+                    t += 1
+                elif 2 in tgrid and not 0 in tgrid:
+                    print tgrid
+                    for k in range(len(tgrid)):
+                        tgrid[k] -= 1
+                    print tgrid
+                    t += 1
+            elif tgrid[st] == 1:
+                if 2 in tgrid:
+                    # If there is a 2 there already increase the tile we're dealing with to 2, then subtract 1
+                    # from any remaining 1's and increase the tile's height by 1
+                    t += 1
+                    tgrid[st] += 1
+                    for k in range(len(tgrid)):
+                        if tgrid[k] == 2:
+                            tgrid[k] = 1
+                        elif tgrid[k] == 1:
+                            tgrid[k] = 0
+                else:
+                    # If there isn't already a 2, turn this tile into the standard 121 profile
+                    tgrid = [0,0,0,0]
+                    tgrid[st] = 2
+                    # Cases to cope with wrap-around addressing on array
+                    if st + 1 > len(tgrid) - 1:
+                        tgrid[0] = 1
+                    else:
+                        tgrid[st + 1] = 1
+                    if st - 1 < 0:
+                        tgrid[3] = 1
+                    else:
+                        tgrid[st - 1] = 1
+            elif tgrid[st] == 2:
+                # If raising corner is 2, just raise the entire tile by 1
+                t += 1
+        else:
+            if tgrid[st] == 0 and t != 0:
+                if 2 in tgrid:
+                    # Just reduce the layer
+                    t -= 1
+                elif 1 in tgrid:
+                    # Reduce by 1 and set the others to a 121 configuration
+                    t -= 1
+                    tgrid = [2,2,2,2]
+                    tgrid[st] = 0
+                    # Cases to cope with wrap-around addressing on array
+                    if st + 1 > len(tgrid) - 1:
+                        tgrid[0] = 1
+                    else:
+                        tgrid[st + 1] = 1
+                    if st - 1 < 0:
+                        tgrid[3] = 1
+                    else:
+                        tgrid[st - 1] = 1
+                else:
+                    t -= 1
+                    tgrid = [1,1,1,1]
+                    tgrid[st] = 0
+            elif tgrid[st] == 1:
+                if 2 in tgrid:
+                # If lowering corner is 1 and there is a 2 reduce the 2 by 1 and reduce
+                # the lowering corner by 1
+                    for k in range(len(tgrid)):
+                        if tgrid[k] == 2:
+                            tgrid[k] -= 1
+                    tgrid[st] -= 1
+                else:
+                    # No 2, so just 1's and 0's, so safe to just reduce by 1
+                    tgrid[st] -= 1
+            elif tgrid[st] == 2:
+                # If lowering corner is 2, simply reduce it by 1
+                tgrid[st] -= 1
+        return tgrid, t
+
+    def modify_tile(self, tile, subtile, amount):
+        """Raise (or lower) a tile based on the subtile"""
+        tgrid = self.array[tile.xWorld][tile.yWorld][1]
+        t = self.array[tile.xWorld][tile.yWorld][0]
+        if amount > 0:
+            step = 1
+            for i in range(0, amount, step):
+                # Whole tile raise
+                if subtile == 9:
+                    if 2 in tgrid:
+                        t += 1
+                        for k in range(len(tgrid)):
+                            tgrid[k] -= 1
+                            if tgrid[k] < 0:
+                                tgrid[k] = 0
+                    elif 1 in tgrid:
+                        t += 1
+                        tgrid = [0,0,0,0]
+                    else:
+                        t += 1
+                # Edge raise
+                elif subtile in [5,6,7,8]:
+                    st1 = subtile - 5
+                    st2 = subtile - 5 + 1
+                    if st2 == 4:
+                        st2 = 0
+                    print st1, tgrid[st1], st2, tgrid[st2]
+                    if tgrid[st1] > tgrid[st2]:
+                        # Raise the one which is lower first
+                        tgrid, t = self.modify_vertex(tgrid, t, st2, step)
+                    elif tgrid[st1] < tgrid[st2]:
+                        tgrid, t = self.modify_vertex(tgrid, t, st1, step)
+                    else:
+                        # Edge is already level, simply raise those vertices
+                        tgrid, t = self.modify_vertex(tgrid, t, st1, step)
+                        tgrid, t = self.modify_vertex(tgrid, t, st2, step)
+                # Vertex raise
+                elif subtile in [1,2,3,4]:
+                    st = subtile - 1
+                    tgrid, t = self.modify_vertex(tgrid, t, st, step)
+        else:
+            step = -1
+            for i in range(0, amount, step):
+                # Whole tile lower
+                if subtile == 9:
+                    if 2 in tgrid:
+                        for k in range(len(tgrid)):
+                            if tgrid[k] == 2:
+                                tgrid[k] = 1
+                    elif 1 in tgrid:
+                        tgrid = [0,0,0,0]
+                    else:
+                        t -= 1
+                # Edge lower
+                elif subtile in [5,6,7,8]:
+                    st1 = subtile - 5
+                    st2 = subtile - 5 + 1
+                    if st2 == 4:
+                        st2 = 0
+                    print st1, tgrid[st1], st2, tgrid[st2]
+                    if tgrid[st1] > tgrid[st2]:
+                        # Lower the one which is higher first
+                        tgrid, t = self.modify_vertex(tgrid, t, st1, step)
+                    elif tgrid[st1] < tgrid[st2]:
+                        tgrid, t = self.modify_vertex(tgrid, t, st2, step)
+                    else:
+                        # Edge is already level, simply lower those vertices
+                        tgrid, t = self.modify_vertex(tgrid, t, st1, step)
+                        tgrid, t = self.modify_vertex(tgrid, t, st2, step)
+                # Vertex lower
+                elif subtile in [1,2,3,4]:
+                    st = subtile - 1
+                    tgrid, t = self.modify_vertex(tgrid, t, st, step)
+##        if t < 0:
+##            t = 0
+        self.array[tile.xWorld][tile.yWorld][1] = tgrid
+        self.array[tile.xWorld][tile.yWorld][0] = t
+
+    def SubTilePosition(self, mousepos, tile):
+        """Find the sub-tile position of the cursor"""
+        x = tile.xWorld
+        y = tile.yWorld
+        # Find where this tile would've been drawn on the screen, and subtract the mouse's position
+        mousex, mousey = mousepos
+        posx = self.WorldWidth2 - (x * (p2)) + (y * (p2)) - p2
+        posy = (x * (p4)) + (y * (p4)) - (self.array[x][y][0] * ph)
+        offx = mousex - (posx - self.dxoff)
+        offy = mousey - (posy - self.dyoff)
+        # Then compare these offsets to the table of values for this particular kind of tile
+        # to find which overlay selection sprite should be drawn
+        # Height in 16th incremenets, width in 8th increments
+        offx8 = offx / p8
+        offy16 = offy / p16
+        # Then lookup the mask number based on this, this should be drawn on the screen
+        try:
+            tilesubposition = type[tile.type][offy16][offx8]
+            return tilesubposition
+        except IndexError:
+            print "offy16: %s, offx8: %s, coltile: %s" % (offy16, offx8, tile.type)
+            return None
+
+    def CollideLocate(self, mousepos, collideagainst):
+        """Locates the sprite(s) that the mouse position intersects with"""
+        # Draw mouseSprite at cursor position
+        if self.mouseSprite:
+            self.mouseSprite.sprite.update(mousepos)
+        else:
+            self.mouseSprite = pygame.sprite.GroupSingle(MouseSprite(mousepos))
+        # Find sprites that the mouseSprite intersects with
+        collision_list1 = pygame.sprite.spritecollide(self.mouseSprite.sprite, collideagainst, False)#, pygame.sprite.collide_mask)
+        if collision_list1:
+            collision_list = pygame.sprite.spritecollide(self.mouseSprite.sprite, collision_list1, False, pygame.sprite.collide_mask)
+            if collision_list:
+                collision_list.reverse()
+                for t in collision_list:
+                    if t.exclude == False:
+                        return t
+                    else:
+                        # None of the collided sprites has collision enabled
+                        return None
+            else:
+                # No collision means nothing to select
+                return None
+        else:
+            return None
 
     def ArrayToString(self, array):
         """Convert a heightfield array to a string"""
@@ -540,22 +790,17 @@ class DisplayMain:
 ##            return (0,0)
         return (x,y)
 
-    def MoveScreen(self, key):
-        """Moves the screen"""
-        if (key == pygame.K_RIGHT):
-            self.dxoff = self.dxoff - self.x_dist
-        elif (key == pygame.K_LEFT):
-            self.dxoff = self.dxoff + self.x_dist
-        elif (key == pygame.K_UP):
-            self.dyoff = self.dyoff + self.y_dist
-        elif (key == pygame.K_DOWN):
-            self.dyoff = self.dyoff - self.y_dist
-        if (key == "mouse"):
-            b = pygame.mouse.get_rel()
-            self.dxoff = self.dxoff - b[0]
-            self.dyoff = self.dyoff - b[1]
-                    
+    def MoveScreen2(self, drag):
+        """Move the screen on mouse input"""
+        start_x, start_y = drag[0]
+        end_x, end_y = drag[1]
+        rel_x = start_x - end_x
+        rel_y = start_y - end_y
+        self.dxoff += rel_x
+        self.dyoff += rel_y
+
         self.PaintLand2()
+
 
 
 
@@ -787,9 +1032,10 @@ type["0101"] = [[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0],[0,0,0,0,0
 
 
 if __name__ == "__main__":
-    world = World.World()
-    MainWindow = DisplayMain(800, 500)
-    MainWindow.MainLoop()
+	os.environ["SDL_VIDEO_CENTERED"] = "1"
+	world = World.World()
+	MainWindow = DisplayMain(800, 500)
+	MainWindow.MainLoop()
 
 
 
