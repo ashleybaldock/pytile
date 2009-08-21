@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # Second test of the ground display system
 # Test3 - new slope decision system based on rotated wildcard grids
+# Test4 - slope decision system improved, raise and lower tools implemented
 
 import os, sys
 import pygame
@@ -77,7 +78,7 @@ class World:
                    [[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
                    [[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
                    [[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
-                   [[0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
+                   [[0,14], [0,14], [0,14], [0,14], [1,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14], [0,14]],
                     ]
 
 
@@ -123,177 +124,347 @@ class World:
 
         return(TileMap)
 
-    def Test9(self, array, x, y):
+    def LowerTile(self, array, x, y):
+        """Decreases height of a single tile, taking care
+        of changes to landscape caused by this"""
+        
+        # Must ensure that tiles surrounding one lowered end up the
+        # same height as the one which has been lowered, so, firstly
+        # lower the tile in question...
+        # But only if the tile is flat, if it's a slope nothing needs to be done
+        if array[x][y][1] == 14:
+            array[x][y][0] = array[x][y][0] - 1
 
-        # Check to see if tile is at edge of map, this needs a special case
-        if x == 0 or y == 0:
-            # Check special corner cases
-            if x == 0 and y == 0:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 14
-                return 1
-            elif x == 0 and y == (len(array)-1):
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 14
-                return 1
-            elif x == (len(array[0])-1) and y == 0:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 14
+        # Now, check 8 surrounding tiles, if they are higher than
+        # the tile we just lowered, we need to make them the same height,
+        # if they are lower we can leave them alone (I think?)
+        for xx in range(-1,2):
+            for yy in range(-1,2):
+                if (x+xx) >= 0 and (x+xx) < len(array[0]):
+                    if (y+yy) >= 0 and (y+yy) < len(array):
+                        if array[x][y][0] < array[x+xx][y+yy][0]:
+                            array[x+xx][y+yy][0] = array[x][y][0]
+                            
+        # Now proceed as for RaiseTile
+        # May need additional work to ensure that all tiles touched by previous
+        # process are added to stack at the beginning?
+
+        # Next, initialise a stack for iterating through tiles affected by this lowering
+        # Will be initialised with the 8 tiles surrounding the lowered tile
+        # As well as the tile itself
+        # If the tiles fall outside the map, don't add them to the stack...
+        stack = []
+        for xx in range(-1,2):
+            for yy in range(-1,2):
+                if (x+xx) >= 0 and (x+xx) < len(array[0]):
+                    if (y+yy) >= 0 and (y+yy) < len(array):
+                        if array[x][y][0] < array[x+xx][y+yy][0]:
+                            array[x+xx][y+yy][0] = array[x][y][0]
+                            
+                        for xxx in range(-1,2):
+                            for yyy in range(-1,2):
+                                if (x+xx+xxx) >= 0 and (x+xx+xxx) < len(array[0]):
+                                    if (y+yy+yyy) >= 0 and (y+yy+yyy) < len(array):
+                                        stack.append([(x+xx+xxx), (y+yy+yyy)])
+##                        else:
+##                            stack.append([(x+xx), (y+yy)])
+                        #ret = world.Test9(self.array, x + xx, y + yy)
+
+        # Now, for all the members of the stack, run the Test9 algorythm on them
+        # If Test9 returns a set of coords, add them to the stack, continue until
+        # Nothing is left in the stack
+        while len(stack) != 0:
+            h = stack.pop(0)
+            ret = self.Test9(array, h[0], h[1], 0)
+            if ret != 0:
+
+                #stack.append([ret[0], ret[1]])
+                for xx in range(-1,2):
+                    for yy in range(-1,2):
+                        if (ret[0]+xx) >= 0 and (ret[0]+xx) < len(array[0]):
+                            if (ret[1]+yy) >= 0 and (ret[1]+yy) < len(array):
+                                stack.append([(ret[0]+xx), (ret[1]+yy)])
+                                #ret = world.Test9(self.array, x + xx, y + yy)
+
+        return 0
+
+    def RaiseTile(self, array, x, y):
+        """Increase height of a single tile, and take care
+        of changes to landscape caused by this"""
+        
+        # Firstly, raise the height of the selected tile
+        array[x][y][0] = array[x][y][0] + 1
+
+        # Next, initialise a stack for iterating through tiles affected by this raise
+        # Will be initialised with the 8 tiles surrounding the raised tile
+        # As well as the tile itself
+        # If the tiles fall outside the map, don't add them to the stack...
+        stack = []
+        for xx in range(-1,2):
+            for yy in range(-1,2):
+                if (x+xx) >= 0 and (x+xx) < len(array[0]):
+                    if (y+yy) >= 0 and (y+yy) < len(array):
+                        stack.append([(x+xx), (y+yy)])
+                        #ret = world.Test9(self.array, x + xx, y + yy)
+
+        # Now, for all the members of the stack, run the Test9 algorythm on them
+        # If Test9 returns a set of coords, add them to the stack, continue until
+        # Nothing is left in the stack
+        while len(stack) != 0:
+            h = stack.pop(0)
+            ret = self.Test9(array, h[0], h[1], 1)
+            if ret != 0:
+                # May need changing to be all surrounding actually...
+                #stack.append([ret[0], ret[1]])
+                for xx in range(-1,2):
+                    for yy in range(-1,2):
+                        if (ret[0]+xx) >= 0 and (ret[0]+xx) < len(array[0]):
+                            if (ret[1]+yy) >= 0 and (ret[1]+yy) < len(array):
+                                stack.append([(ret[0]+xx), (ret[1]+yy)])
+                                #ret = world.Test9(self.array, x + xx, y + yy)
+
+        return 0
+
+
+    def TestZdiff(self, array, x, y, updown):
+        """Function to test the tile height difference between
+        the specified tile and its neighbours, if height difference
+        doesn't exceed 1, then return 0, else return height difference
+        (this can be negative, to indicate direction of height difference)"""
+
+    #--------------This function needs rewriting for speed--------------#
+
+
+        # Check all surrounding tiles, if:
+        #   First, if there's no 2+ difference, do nothing... Else:
+        #   1) This tile is taller/same size than all surrounding:
+        #       a) If updown = 1, do nothing
+        #       b) If updown = 0, lower tile by 1 & recalc
+        #   2) This tile is smaller/same size than all surrounding:
+        #       a) If updown = 1, raise tile by 1 & recalc
+        #       b) If updown = 0, do nothing
+        #   3) Else:
+        #       a) If updown = 1, raise tile by 1 & recalc
+        #       b) If updown = 0, lower tile by 1 & recalc
+        
+        diff = 0
+        for xx in range(-1,2):
+            for yy in range(-1,2):
+                if (x+xx) >= 0 and (x+xx) < len(array[0]):
+                    if (y+yy) >= 0 and (y+yy) < len(array):
+
+                        # Tile is in array, continue with tests...
+                        # First, is there a 2+ difference anywhere?
+                        if array[x][y][0] != array[x+xx][y+yy][0]:
+                            aa = array[x][y][0] - array[x+xx][y+yy][0]
+                            if aa > 1 or aa < -1:
+                                diff = 1
+        # If no difference, nothing needs to be done
+        if diff == 0:                                
+            return 0
+
+        diff = 0
+        diffpos = 0
+        diffneg = 0
+        for xx in range(-1,2):
+            for yy in range(-1,2):
+                if (x+xx) >= 0 and (x+xx) < len(array[0]):
+                    if (y+yy) >= 0 and (y+yy) < len(array):
+
+                        # Tile is in array, continue with tests...
+                        # Second, check all diffs, if all +ve or all -ve,
+                        # then use last rule
+                        if array[x][y][0] != array[x+xx][y+yy][0]:
+                            aa = array[x][y][0] - array[x+xx][y+yy][0]
+                            if aa > 1:
+                                diffpos = 1
+                            elif aa < -1:
+                                diffneg = 1
+                                
+        # If only one is 1, then nothing needs to be done...
+        if diffpos == 1 and diffneg == 0:
+            if updown == 0:
+                array[x][y][0] = array[x][y][0] - 1
                 return 1
             else:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 14
-                return 1
-        # to see if the tile is at the other edges of the map...
-        elif x == (len(array[0])-1) or y == (len(array)-1):
-            # Last special corner case
-            if x == (len(array[0])-1) and y == (len(array)-1):
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 14
-                return 1
+                return 0
+        elif diffpos == 0 and diffneg == 1:
+            if updown == 0:
+                #array[x][y][0] = array[x][y][0] - 1
+                return 0
             else:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 14
+                array[x][y][0] = array[x][y][0] + 1
                 return 1
-        # Otherwise use the general tests
         else:
+            if updown == 0:
+                array[x][y][0] = array[x][y][0] - 1
+                return 1
+            else:
+                array[x][y][0] = array[x][y][0] + 1
+                return 1
+
+
+
+    def Test9(self, array, x, y, updown=1):
+        """Determines the slope or height change of a tile
+        based on the characteristics of the 8 surrounding tiles
+        will return either 0, indicating no further action, or
+        will return the inputted coords (for another iteration),
+        this happens only if the height of a tile is changed by
+        a rule
+        updown specifies whether terrain is being raised or lowered
+        (for level gap calculation)"""
         # Straight slopes (high)
         # Needs some sort of more generic system for this really...
 
         # Rules to deal with cases where land needs to be raised
-        # in these cases we really need to re-do all the calcs for the
+        # in these cases we need to re-do all the calcs for the
         # surrounding tiles, to give a degree of recursivity
 
-        #Could be made more efficient if rule can specify only 90 degrees...            
-            q = self.TestRule(self.TileSiblings(array, x, y), [2,2,2,
-                                                               1,0,1,
-                                                               2,2,2,], 2)
-            if q != 0:
-                array[x][y][0] = array[x][y][0] + 1
-                array[x][y][1] = 14
-                return 1
+        # First, check a tile's neighbours to see if there are any
+        # height differences greater than 1, if so raise/lower the
+        # tile based on whatever action will remove the large gap
+        # (again, needs to be recursive, but this will be handled
+        # the same way most likely)
 
-            # Rules for straight slopes
-            q = self.TestRule(self.TileSiblings(array, x, y), [2,0,0,
-                                                               1,0,0,
-                                                               2,0,0,], 2)
-            if q == 1:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 0
-                return 1
-            elif q == 2:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 1
-                return 1
-            elif q == 3:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 2
-                return 1
-            elif q == 4:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 3
-                return 1
+        if self.TestZdiff(array, x, y, updown) == 1:
+            return (x, y)
             
-            # Rules for "outside" curves
-            q = self.TestRule(self.TileSiblings(array, x, y), [1,0,0,
-                                                               0,0,0,
-                                                               0,0,0,], 2)
-            if q == 1:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 5
-                return 1
-            elif q == 2:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 6
-                return 1
-            elif q == 3:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 7
-                return 1
-            elif q == 4:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 4
-                return 1
 
-            # Rules for "inside" curves
-            q = self.TestRule(self.TileSiblings(array, x, y), [2,1,2,
-                                                               1,0,0,
-                                                               2,0,0,], 2)
-            if q == 1:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 8
-                return 1
-            elif q == 2:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 10
-                return 1
-            elif q == 3:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 12
-                return 1
-            elif q == 4:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 9
-                return 1
-            q = self.TestRule(self.TileSiblings(array, x, y), [0,1,0,
-                                                               0,0,0,
-                                                               0,0,1,], 2)
-            if q == 4:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 8
-                return 1
-            elif q == 1:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 10
-                return 1
-            elif q == 2:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 12
-                return 1
-            elif q == 3:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 9
-                return 1
-            q = self.TestRule(self.TileSiblings(array, x, y), [0,1,0,
-                                                               0,0,0,
-                                                               1,0,0,], 2)
-            if q == 1:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 8
-                return 1
-            elif q == 2:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 10
-                return 1
-            elif q == 3:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 12
-                return 1
-            elif q == 4:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 9
-                return 1
+        #Could be made more efficient if rule can specify only 90 degrees...            
+        q = self.TestRule(self.TileSiblings(array, x, y), [2,2,2,
+                                                           1,0,1,
+                                                           2,2,2,], 2)
+        if q != 0:
+            array[x][y][0] = array[x][y][0] + 1
+            array[x][y][1] = 14
+            return (x, y)
+        q = self.TestRule(self.TileSiblings(array, x, y), [1,0,0,
+                                                           0,0,1,
+                                                           0,1,2,], 2)
+        if q != 0:
+            array[x][y][0] = array[x][y][0] + 1
+            array[x][y][1] = 14
+            return (x, y)
 
+        # Rules for straight slopes
+        q = self.TestRule(self.TileSiblings(array, x, y), [2,0,0,
+                                                           1,0,0,
+                                                           2,0,0,], 2)
+        if q == 1:
+            array[x][y][0] = array[x][y][0]
+            array[x][y][1] = 0
+            return 0
+        elif q == 2:
+            array[x][y][0] = array[x][y][0]
+            array[x][y][1] = 1
+            return 0
+        elif q == 3:
+            array[x][y][0] = array[x][y][0]
+            array[x][y][1] = 2
+            return 0
+        elif q == 4:
+            array[x][y][0] = array[x][y][0]
+            array[x][y][1] = 3
+            return 0
+        
+        # Rules for "outside" curves
+        q = self.TestRule(self.TileSiblings(array, x, y), [1,0,0,
+                                                           0,0,0,
+                                                           0,0,0,], 2)
+        if q == 1:
+            array[x][y][0] = array[x][y][0]
+            array[x][y][1] = 5
+            return 0
+        elif q == 2:
+            array[x][y][0] = array[x][y][0]
+            array[x][y][1] = 6
+            return 0
+        elif q == 3:
+            array[x][y][0] = array[x][y][0]
+            array[x][y][1] = 7
+            return 0
+        elif q == 4:
+            array[x][y][0] = array[x][y][0]
+            array[x][y][1] = 4
+            return 0
 
+        # Rules for "inside" curves
+        q = self.TestRule(self.TileSiblings(array, x, y), [2,1,2,
+                                                           1,0,0,
+                                                           2,0,0,], 2)
+        if q == 1:
+            array[x][y][0] = array[x][y][0]
+            array[x][y][1] = 8
+            return 0
+        elif q == 2:
+            array[x][y][0] = array[x][y][0]
+            array[x][y][1] = 10
+            return 0
+        elif q == 3:
+            array[x][y][0] = array[x][y][0]
+            array[x][y][1] = 12
+            return 0
+        elif q == 4:
+            array[x][y][0] = array[x][y][0]
+            array[x][y][1] = 9
+            return 0
+        q = self.TestRule(self.TileSiblings(array, x, y), [2,1,0,
+                                                           0,0,0,
+                                                           0,0,1,], 2)
+        if q == 4:
+            array[x][y][0] = array[x][y][0]
+            array[x][y][1] = 8
+            return 0
+        elif q == 1:
+            array[x][y][0] = array[x][y][0]
+            array[x][y][1] = 10
+            return 0
+        elif q == 2:
+            array[x][y][0] = array[x][y][0]
+            array[x][y][1] = 12
+            return 0
+        elif q == 3:
+            array[x][y][0] = array[x][y][0]
+            array[x][y][1] = 9
+            return 0
+        q = self.TestRule(self.TileSiblings(array, x, y), [0,1,2,
+                                                           0,0,0,
+                                                           1,0,0,], 2)
+        if q == 1:
+            array[x][y][0] = array[x][y][0]
+            array[x][y][1] = 8
+            return 0
+        elif q == 2:
+            array[x][y][0] = array[x][y][0]
+            array[x][y][1] = 10
+            return 0
+        elif q == 3:
+            array[x][y][0] = array[x][y][0]
+            array[x][y][1] = 12
+            return 0
+        elif q == 4:
+            array[x][y][0] = array[x][y][0]
+            array[x][y][1] = 9
+            return 0
 
-            # Rules for double curves at corner of two mountains
-            q = self.TestRule(self.TileSiblings(array, x, y), [1,0,0,
-                                                               0,0,0,
-                                                               0,0,1,], 2)
-            if q == 1:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 13
-                return 1
-            elif q == 2:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 11
-                return 1
+        # Rules for double curves at corner of two mountains
+        q = self.TestRule(self.TileSiblings(array, x, y), [1,0,0,
+                                                           0,0,0,
+                                                           0,0,1,], 2)
+        if q == 1:
+            array[x][y][0] = array[x][y][0]
+            array[x][y][1] = 13
+            return 0
+        elif q == 2:
+            array[x][y][0] = array[x][y][0]
+            array[x][y][1] = 11
+            return 0
 
-
-            else:
-                array[x][y][0] = array[x][y][0]
-                array[x][y][1] = 14
-                return 1
+        else:
+            array[x][y][0] = array[x][y][0]
+            array[x][y][1] = 14
+            return 0
 
 ## Check:
 ## (x-1),(y-1)
@@ -521,18 +692,28 @@ class DisplayMain:
         #Must ensure mouse is over screen (needs fixing properly)
         pygame.mouse.set_pos(((self.background.get_width()/2),(self.background.get_height()/2)))
 
+        self.tool = ""
+
         while 1:
             blit_all = 0
             self.textitems = []
             for event in pygame.event.get():
                 if event.type == pygame.QUIT: 
                     sys.exit()
-                #elif event.type == pygame.KEYDOWN:
-                    #if ((event.key == pygame.K_RIGHT)
-                    #or (event.key == pygame.K_LEFT)
-                    #or (event.key == pygame.K_UP)
-                    #or (event.key == pygame.K_DOWN)):
-                        #self.MoveScreen(event.key)
+                elif event.type == pygame.KEYDOWN:
+                    if ((event.key == pygame.K_RIGHT)
+                    or (event.key == pygame.K_LEFT)
+                    or (event.key == pygame.K_UP)
+                    or (event.key == pygame.K_DOWN)):
+                        self.MoveScreen(event.key)
+                    else:
+                        b = event.unicode
+                        if pygame.font:
+                            font = pygame.font.Font(None, 24)
+                            self.textitems.append(font.render("Key pressed: " + str(b), 1, (255, 255, 255)))
+                            
+                        # Need some sort of tool selection system implemented here...
+                        self.tool = event.unicode
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     # If LMB pressed...
                     if (event.button == 1):
@@ -563,7 +744,7 @@ class DisplayMain:
             #if blit_all == 1:
             self.screen.blit(self.background, (0, 0))
             self.tile_sprites.draw(self.screen)
-            self.water_sprites.draw(self.screen)
+            #self.water_sprites.draw(self.screen)
             if pygame.font:
                 font = pygame.font.Font(None, 2)
                 for j in range(len(self.textitems)):
@@ -604,14 +785,19 @@ class DisplayMain:
         # Raise height of a single tile
         isopos = self.ScreenToIso(pygame.mouse.get_pos())
         x, y = isopos
-        self.array[x][y][0] = self.array[x][y][0] + 1
-        
-        #sibs = world.TileSibs(self.array, isopos)
-        for i in range(-1,2):
-            for j in range(-1,2):
-                #if x != j and y != i:
-                #self.array[x + i][y + j][0], self.array[x + i][y + j][1] = world.Test9(self.array, x + i, y + j)
-                ret = world.Test9(self.array, x + i, y + j)
+        #self.array[x][y][0] = self.array[x][y][0] + 1
+
+        if self.tool == "u":
+            world.RaiseTile(self.array, x, y)
+        elif self.tool == "d":
+            world.LowerTile(self.array, x, y)
+
+##        #sibs = world.TileSibs(self.array, isopos)
+##        for i in range(-1,2):
+##            for j in range(-1,2):
+##                #if x != j and y != i:
+##                #self.array[x + i][y + j][0], self.array[x + i][y + j][1] = world.Test9(self.array, x + i, y + j)
+##                ret = world.Test9(self.array, x + i, y + j)
                     
         
         self.PaintLand()
