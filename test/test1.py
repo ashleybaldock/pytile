@@ -1,5 +1,6 @@
 #!/usr/bin/python
-#Second test of the ground display system
+# Second test of the ground display system
+# Test3 - new slope decision system based on rotated wildcard grids
 
 import os, sys
 import pygame
@@ -117,9 +118,10 @@ class World:
                 
         for x in range(len(TileMap[0])):
             for y in range(len(TileMap)):
-                SecondMap[x][y][0], SecondMap[x][y][1] = self.Test9(TileMap, x, y)
+                ret = self.Test9(TileMap, x, y)
+                #SecondMap[x][y][0], SecondMap[x][y][1] = self.Test9(TileMap, x, y)
 
-        return(SecondMap)
+        return(TileMap)
 
     def Test9(self, array, x, y):
 
@@ -127,60 +129,172 @@ class World:
         if x == 0 or y == 0:
             # Check special corner cases
             if x == 0 and y == 0:
-                return((array[x][y][0], 14))
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 14
+                return 1
             elif x == 0 and y == (len(array)-1):
-                return((array[x][y][0], 14))
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 14
+                return 1
             elif x == (len(array[0])-1) and y == 0:
-                return((array[x][y][0], 14))
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 14
+                return 1
             else:
-                return((array[x][y][0], 14))
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 14
+                return 1
         # to see if the tile is at the other edges of the map...
         elif x == (len(array[0])-1) or y == (len(array)-1):
             # Last special corner case
             if x == (len(array[0])-1) and y == (len(array)-1):
-                return((array[x][y][0], 14))
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 14
+                return 1
             else:
-                return((array[x][y][0], 14))
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 14
+                return 1
         # Otherwise use the general tests
         else:
-            # Straight slopes (high)
-            # Needs some sort of more generic system for this really...
+        # Straight slopes (high)
+        # Needs some sort of more generic system for this really...
 
-            # Rules to deal with cases where land needs to be raised
-            # in these cases we really need to re-do all the calcs for the
-            # surrounding tiles, to give a degree of recursivity
-            if self.TestRule(self.TileSiblings(array, x, y), [2,2,2,
-                                                              1,0,1,
-                                                              2,2,2,], 0) == 1:
-                #self.Test9(array, x, y)
-                return((array[x][y][0] + 1, 14))
-            if self.TestRule(self.TileSiblings(array, x, y), [2,2,2,
-                                                              1,0,1,
-                                                              2,2,2,], 3) == 3:
-                return((array[x][y][0] + 1, 14))
+        # Rules to deal with cases where land needs to be raised
+        # in these cases we really need to re-do all the calcs for the
+        # surrounding tiles, to give a degree of recursivity
+
+        #Could be made more efficient if rule can specify only 90 degrees...            
+            q = self.TestRule(self.TileSiblings(array, x, y), [2,2,2,
+                                                               1,0,1,
+                                                               2,2,2,], 2)
+            if q != 0:
+                array[x][y][0] = array[x][y][0] + 1
+                array[x][y][1] = 14
+                return 1
+
+            # Rules for straight slopes
+            q = self.TestRule(self.TileSiblings(array, x, y), [2,0,0,
+                                                               1,0,0,
+                                                               2,0,0,], 2)
+            if q == 1:
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 0
+                return 1
+            elif q == 2:
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 1
+                return 1
+            elif q == 3:
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 2
+                return 1
+            elif q == 4:
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 3
+                return 1
+            
+            # Rules for "outside" curves
+            q = self.TestRule(self.TileSiblings(array, x, y), [1,0,0,
+                                                               0,0,0,
+                                                               0,0,0,], 2)
+            if q == 1:
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 5
+                return 1
+            elif q == 2:
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 6
+                return 1
+            elif q == 3:
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 7
+                return 1
+            elif q == 4:
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 4
+                return 1
+
+            # Rules for "inside" curves
+            q = self.TestRule(self.TileSiblings(array, x, y), [2,1,2,
+                                                               1,0,0,
+                                                               2,0,0,], 2)
+            if q == 1:
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 8
+                return 1
+            elif q == 2:
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 10
+                return 1
+            elif q == 3:
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 12
+                return 1
+            elif q == 4:
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 9
+                return 1
+            q = self.TestRule(self.TileSiblings(array, x, y), [0,1,0,
+                                                               0,0,0,
+                                                               0,0,1,], 2)
+            if q == 4:
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 8
+                return 1
+            elif q == 1:
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 10
+                return 1
+            elif q == 2:
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 12
+                return 1
+            elif q == 3:
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 9
+                return 1
+            q = self.TestRule(self.TileSiblings(array, x, y), [0,1,0,
+                                                               0,0,0,
+                                                               1,0,0,], 2)
+            if q == 1:
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 8
+                return 1
+            elif q == 2:
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 10
+                return 1
+            elif q == 3:
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 12
+                return 1
+            elif q == 4:
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 9
+                return 1
 
 
-            # Group 1 ----------------------------------------------
-            if self.TestRule(self.TileSiblings(array, x, y), [2,0,2,
-                                                              1,0,2,
-                                                              2,0,2,], 0) == 1:
-                return((array[x][y][0], 0))
-            if self.TestRule(self.TileSiblings(array, x, y), [2,0,2,
-                                                              1,0,2,
-                                                              2,0,2,], 1) == 2:
-                return((array[x][y][0], 2))
-            if self.TestRule(self.TileSiblings(array, x, y), [2,0,2,
-                                                              1,0,2,
-                                                              2,0,2,], 3) == 3:
-                return((array[x][y][0], 1))
-            if self.TestRule(self.TileSiblings(array, x, y), [2,0,2,
-                                                              1,0,2,
-                                                              2,0,2,], 5) == 5:
-                return((array[x][y][0], 3))
+
+            # Rules for double curves at corner of two mountains
+            q = self.TestRule(self.TileSiblings(array, x, y), [1,0,0,
+                                                               0,0,0,
+                                                               0,0,1,], 2)
+            if q == 1:
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 13
+                return 1
+            elif q == 2:
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 11
+                return 1
 
 
             else:
-                return((array[x][y][0], 14))
+                array[x][y][0] = array[x][y][0]
+                array[x][y][1] = 14
+                return 1
+
 ## Check:
 ## (x-1),(y-1)
 ## (x-1),y
@@ -193,75 +307,41 @@ class World:
 ## (x+1),(y+1)
 
     def TestRule(self, test, rule, rot=0):
-        """Takes 3 args, test and rule and rot
-        test = what to test against
-        rule = rule to test
-        rot = should rotations be tested? default is 0 (no) 1 for yes
-        returns 1 if there is a straight match,
-        2 if first rotation matches, 3 if second, 4 if third,
-        returns 0 if no match"""
+        """Takes 3 args, test, rule and rot
+        test = pattern to test for match
+        rule = rule to test pattern against
+        rot = what rotations should be used:
+              0 - no rotations
+              1 - 180 degree rotation only
+              2 - all 4 rotations
+        returns:
+        0 - no rot matches
+        1 - 0 degrees matches (what's passed in)
+        2 - 90 degrees matches
+        3 - 180 degrees matches
+        4 - 270 degrees matches"""
 
-        # Rule takes the form [x,x,x, y,y,y, z,z,z]
-        # Can be either 0 (same height as middle), 1 (higher than middle) or 2 (ignore)
-        # Compare only parts which aren't to be ignored
+        # First, test the rule as passed in
         fail = 0
-        if rot == 0:
-            for i in range(len(test)):
-                # If entry is 2, don't bother testing
-                if rule[i] != 2:
-                    # If they are not the same, mark it for failure
-                    if rule[i] == test[i]:
-                        fail = 1
-                    else:
-                        return 0
-        # Test mirrored version
-        elif rot == 1:
-            rule_mirrored = []
-            a = []
-            a = rule[:]
-            rule_mirrored.append(a[2])
-            rule_mirrored.append(a[1])
-            rule_mirrored.append(a[0])
-            rule_mirrored.append(a[5])
-            rule_mirrored.append(a[4])
-            rule_mirrored.append(a[3])
-            rule_mirrored.append(a[8])
-            rule_mirrored.append(a[7])
-            rule_mirrored.append(a[6])
-            
-            for i in range(len(test)):
-                # If entry is 2, don't bother testing
-                if rule_mirrored[i] != 2:
-                    # If they are not the same, mark it for failure
-                    if rule_mirrored[i] == test[i]:
-                        fail = 2
-                    else:
-                        return 0
-        # Test flipped version
-        elif rot == 2:
-            rule_flipped = []
-            a = []
-            a = rule[:]
-            rule_flipped.append(a[6])
-            rule_flipped.append(a[7])
-            rule_flipped.append(a[8])
-            rule_flipped.append(a[3])
-            rule_flipped.append(a[4])
-            rule_flipped.append(a[5])
-            rule_flipped.append(a[0])
-            rule_flipped.append(a[1])
-            rule_flipped.append(a[2])
-            
-            for i in range(len(test)):
-                # If entry is 2, don't bother testing
-                if rule_flipped[i] != 2:
-                    # If they are not the same, mark it for failure
-                    if rule_flipped[i] == test[i]:
-                        fail = 3
-                    else:
-                        return 0
-        # Rotated version (90 degrees)
-        elif rot == 3:
+        for i in range(len(test)):
+            # If entry is 2, don't bother testing
+            if rule[i] != 2:
+                # If they are not the same, mark it for failure
+                if rule[i] == test[i]:
+                    complete = 1
+                else:
+                    # If the rule doesn't match on any particular point,
+                    # set fail to 1 and this rule varient isn't passed
+                    fail = 1
+
+        if fail == 0:
+            return complete
+        
+        if rot >= 1:
+        #Could probably save some time here by doing 180 degree case seperately, needs speed testing
+            fail = 0
+            complete = 0
+
             rule_rot90 = []
             a = []
             a = rule[:]
@@ -274,98 +354,127 @@ class World:
             rule_rot90.append(a[8])
             rule_rot90.append(a[5])
             rule_rot90.append(a[2])
-            
-            for i in range(len(test)):
-                # If entry is 2, don't bother testing
-                if rule_rot90[i] != 2:
-                    # If they are not the same, mark it for failure
-                    if rule_rot90[i] == test[i]:
-                        fail = 3
-                    else:
-                        return 0
-        # Rotated version (180 degrees)
-        elif rot == 4:
+
+            if rot != 1:        # If 1 then we're only testing 180 degrees, so skip this
+                for i in range(len(test)):
+                    # If entry is 2, don't bother testing
+                    if rule_rot90[i] != 2:
+                        # If they are not the same, mark it for failure
+                        if rule_rot90[i] == test[i]:
+                            complete = 2
+                        else:
+                            # If the rule doesn't match on any particular point,
+                            # set fail to 1 and this rule varient isn't passed
+                            fail = 1
+                if fail == 0:
+                    return complete
+                fail = 0
+                complete = 0
+
             rule_rot180 = []
-            rule_rot180 = rule[:]
-            rule_rot180.reverse()
-            
+            a = []
+            a = rule_rot90[:]
+            rule_rot180.append(a[6])
+            rule_rot180.append(a[3])
+            rule_rot180.append(a[0])
+            rule_rot180.append(a[7])
+            rule_rot180.append(a[4])
+            rule_rot180.append(a[1])
+            rule_rot180.append(a[8])
+            rule_rot180.append(a[5])
+            rule_rot180.append(a[2])
+
             for i in range(len(test)):
                 # If entry is 2, don't bother testing
                 if rule_rot180[i] != 2:
                     # If they are not the same, mark it for failure
                     if rule_rot180[i] == test[i]:
-                        fail = 3
+                        complete = 3
                     else:
-                        return 0
-        # Rotated version (270 degrees)
-        elif rot == 5:
-            rule_rot270 = []
-            a = []
-            a = rule[:]
-            rule_rot270.append(a[2])
-            rule_rot270.append(a[5])
-            rule_rot270.append(a[8])
-            rule_rot270.append(a[1])
-            rule_rot270.append(a[4])
-            rule_rot270.append(a[7])
-            rule_rot270.append(a[0])
-            rule_rot270.append(a[3])
-            rule_rot270.append(a[6])
-            
-            for i in range(len(test)):
-                # If entry is 2, don't bother testing
-                if rule_rot270[i] != 2:
-                    # If they are not the same, mark it for failure
-                    if rule_rot270[i] == test[i]:
-                        fail = 5
-                    else:
-                        return 0
+                        # If the rule doesn't match on any particular point,
+                        # set fail to 1 and this rule varient isn't passed
+                        fail = 1
 
+            if fail == 0:
+                return complete
+            if rot == 1:
+                return 0
+            else:
+                fail = 0
+                complete = 0
 
-        return fail
+            if rot != 1:        # If 1 then we're only testing 180 degrees, so skip this
+
+                rule_rot270 = []
+                a = []
+                a = rule_rot180[:]
+                rule_rot270.append(a[6])
+                rule_rot270.append(a[3])
+                rule_rot270.append(a[0])
+                rule_rot270.append(a[7])
+                rule_rot270.append(a[4])
+                rule_rot270.append(a[1])
+                rule_rot270.append(a[8])
+                rule_rot270.append(a[5])
+                rule_rot270.append(a[2])
+
+                for i in range(len(test)):
+                    # If entry is 2, don't bother testing
+                    if rule_rot270[i] != 2:
+                        # If they are not the same, mark it for failure
+                        if rule_rot270[i] == test[i]:
+                            complete = 4
+                        else:
+                            # If the rule doesn't match on any particular point,
+                            # set fail to 1 and this rule varient isn't passed
+                            fail = 1
+                if fail == 0:
+                    return complete
+                else:
+                    return 0
+
+        elif fail == 1:
+            return 0
+
 
     def TileSiblings(self, array, x, y):
         """Returns a 9x9 heightmap for slope testing"""
         #x, y = xy
 
         siblings = []
+
         for xx in range(-1,2):
             for yy in range(-1,2):
-                if array[x+xx][y+yy][0] > array[x][y][0]:
-                    siblings.append(1)
-                elif array[x+xx][y+yy][0] < array[x][y][0]:
+                if (x+xx) < 0 or (x+xx) > (len(array[0])-1):
                     siblings.append(0)
-                elif array[x+xx][y+yy][0] == array[x][y][0]:
+                elif (y+yy) < 0 or (y+yy) > (len(array)-1):
                     siblings.append(0)
-        
-##        siblings.append(array[x - 1][y - 1][0])
-##        siblings.append(array[x - 1][y][0])
-##        siblings.append(array[x - 1][y + 1][0])
-##        siblings.append(array[x][y - 1][0])
-##        siblings.append(array[x][y][0])
-##        siblings.append(array[x][y + 1][0])
-##        siblings.append(array[x + 1][y - 1][0])
-##        siblings.append(array[x + 1][y][0])
-##        siblings.append(array[x + 1][y + 1][0])
+                else:
+                    if array[x+xx][y+yy][0] > array[x][y][0]:
+                        siblings.append(1)
+                    elif array[x+xx][y+yy][0] < array[x][y][0]:
+                        siblings.append(0)
+                    elif array[x+xx][y+yy][0] == array[x][y][0]:
+                        siblings.append(0)
 
         return siblings
 
-    def TileSibs(self, array, xy=(0,0)):
-        """Returns the 8 tiles surrounding the given tile"""
-        x, y = xy
-
-        siblings = []
-        siblings.append(self.array[x - 1][y - 1])
-        siblings.append(self.array[x - 1][y])
-        siblings.append(self.array[x - 1][y + 1])
-        siblings.append(self.array[x][y - 1])
-        #siblings.append(self.array[x][y])
-        siblings.append(self.array[x][y + 1])
-        siblings.append(self.array[x + 1][y - 1])
-        siblings.append(self.array[x + 1][y])
-        siblings.append(self.array[x + 1][y + 1])
-
-        return siblings
+##    def TileSibs(self, array, xy=(0,0)):
+##        """Returns the 8 tiles surrounding the given tile"""
+##        x, y = xy
+##
+##        siblings = []
+##        siblings.append(self.array[x - 1][y - 1])
+##        siblings.append(self.array[x - 1][y])
+##        siblings.append(self.array[x - 1][y + 1])
+##        siblings.append(self.array[x][y - 1])
+##        #siblings.append(self.array[x][y])
+##        siblings.append(self.array[x][y + 1])
+##        siblings.append(self.array[x + 1][y - 1])
+##        siblings.append(self.array[x + 1][y])
+##        siblings.append(self.array[x + 1][y + 1])
+##
+##        return siblings
 
 class DisplayMain:
     """This handles the main initialisation
@@ -414,7 +523,6 @@ class DisplayMain:
 
         while 1:
             blit_all = 0
-            self.screen.blit(self.background, (0, 0))
             self.textitems = []
             for event in pygame.event.get():
                 if event.type == pygame.QUIT: 
@@ -452,6 +560,8 @@ class DisplayMain:
                         
                         
             #self.screen.blit(self.background, (0, 0))
+            #if blit_all == 1:
+            self.screen.blit(self.background, (0, 0))
             self.tile_sprites.draw(self.screen)
             self.water_sprites.draw(self.screen)
             if pygame.font:
@@ -500,8 +610,9 @@ class DisplayMain:
         for i in range(-1,2):
             for j in range(-1,2):
                 #if x != j and y != i:
-                self.array[x + i][y + j][0], self.array[x + i][y + j][1] = world.Test9(self.array, x + i, y + j)
-
+                #self.array[x + i][y + j][0], self.array[x + i][y + j][1] = world.Test9(self.array, x + i, y + j)
+                ret = world.Test9(self.array, x + i, y + j)
+                    
         
         self.PaintLand()
         # Raise height of a single point (4 surrounding tiles)
