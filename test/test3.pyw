@@ -70,14 +70,51 @@ type0 = [[0,0,0,0,0,0,0,0],
 class HighlightSprite(pygame.sprite.Sprite):
     """Sprites for displaying ground selection highlight"""
     image = None
-    def __init__(self, type, xpos, ypos, xWorld, yWorld):
+    col_exclude = True
+    def __init__(self):
         pygame.sprite.Sprite.__init__(self)
         if HighlightSprite.image is None:
             groundImage = pygame.image.load("ground3.png")
             HighlightSprite.image = groundImage.convert()
             # Tile images will be composited using rendering later, for now just read them in
             HighlightSprite.tile_images = {}
+
+            # Each tile's highlight image composited from 1-4 edge images
+            # Set for bottom-left edge
+            HighlightSprite.tile_images["00XX"] = HighlightSprite.image.subsurface((0*p,4*p,p,p))
+            HighlightSprite.tile_images["01XX"] = HighlightSprite.image.subsurface((1*p,4*p,p,p))
+            HighlightSprite.tile_images["10XX"] = HighlightSprite.image.subsurface((2*p,4*p,p,p))
+            HighlightSprite.tile_images["11XX"] = HighlightSprite.image.subsurface((3*p,4*p,p,p))
+            HighlightSprite.tile_images["12XX"] = HighlightSprite.image.subsurface((4*p,4*p,p,p))
+            HighlightSprite.tile_images["21XX"] = HighlightSprite.image.subsurface((5*p,4*p,p,p))
+            HighlightSprite.tile_images["22XX"] = HighlightSprite.image.subsurface((6*p,4*p,p,p))
+            # Set for bottom-right edge
+            HighlightSprite.tile_images["X00X"] = HighlightSprite.image.subsurface((0*p,5*p,p,p))
+            HighlightSprite.tile_images["X01X"] = HighlightSprite.image.subsurface((1*p,5*p,p,p))
+            HighlightSprite.tile_images["X10X"] = HighlightSprite.image.subsurface((2*p,5*p,p,p))
+            HighlightSprite.tile_images["X11X"] = HighlightSprite.image.subsurface((3*p,5*p,p,p))
+            HighlightSprite.tile_images["X12X"] = HighlightSprite.image.subsurface((4*p,5*p,p,p))
+            HighlightSprite.tile_images["X21X"] = HighlightSprite.image.subsurface((5*p,5*p,p,p))
+            HighlightSprite.tile_images["X22X"] = HighlightSprite.image.subsurface((6*p,5*p,p,p))
+            # Set for top-right edge
+            HighlightSprite.tile_images["XX00"] = HighlightSprite.image.subsurface((0*p,6*p,p,p))
+            HighlightSprite.tile_images["XX01"] = HighlightSprite.image.subsurface((1*p,6*p,p,p))
+            HighlightSprite.tile_images["XX10"] = HighlightSprite.image.subsurface((2*p,6*p,p,p))
+            HighlightSprite.tile_images["XX11"] = HighlightSprite.image.subsurface((3*p,6*p,p,p))
+            HighlightSprite.tile_images["XX12"] = HighlightSprite.image.subsurface((4*p,6*p,p,p))
+            HighlightSprite.tile_images["XX21"] = HighlightSprite.image.subsurface((5*p,6*p,p,p))
+            HighlightSprite.tile_images["XX22"] = HighlightSprite.image.subsurface((6*p,6*p,p,p))
+            # Set for top-left edge
+            HighlightSprite.tile_images["0XX0"] = HighlightSprite.image.subsurface((0*p,7*p,p,p))
+            HighlightSprite.tile_images["1XX0"] = HighlightSprite.image.subsurface((1*p,7*p,p,p))
+            HighlightSprite.tile_images["0XX1"] = HighlightSprite.image.subsurface((2*p,7*p,p,p))
+            HighlightSprite.tile_images["1XX1"] = HighlightSprite.image.subsurface((3*p,7*p,p,p))
+            HighlightSprite.tile_images["2XX1"] = HighlightSprite.image.subsurface((4*p,7*p,p,p))
+            HighlightSprite.tile_images["1XX2"] = HighlightSprite.image.subsurface((5*p,7*p,p,p))
+            HighlightSprite.tile_images["2XX2"] = HighlightSprite.image.subsurface((6*p,7*p,p,p))
+
             # Nothing
+            HighlightSprite.tile_images["None"] = HighlightSprite.image.subsurface((0,3*p,p,p))
             HighlightSprite.tile_images["0"] = HighlightSprite.image.subsurface((0,3*p,p,p))
             # Vertices
             HighlightSprite.tile_images["1"] = HighlightSprite.image.subsurface((1*p,3*p,p,p))
@@ -94,25 +131,59 @@ class HighlightSprite(pygame.sprite.Sprite):
             for i in HighlightSprite.tile_images:
                 HighlightSprite.tile_images[i].convert()
                 HighlightSprite.tile_images[i].set_colorkey((231,255,255), pygame.RLEACCEL)
-        # Pre-load sprite's image
-        self.image = HighlightSprite.tile_images[type]
-##        self.image.set_colorkey((231,255,255), pygame.RLEACCEL)
-        self.rect = self.image.get_rect()
-        self.rect = (xpos, ypos, p, p)
+        self.image = pygame.Surface((p,p))
+        self.image.set_colorkey((0,0,0))
+    def changepos(self, type, tiletype, xpos, ypos, xoff, yoff, xWorld, yWorld):
+        """Set highlight to appear on a different tile"""
+        self.image.fill((0,0,0))
+        if type == 0:
+            # Empty Image
+            pass
+        # Corner bits, made up of two images
+        elif type == 1:
+            self.image.blit(HighlightSprite.tile_images["%sXX%s" % (tiletype[0], tiletype[3])], (0,0))
+            self.image.blit(HighlightSprite.tile_images["%s%sXX" % (tiletype[0], tiletype[1])], (0,0))
+        elif type == 2:
+            self.image.blit(HighlightSprite.tile_images["%s%sXX" % (tiletype[0], tiletype[1])], (0,0))
+            self.image.blit(HighlightSprite.tile_images["X%s%sX" % (tiletype[1], tiletype[2])], (0,0))
+        elif type == 3:
+            self.image.blit(HighlightSprite.tile_images["X%s%sX" % (tiletype[1], tiletype[2])], (0,0))
+            self.image.blit(HighlightSprite.tile_images["XX%s%s" % (tiletype[2], tiletype[3])], (0,0))
+        elif type == 4:
+            self.image.blit(HighlightSprite.tile_images["XX%s%s" % (tiletype[2], tiletype[3])], (0,0))
+            self.image.blit(HighlightSprite.tile_images["%sXX%s" % (tiletype[0], tiletype[3])], (0,0))
+        # Edge bits, made up of one image
+        elif type == 5:
+            self.image.blit(HighlightSprite.tile_images["%s%sXX" % (tiletype[0], tiletype[1])], (0,0))
+        elif type == 6:
+            self.image.blit(HighlightSprite.tile_images["X%s%sX" % (tiletype[1], tiletype[2])], (0,0))
+        elif type == 7:
+            self.image.blit(HighlightSprite.tile_images["XX%s%s" % (tiletype[2], tiletype[3])], (0,0))
+        elif type == 8:
+            self.image.blit(HighlightSprite.tile_images["%sXX%s" % (tiletype[0], tiletype[3])], (0,0))
+        else:
+            # Otherwise highlight whole tile (4 images)
+            self.image.fill((0,0,0))
+            self.image.blit(HighlightSprite.tile_images["%s%sXX" % (tiletype[0], tiletype[1])], (0,0))
+            self.image.blit(HighlightSprite.tile_images["X%s%sX" % (tiletype[1], tiletype[2])], (0,0))
+            self.image.blit(HighlightSprite.tile_images["XX%s%s" % (tiletype[2], tiletype[3])], (0,0))
+            self.image.blit(HighlightSprite.tile_images["%sXX%s" % (tiletype[0], tiletype[3])], (0,0))
+        self.xpos = xpos
+        self.ypos = ypos
+        self.rect = (self.xpos + xoff, self.ypos + yoff, p, p)
         self.type = type
         self.xWorld = xWorld
         self.yWorld = yWorld
-    def update(self, type, xpos, ypos, xWorld, yWorld):
-        self.image = HighlightSprite.tile_images[type]
-        self.rect = (xpos, ypos, p, p)
-        self.type = type
-        self.xWorld = xWorld
-        self.yWorld = yWorld
+        self.layer = xWorld + yWorld
+    def update(self, xoff, yoff):
+        """Update position of sprite with new offsets"""
+        self.rect = (self.xpos + xoff, self.ypos + yoff, p, p)
 
 class TileSprite(pygame.sprite.Sprite):
     """Ground tiles"""
     image = None
-    def __init__(self, val, xpos, ypos, xWorld, yWorld):
+    col_exclude = False
+    def __init__(self, val, xpos, ypos, xoff, yoff, xWorld, yWorld):
         pygame.sprite.Sprite.__init__(self)
         if TileSprite.image is None:
             groundImage = pygame.image.load("ground3.png")
@@ -149,13 +220,15 @@ class TileSprite(pygame.sprite.Sprite):
                 TileSprite.tile_images[i].set_colorkey((231,255,255), pygame.RLEACCEL)
         # Pre-load sprite's image
         self.image = TileSprite.tile_images[val]
-##        self.image.set_colorkey((231,255,255), pygame.RLEACCEL)
-        self.rect = self.image.get_rect()
-        self.rect = (xpos, ypos, p, p)
+        self.xpos = xpos
+        self.ypos = ypos
+        self.rect = (self.xpos + xoff, self.ypos + yoff, p, p)
         self.type = val
         self.xWorld = xWorld
         self.yWorld = yWorld
-
+    def update(self, xoff, yoff):
+        """Update position of sprite with new offsets"""
+        self.rect = (self.xpos + xoff, self.ypos + yoff, p, p)
         
 class DisplayMain:
     """This handles the main initialisation
@@ -164,7 +237,7 @@ class DisplayMain:
     x_dist = 20     # Distance to move the screen when arrow keys are pressed
     y_dist = 20     # in x and y dimensions
 
-    def __init__(self, width=800,height=600):
+    def __init__(self, width=800, height=500):
         # Initialize PyGame
         pygame.init()
         
@@ -186,96 +259,53 @@ class DisplayMain:
 
     def MainLoop(self):
         """This is the Main Loop of the Game"""
-        """Load All of our Sprites"""
-        # LoadSprites will load actual sprites
-        # PaintLand will take care of the ground underneath,
-        # which is painted using a surfaces
-        
-        self.PaintLand2()
-
         # Initiate the clock
-        self.gameclock = pygame.time.Clock()
-        
+        self.clock = pygame.time.Clock()
+
         #tell pygame to keep sending up keystrokes when they are held down
         pygame.key.set_repeat(500, 30)
                 
-        #Must ensure mouse is over screen (needs fixing properly)
-        pygame.mouse.set_pos(((self.screen.get_width()/2),(self.screen.get_height()/2)))
-
         self.tool = ""
 
-        self.clock = pygame.time.Clock()
         self.font = pygame.font.Font(None, 12)
 
-        background = pygame.Surface([800, 600])
+        background = pygame.Surface([self.width, self.height])
         background.fill([0, 0, 0])
 
+##        self.orderedSprites = pygame.sprite.OrderedUpdates()
+        self.orderedSprites = pygame.sprite.LayeredUpdates()
 
-        self.orderedSprites = pygame.sprite.OrderedUpdates()
+        for y in range(self.WorldY):
+            for x in range(self.WorldX):
+                posx = (self.WidthX / 2) + (x * (p2)) - (y * (p2)) - (p2)
+                posy = (x * (p4)) + (y * (p4)) - (self.array[x][y][0] * ph)
+                # Layers from top of the screen to the bottom
+                l = x + y
+                self.orderedSprites.add(TileSprite(self.ArrayToString(self.array[x][y][1]),
+                                                   posx, posy, self.dxoff, self.dyoff, x, y), layer=l)
 
-##        while 1:
-##            self.clock.tick(60)
-##            self.dirty = []
-##            for event in pygame.event.get():
-##                if event.type == pygame.QUIT:
-##                    pygame.display.quit()
-##                    sys.exit()
-##                elif event.type == pygame.MOUSEMOTION:
-##                    # When the mouse is moved, check to see if...
-##                    b = event.buttons
-##                    # Is the right mouse button held? If so, do scrolling & refresh whole screen
-##                    if (event.buttons == (0,0,1)):
-##                        self.MoveScreen("mouse")
-##                    else:
-##                        pygame.mouse.get_rel()  #Reset mouse position for scrolling
-##
-        self.last_pos = None
         highlightSprite = None
+        self.refresh_screen = 0
         while 1:
-            # Limit to 60 fps
-            self.clock.tick(60)
+            self.clock.tick(0)
             self.dirty = []
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.display.quit()
                     sys.exit()
-                elif event.type == pygame.KEYDOWN:
-                    if ((event.key == pygame.K_RIGHT)
-                    or (event.key == pygame.K_LEFT)
-                    or (event.key == pygame.K_UP)
-                    or (event.key == pygame.K_DOWN)):
-                        self.MoveScreen(event.key)
-                    else:
-##                        b = event.unicode
-##                        if pygame.font:
-##                            font = pygame.font.Font(None, 24)
-##                            self.textitems.append(font.render("Key pressed: " + str(b), 1, (255, 255, 255)))
-                        
-                        # Need some sort of tool selection system implemented here...
-                        self.tool = event.unicode
-##                elif event.type == pygame.MOUSEBUTTONDOWN:
-##                    # If LMB pressed
-##                    if (event.button == 1):
-##                        # Find which tile or object this is and pass it an OnClick event
-##                        # Also set buttons to [1,X,X]
-##                elif event.type == pygame.MOUSEBUTTONUP:
-##                    if (event.button == 1):
                 elif event.type == pygame.MOUSEMOTION:
                     # When the mouse is moved, check to see if...
                     b = event.buttons
-                                            
-                    #pygame.event.event_name()
-                        # Is the right mouse button held? If so, do scrolling & refresh whole screen
+                    # Is the right mouse button held? If so, do scrolling & refresh whole screen
                     if (event.buttons == (0,0,1)):
                         self.MoveScreen("mouse")
                     else:
                         pygame.mouse.get_rel()  #Reset mouse position for scrolling
 
 
-##            if self.refresh_screen == 1:
-            rectlist = self.tileSprites.draw(self.screen)
-            for r in rectlist:
-                self.dirty.append(r)
+            rectlist = self.orderedSprites.draw(self.screen)
+##            for r in rectlist:
+##                self.dirty.append(r)
 
             self.last_pos = pygame.mouse.get_pos()
             # Draw mouseSprite at cursor position
@@ -283,43 +313,54 @@ class DisplayMain:
             mouseSprite.draw(self.screen)
             self.dirty.append(mouseSprite.sprite.rect)
             # Find sprites that the mouseSprite intersects with
-            collision_list1 = pygame.sprite.spritecollide(mouseSprite.sprite, self.tileSprites, False)#, pygame.sprite.collide_mask)
+            collision_list1 = pygame.sprite.spritecollide(mouseSprite.sprite, self.orderedSprites, False)#, pygame.sprite.collide_mask)
             collision_list = pygame.sprite.spritecollide(mouseSprite.sprite, collision_list1, False, pygame.sprite.collide_mask)
 
             # Find position of cursor relative to the confines of the selected tile
             # Use first item in the list
             if collision_list:
-                x = collision_list[-1].xWorld
-                y = collision_list[-1].yWorld
+                # Strip out any items in the collision list which should be excluded, e.g. the highlight itself
+                collision_list2 = []
+                for t in range(len(collision_list)):
+                    if not collision_list[t].col_exclude:
+                        collision_list2.append(collision_list[t])
+                collision_list = collision_list2
+                coltile = collision_list[-1]
+                x = coltile.xWorld
+                y = coltile.yWorld
                 # Find where this tile would've been drawn on the screen, and subtract the mouse's position
                 mousex, mousey = pygame.mouse.get_pos()
-                posx = (self.WidthX / 2) + (x * (p2)) - (y * (p2)) - (p2) + self.dxoff
-                posy = (x * (p4)) + (y * (p4)) - (self.array[x][y][0] * ph) + self.dyoff
-                offx = mousex - posx
-                offy = mousey - posy
+                posx = (self.WidthX / 2) + (x * (p2)) - (y * (p2)) - (p2)
+                posy = (x * (p4)) + (y * (p4)) - (self.array[x][y][0] * ph)
+                offx = mousex - (posx + self.dxoff)
+                offy = mousey - (posy + self.dyoff)
                 # Then compare these offsets to the table of values for this particular kind of tile
                 # to find which overlay selection sprite should be drawn
                 # Height in 16th incremenets, width in 8th increments
                 offx8 = offx / p8
                 offy16 = offy / p16
+                
                 # Then lookup the mask number based on this, this should be drawn on the screen
                 tilesubposition = type0[offy16][offx8]
-                self.offx8 = offx8
-                self.offy16 = offy16
-                self.offx = offx
-                self.offy = offy
                 self.tilesubposition = tilesubposition
                 # Add old dirty area to dirtylist
                 if not highlightSprite:
-                    highlightSprite = pygame.sprite.GroupSingle(HighlightSprite(str(tilesubposition), posx, posy, x, y))
-                highlightSprite.update(str(tilesubposition), posx, posy, x, y)
-                rectlist = highlightSprite.draw(self.screen)
-                self.dirty.append(rectlist)
-
+                    highlightSprite = HighlightSprite()
+                    self.orderedSprites.add(highlightSprite, layer=(x+y))
+                highlightSprite.changepos(tilesubposition, str(coltile.type),
+                                          posx, posy, self.dxoff, self.dyoff, x, y)
+                self.orderedSprites.change_layer(highlightSprite, (x+y))
+            else:
+                # No collision, cursor outside game area, set highlight to nothing
+                if highlightSprite:
+                    highlightSprite.changepos(0, "0000",
+                                              0, 0, self.dxoff, self.dyoff, 0, 0)
+                
             if collision_list:
                 ii = collision_list[-1]
-                pygame.display.set_caption("FPS: %.1f, Tile: (%s,%s) of type: %s" %
-                                           (self.clock.get_fps(), ii.xWorld, ii.yWorld, ii.type))
+                layer = self.orderedSprites.get_layer_of_sprite(ii)
+                pygame.display.set_caption("FPS: %.1f, Tile: (%s,%s) of type: %s | layer: %s" %
+                                           (self.clock.get_fps(), ii.xWorld, ii.yWorld, ii.type, layer))
             else:
                 pygame.display.set_caption("FPS: %.1f" %
                                            (self.clock.get_fps()))
@@ -329,7 +370,7 @@ class DisplayMain:
             if self.refresh_screen == 1:
                 pygame.display.update()
                 self.refresh_screen = 0
-                self.tileSprites.clear(self.screen, background)
+                self.orderedSprites.clear(self.screen, background)
             else:
                 pygame.display.update()
 
@@ -342,16 +383,8 @@ class DisplayMain:
     def PaintLand2(self):
         """Paint the land as a series of sprites"""
         self.refresh_screen = 1
-        tileSprites = pygame.sprite.OrderedUpdates()
-        
-        for y in range(self.WorldY):
-            for x in range(self.WorldX):
-                posx = (self.WidthX / 2) + (x * (p2)) - (y * (p2)) - (p2) + self.dxoff
-                posy = (x * (p4)) + (y * (p4)) - (self.array[x][y][0] * ph) + self.dyoff
-                
-                tileSprites.add(TileSprite(self.ArrayToString(self.array[x][y][1]), posx, posy, x, y))
 
-        self.tileSprites = tileSprites
+        self.orderedSprites.update(self.dxoff, self.dyoff)
 
     def ModifyHeight(self):
         """Raises or lowers the height of a tile"""
