@@ -371,22 +371,22 @@ class DisplayMain:
                         pygame.display.quit()
                         sys.exit()
                     if event.key == pygame.K_w:
-                        self.objects[0][0].xWorld -= 0.5
+                        self.objects[0][0].xWorld -= 0.25
                         self.objects[0][1] = True
                     if event.key == pygame.K_s:
-                        self.objects[0][0].xWorld += 0.5
+                        self.objects[0][0].xWorld += 0.25
                         self.objects[0][1] = True
                     if event.key == pygame.K_a:
-                        self.objects[0][0].yWorld -= 0.5
+                        self.objects[0][0].yWorld -= 0.25
                         self.objects[0][1] = True
                     if event.key == pygame.K_d:
-                        self.objects[0][0].yWorld += 0.5
+                        self.objects[0][0].yWorld += 0.25
                         self.objects[0][1] = True
                     if event.key == pygame.K_q:
-                        self.objects[0][0].zWorld -= 0.5
+                        self.objects[0][0].zWorld -= 0.25
                         self.objects[0][1] = True
                     if event.key == pygame.K_e:
-                        self.objects[0][0].zWorld += 0.5
+                        self.objects[0][0].zWorld += 0.25
                         self.objects[0][1] = True
 
 
@@ -907,51 +907,39 @@ class DisplayMain:
         else:
             obja_vertices = self.find_vertices(obja.xWorld, obja.yWorld, obja.zWorld,
                                                obja.xdim/2.0, obja.ydim/2.0, obja.zdim/2.0)
-        obja_min_xvals = self.minmax_xyz(obja_vertices, 0, 0)
-        obja_min_xyvals = self.minmax_xyz(obja_min_xvals, 1, 0)
-        A_min = self.minmax_xyz(obja_min_xyvals, 2, 0)
-        A_min_X, A_min_Y, A_min_Z = A_min[0]
-        obja_max_xvals = self.minmax_xyz(obja_vertices, 0, 1)
-        obja_max_xyvals = self.minmax_xyz(obja_max_xvals, 1, 1)
-        A_max = self.minmax_xyz(obja_max_xyvals, 2, 1)
-        A_max_X, A_max_Y, A_max_Z = A_max[0]
-        B_mid = (objb.xWorld, objb.yWorld, objb.zWorld)
+        A_max = self.minmax(obja_vertices, (1,1,1))
+        A_front = self.minmax(obja_vertices, (1,1,0))
+        A_back = self.minmax(obja_vertices, (0,0,1))
         if objb.kind == "tile":
             objb_vertices = self.find_tile_vertices(objb.xArray, objb.yArray, objb.zArray, objb.type)
         else:
             objb_vertices = self.find_vertices(objb.xWorld, objb.yWorld, objb.zWorld,
                                                objb.xdim/2.0, objb.ydim/2.0, objb.zdim/2.0)
-        objb_min_xvals = self.minmax_xyz(objb_vertices, 0, 0)
-        objb_min_xyvals = self.minmax_xyz(objb_min_xvals, 1, 0)
-        B_min = self.minmax_xyz(objb_min_xyvals, 2, 0)
-        B_min_X, B_min_Y, B_min_Z = B_min[0]
-        objb_max_xvals = self.minmax_xyz(objb_vertices, 0, 1)
-        objb_max_xyvals = self.minmax_xyz(objb_max_xvals, 1, 1)
-        B_max = self.minmax_xyz(objb_max_xyvals, 2, 1)
-        B_max_X, B_max_Y, B_max_Z = B_max[0]
-        # Check max and min extents for a and b,
-        # if a's max x, max y and max z values are all greater than b's min x,y,z values
-        # then a is in front of b for iso depth sorting purposes
-        # Compensate for rounding errors before comparing
-##        print "plane: %s" % self.dist_from_zero_plane(B_max[0])
-##        print "origin: %s" % self.dist_from_origin(B_max[0])
+        B_max = self.minmax(objb_vertices, (1,1,1))
+        B_front = self.minmax(objb_vertices, (1,1,0))
+        B_back = self.minmax(objb_vertices, (0,0,1))
+
+        # Find difference in distances from the zero plane of each set of comparison coordinates
+        # Compare A_front with B_back and A_back with B_front
+        A_f_to_B_b = self.dist_3d(A_front, B_back)
+        A_b_to_B_f = self.dist_3d(B_front, A_back)
+        if A_f_to_B_b > A_b_to_B_f:
+            AA = A_front
+            BB = B_back
+        else:
+            AA = A_back
+            BB = B_front
+
         margin = 0#.000001
-##        if A_max_X > B_min_X + margin and A_max_Y > B_min_Y + margin and A_max_Z > B_min_Z + margin:
-##            if A_max_X > B_max_X or A_max_Y > B_max_Y or A_max_Z > B_max_Z:
-        if self.dist_from_zero_plane(A_max[0]) > self.dist_from_zero_plane(B_max[0]):
+        if self.dist_from_zero_plane(AA) > self.dist_from_zero_plane(BB):
             return True
         else:
             return False
-##            if False:#A_max_X > B_max_X + margin or A_max_Y > B_max_Y + margin or A_max_Z > B_max_Z + margin:
-##                return True
-##            else:
-##                if comp:
-##                    # Negative failures are the real problem, where both cubes evaluate as not being
-##                    # in front, this causes all the problems in the sorting
-##                    if not self.in_front_of(objb, obja, False):
-##                        print "F-F - B_min: %s, A_min: %s" % (B_min, A_min)
-##                        print "    - A_max: %s, B_max: %s" % (A_max, B_max)
-##                return False
+
+##    def dist_2d(self, (x1, y1), (x2, y2)):
+##        dx = x2 - x1
+##        dy = y2 - y1
+##        return math.sqrt(dx*dx + dy*dy)
 
     def dist_3d(self, (x1, y1, z1), (x2, y2, z2)):
         """Distance between two points in 3D space"""
@@ -970,7 +958,7 @@ class DisplayMain:
         B = self.plane_B
         C = self.plane_C
         divisor = self.plane_divisor
-        distance = (x + y + C*z) / divisor
+        distance = (A*x + B*y + C*z) / divisor
         return distance
 
     def minmax(self, vertices, (x, y, z)):
