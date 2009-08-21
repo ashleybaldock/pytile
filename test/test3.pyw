@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# Test 3 - 1
+# Test 3 - 3
 # Tidy up older examples, change structure of map
 
 # Second series test program using a surface to display tiles
@@ -50,7 +50,7 @@ class MouseSprite(pygame.sprite.Sprite):
 # 7 = Top-right edge
 # 8 = Top-left edge
 # 9 = Face
-table = [[0,0,0,0,0,0,0,0],
+type0 = [[0,0,0,0,0,0,0,0],
          [0,0,0,0,0,0,0,0],
          [0,0,0,0,0,0,0,0],
          [0,0,0,0,0,0,0,0],
@@ -65,8 +65,7 @@ table = [[0,0,0,0,0,0,0,0],
          [1,1,5,9,9,6,3,3],
          [0,5,5,5,6,6,6,0],
          [0,0,5,2,2,6,0,0],
-         [0,0,0,2,2,0,0,0],
-         ]
+         [0,0,0,2,2,0,0,0],]
 
 class HighlightSprite(pygame.sprite.Sprite):
     """Sprites for displaying ground selection highlight"""
@@ -211,6 +210,25 @@ class DisplayMain:
         background = pygame.Surface([800, 600])
         background.fill([0, 0, 0])
 
+
+        self.orderedSprites = pygame.sprite.OrderedUpdates()
+
+##        while 1:
+##            self.clock.tick(60)
+##            self.dirty = []
+##            for event in pygame.event.get():
+##                if event.type == pygame.QUIT:
+##                    pygame.display.quit()
+##                    sys.exit()
+##                elif event.type == pygame.MOUSEMOTION:
+##                    # When the mouse is moved, check to see if...
+##                    b = event.buttons
+##                    # Is the right mouse button held? If so, do scrolling & refresh whole screen
+##                    if (event.buttons == (0,0,1)):
+##                        self.MoveScreen("mouse")
+##                    else:
+##                        pygame.mouse.get_rel()  #Reset mouse position for scrolling
+##
         self.last_pos = None
         highlightSprite = None
         while 1:
@@ -268,57 +286,53 @@ class DisplayMain:
             collision_list1 = pygame.sprite.spritecollide(mouseSprite.sprite, self.tileSprites, False)#, pygame.sprite.collide_mask)
             collision_list = pygame.sprite.spritecollide(mouseSprite.sprite, collision_list1, False, pygame.sprite.collide_mask)
 
-##            # Find position of cursor relative to the confines of the selected tile
-##            # Use first item in the list
-##            if collision_list:
-##                x = collision_list[-1].xWorld
-##                y = collision_list[-1].yWorld
-##                # Find where this tile would've been drawn on the screen, and subtract the mouse's position
-##                mousex, mousey = pygame.mouse.get_pos()
-##                posx = (self.WidthX / 2) + (x * (p2)) - (y * (p2)) - (p2) + self.dxoff
-##                posy = (x * (p4)) + (y * (p4)) - (self.array[x][y][0] * ph) + self.dyoff
-##                offx = mousex - posx
-##                offy = mousey - posy
-##                # Then compare these offsets to the table of values for this particular kind of tile
-##                # to find which overlay selection sprite should be drawn
-##                # Height in 16th incremenets, width in 8th increments
-##                offx8 = offx / p8
-##                offy16 = offy / p16
-##                # Then lookup the mask number based on this, this should be drawn on the screen
-##                tilesubposition = table[offy16][offx8]
-##                self.offx8 = offx8
-##                self.offy16 = offy16
-##                self.offx = offx
-##                self.offy = offy
-##                self.tilesubposition = tilesubposition
-##                # Add old dirty area to dirtylist
-##                if not highlightSprite:
-##                    highlightSprite = pygame.sprite.GroupSingle(HighlightSprite(str(tilesubposition), posx, posy, x, y))
-##                highlightSprite.update(str(tilesubposition), posx, posy, x, y)
-##                rectlist = highlightSprite.draw(self.screen)
-##                self.dirty.append(rectlist)
+            # Find position of cursor relative to the confines of the selected tile
+            # Use first item in the list
+            if collision_list:
+                x = collision_list[-1].xWorld
+                y = collision_list[-1].yWorld
+                # Find where this tile would've been drawn on the screen, and subtract the mouse's position
+                mousex, mousey = pygame.mouse.get_pos()
+                posx = (self.WidthX / 2) + (x * (p2)) - (y * (p2)) - (p2) + self.dxoff
+                posy = (x * (p4)) + (y * (p4)) - (self.array[x][y][0] * ph) + self.dyoff
+                offx = mousex - posx
+                offy = mousey - posy
+                # Then compare these offsets to the table of values for this particular kind of tile
+                # to find which overlay selection sprite should be drawn
+                # Height in 16th incremenets, width in 8th increments
+                offx8 = offx / p8
+                offy16 = offy / p16
+                # Then lookup the mask number based on this, this should be drawn on the screen
+                tilesubposition = type0[offy16][offx8]
+                self.offx8 = offx8
+                self.offy16 = offy16
+                self.offx = offx
+                self.offy = offy
+                self.tilesubposition = tilesubposition
+                # Add old dirty area to dirtylist
+                if not highlightSprite:
+                    highlightSprite = pygame.sprite.GroupSingle(HighlightSprite(str(tilesubposition), posx, posy, x, y))
+                highlightSprite.update(str(tilesubposition), posx, posy, x, y)
+                rectlist = highlightSprite.draw(self.screen)
+                self.dirty.append(rectlist)
 
-
-            fps = self.font.render("FPS: %.1f    " % self.clock.get_fps(), True, (255,255,255), (0,0,0))
-            self.screen.blit(fps, (0, 0))
-            self.dirty.append(fps.get_rect())
-
-            for i in range(len(collision_list)):
-                ii = collision_list[i]
-##                k = self.font.render("Tile (%s,%s), type: %s, offset: (%s(%s), %s(%s)), subposition: %s       " % (ii.xWorld, ii.yWorld, ii.type, self.offx, self.offx8, self.offy, self.offy16, self.tilesubposition), True, (255,255,255), (0,0,0))
-                k = self.font.render("Tile (%s,%s), type: %s       " % (ii.xWorld, ii.yWorld, ii.type), True, (255,255,255), (0,0,0))
-                self.screen.blit(k, (0, (i+1)*12))
-                self.dirty.append(pygame.rect.Rect(0, (i+1)*12, k.get_width(), k.get_height()))
+            if collision_list:
+                ii = collision_list[-1]
+                pygame.display.set_caption("FPS: %.1f, Tile: (%s,%s) of type: %s" %
+                                           (self.clock.get_fps(), ii.xWorld, ii.yWorld, ii.type))
+            else:
+                pygame.display.set_caption("FPS: %.1f" %
+                                           (self.clock.get_fps()))
 
             # If land height has been altered, or the screen has been moved
             # we need to refresh the entire screen
-
             if self.refresh_screen == 1:
                 pygame.display.update()
                 self.refresh_screen = 0
                 self.tileSprites.clear(self.screen, background)
             else:
-                pygame.display.update(self.dirty)
+                pygame.display.update()
+
 
 
     def ArrayToString(self, array):
