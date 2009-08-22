@@ -28,6 +28,8 @@
 # BUG - terrain smoothing is still far too greedy, especially on terrain lowering
 # BUG - doesn't draw vertical faces of surrounding tiles                                    - Fixed
 # BUG - background isn't blanked to black when raise/lower on the edges of the world        - Fixed
+# BUG - resize window, if a tile is highlighted which is then moved off screen by
+#       the window being resized the program crashes
 
 
 # To add tracks - 
