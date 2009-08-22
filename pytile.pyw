@@ -436,7 +436,7 @@ class DisplayMain(object):
                     for t in self.lmb_tool.get_highlight():
                         if self.orderedSpritesDict.has_key(t[0]):
                             self.dirty.append(self.orderedSpritesDict[t[0]][0].change_highlight(t[1]))
-
+                    self.lmb_tool.set_last_highlight(self.lmb_tool.get_highlight())
 
             # Write some useful info on the top bar
             self.fps_elapsed += self.clock.get_time()

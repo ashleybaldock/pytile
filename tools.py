@@ -166,6 +166,7 @@ class Track(Tool):
         self.aoe_changed = False
         self.highlight_changed = False
         self.highlight = []
+        self.last_highlight = []
         self.aoe = []
     def process_key(self, key):
         """Process keystrokes sent to this tool"""
@@ -208,13 +209,15 @@ class Track(Tool):
     def get_last_highlight(self):
         """Return the previous highlight"""
         return self.last_highlight
+    def set_last_highlight(self, highlight):
+        """When the highlight position is updated let the tool know the last highlight location"""
+        self.last_highlight = highlight
     def has_highlight_changed(self):
         """Return True if the area of effect of this tool has changed since last call to update()"""
         return self.highlight_changed
     # Internal
     def set_highlight(self, value):
         """Set the current highlight for this tool"""
-        self.last_highlight = self.highlight
         self.highlight = value
     def set_highlight_changed(self, v):
         """When highlight changes (e.g. mouse cursor moves) set this to have the appropriate bit of the screen refreshed"""
@@ -302,6 +305,7 @@ class Test(Tool):
         self.aoe_changed = False
         self.highlight_changed = False
         self.highlight = []
+        self.last_highlight = []
         self.aoe = []
     def process_key(self, key):
         """Process keystrokes sent to this tool"""
@@ -361,13 +365,15 @@ class Test(Tool):
     def get_last_highlight(self):
         """Return the previous highlight"""
         return self.last_highlight
+    def set_last_highlight(self, highlight):
+        """When the highlight position is updated let the tool know the last highlight location"""
+        self.last_highlight = highlight
     def has_highlight_changed(self):
         """Return True if the area of effect of this tool has changed since last call to update()"""
         return self.highlight_changed
     # Internal
     def set_highlight(self, value):
         """Set the current highlight for this tool"""
-        self.last_highlight = self.highlight
         self.highlight = value
     def set_highlight_changed(self, v):
         """When highlight changes (e.g. mouse cursor moves) set this to have the appropriate bit of the screen refreshed"""
