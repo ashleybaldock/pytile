@@ -302,7 +302,7 @@ class DisplayMain(object):
         self.screen_height = height
         
         # Create the Screen
-        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height))#, pygame.RESIZABLE)
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), pygame.RESIZABLE)
 
         #tell pygame to keep sending up keystrokes when they are held down
         pygame.key.set_repeat(500, 30)
@@ -411,7 +411,13 @@ class DisplayMain(object):
                     # No buttons are pressed
 ##                    else:
 ##                        pass
-
+                if event.type == pygame.VIDEORESIZE:
+                    debug("Screen resized, new dimensions: (%s, %s)" % (event.w, event.h))
+                    self.screen_width = event.w
+                    self.screen_height = event.h
+                    self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), pygame.RESIZABLE)
+                    self.paint_world()
+                    self.refresh_screen = 1
 
             if self.lmb_tool.has_aoe_changed():
                 # Update the screen to reflect changes made by tools
@@ -613,7 +619,7 @@ class DisplayMain(object):
 if __name__ == "__main__":
     sys.stderr = debug
     sys.stdout = debug
-    os.environ["SDL_VIDEO_CENTERED"] = "1"
+#    os.environ["SDL_VIDEO_CENTERED"] = "1"
     MainWindow = DisplayMain(WINDOW_WIDTH, WINDOW_HEIGHT)
     MainWindow.MainLoop()
 
