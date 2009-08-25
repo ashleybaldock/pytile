@@ -57,6 +57,8 @@ yWorld = 10
 
 TILE_SIZE = 64
 
+ISO_ANGLE = 90-26.565
+
 DRAW_HINTS = False
 
 class World(object):
@@ -127,7 +129,7 @@ class Bezier(object):
 class Tile(pygame.sprite.Sprite):
     """A tile containing tracks, drawn in layers"""
     init = False
-    def __init__(self, position, type, track_width=8, curve_factor=30):
+    def __init__(self, position, type, track_width=8, curve_factor=15):
         pygame.sprite.Sprite.__init__(self)
         if not Tile.init:
             Tile.bezier = Bezier()
@@ -163,8 +165,8 @@ class Tile(pygame.sprite.Sprite):
         self.highlight_changed = False
         self.control_hint = None
 
-        self.box = [vec2d(Tile.size, Tile.size),
-                    vec2d(0, Tile.size),
+        self.box = [vec2d(Tile.size, Tile.size/2),
+                    vec2d(0, Tile.size/2),
                     vec2d(0, 0),
                     vec2d(Tile.size, 0)]
 
@@ -174,21 +176,72 @@ class Tile(pygame.sprite.Sprite):
         self.box_allmidpoints = []
         for p in range(len(self.box)):
             self.box_midpoints.append(self.bezier.find_midpoint(self.box[p-1], self.box[p]))
+        box_mids_temp = []
+        box_mids_temp2 = []
+
+
         for p in range(len(self.box_midpoints)):
-            self.box_allmidpoints.append([self.box_midpoints[p-1], (self.box[p-1] - self.box[p-2]).normalized()])
-            self.box_allmidpoints.append([self.bezier.find_midpoint(self.box_midpoints[p-1], self.box_midpoints[p]), (self.box_midpoints[p] - self.box_midpoints[p-1]).normalized()])
+            # Vector from origin to start point, unit vector representing the gradient of this vector
+            box_mids_temp.append(self.bezier.find_midpoint(self.box_midpoints[p-1], self.box_midpoints[p]))
 
+            box_mids_temp.append(self.box_midpoints[p])
 
-        for p in range(3):
-            self.box_allmidpoints.insert(0, self.box_allmidpoints.pop())
+        # Copy the midpoints array
+        for p in box_mids_temp:
+            box_mids_temp2.append(p)
+        # Offset the midpoints array
+        for p in range(4):
+            box_mids_temp2.insert(0, box_mids_temp2.pop())
 
+        for p, q in zip(box_mids_temp, box_mids_temp2):
+            # Append the vector to the starting point followed by the vector from the starting point to the endpoint on the other side
+            self.box_allmidpoints.append([p, (q - p).normalized()])
 
+        # Used for drawing the paths in the tile, [vector from origin to the point, gradient at that point]
         self.box_endpoints = []
-        for p in range(len(self.box_allmidpoints)):
-            self.box_endpoints.append([self.box_allmidpoints[p][0] - self.box_allmidpoints[p][1] * Tile.track_spacing, self.box_allmidpoints[p][1].perpendicular()])
-            self.box_endpoints.append([self.box_allmidpoints[p][0], self.box_allmidpoints[p][1].perpendicular()])
-            self.box_endpoints.append([self.box_allmidpoints[p][0] + self.box_allmidpoints[p][1] * Tile.track_spacing, self.box_allmidpoints[p][1].perpendicular()])
 
+        p = self.box_allmidpoints
+
+        self.box_endpoints.append([p[0][0] - p[0][1].rotated(ISO_ANGLE) * Tile.track_spacing, p[0][1]])
+        self.box_endpoints.append([p[0][0], p[0][1]])
+        self.box_endpoints.append([p[0][0] + p[0][1].rotated(ISO_ANGLE) * Tile.track_spacing, p[0][1]])
+
+        self.box_endpoints.append([p[1][0] - p[1][1].perpendicular() * Tile.track_spacing, p[1][1]])
+        self.box_endpoints.append([p[1][0], p[1][1]])
+        self.box_endpoints.append([p[1][0] + p[1][1].perpendicular() * Tile.track_spacing, p[1][1]])
+
+        self.box_endpoints.append([p[2][0] - p[2][1].rotated(-ISO_ANGLE) * Tile.track_spacing, p[2][1]])
+        self.box_endpoints.append([p[2][0], p[2][1]])
+        self.box_endpoints.append([p[2][0] + p[2][1].rotated(-ISO_ANGLE) * Tile.track_spacing, p[2][1]])
+
+        self.box_endpoints.append([p[3][0] - p[3][1].perpendicular() * Tile.track_spacing, p[3][1]])
+        self.box_endpoints.append([p[3][0], p[3][1]])
+        self.box_endpoints.append([p[3][0] + p[3][1].perpendicular() * Tile.track_spacing, p[3][1]])
+
+        self.box_endpoints.append([p[4][0] - p[4][1].rotated(ISO_ANGLE) * Tile.track_spacing, p[4][1]])
+        self.box_endpoints.append([p[4][0], p[4][1]])
+        self.box_endpoints.append([p[4][0] + p[4][1].rotated(ISO_ANGLE) * Tile.track_spacing, p[4][1]])
+
+        self.box_endpoints.append([p[5][0] - p[5][1].perpendicular() * Tile.track_spacing, p[5][1]])
+        self.box_endpoints.append([p[5][0], p[5][1]])
+        self.box_endpoints.append([p[5][0] + p[5][1].perpendicular() * Tile.track_spacing, p[5][1]])
+
+        self.box_endpoints.append([p[6][0] - p[6][1].rotated(-ISO_ANGLE) * Tile.track_spacing, p[6][1].rotated(90-ISO_ANGLE)])
+        self.box_endpoints.append([p[6][0], p[6][1].rotated(90-ISO_ANGLE)])
+        self.box_endpoints.append([p[6][0] + p[6][1].rotated(-ISO_ANGLE) * Tile.track_spacing, p[6][1].rotated(90-ISO_ANGLE)])
+
+        self.box_endpoints.append([p[7][0] - p[7][1].perpendicular() * Tile.track_spacing, p[7][1]])
+        self.box_endpoints.append([p[7][0], p[7][1]])
+        self.box_endpoints.append([p[7][0] + p[7][1].perpendicular() * Tile.track_spacing, p[7][1]])
+
+#        for p in self.box_allmidpoints:
+#            #self.box_endpoints.append([p[0] - p[1].perpendicular() * Tile.track_spacing, p[1].perpendicular()])
+#            #self.box_endpoints.append([p[0] + p[1].perpendicular() * Tile.track_spacing, p[1].perpendicular()])
+#            self.box_endpoints.append([p[0] - p[1].rotated(ISO_ANGLE) * Tile.track_spacing, p[1].rotated(ISO_ANGLE)])
+#            self.box_endpoints.append([p[0], p[1].rotated(ISO_ANGLE)])
+#            self.box_endpoints.append([p[0] + p[1].rotated(ISO_ANGLE) * Tile.track_spacing, p[1].rotated(ISO_ANGLE)])
+
+        # Used for testing which control point the cursor is over (old method)
         self.endpoints = []
         screen_pos = vec2d(self.xpos, self.ypos)
         for p in range(len(self.box_allmidpoints)):
@@ -197,12 +250,27 @@ class Tile(pygame.sprite.Sprite):
             self.endpoints.append(screen_pos + self.position + self.box_allmidpoints[p][0] + self.box_allmidpoints[p][1] * Tile.track_spacing)
 
 
-        self.image = pygame.Surface((self.size, self.size))
+        self.image = pygame.Surface((self.size, self.size/2))
         self.image.fill(black)
         self.image.set_colorkey(black, pygame.RLEACCEL)
         self.paths_changed = True
         self.init_box = True
         self.update()
+
+    def iso_perpendicular(self, v1):
+        """Find the vector perpendicular to this one in isometric space"""
+        # Assume that isometric projection is using 30 degree angle
+        angle = 30
+        # v1.v2 = |v1|*|v2|*cos(theta)
+        # v1 should be a normalised vector, v2 will be produced as a normalised vector
+        # v1.v2 expands to v1.x*v2.x + v1.y*v2.y
+        # Thus: vx + vy = cos(theta)
+        # Also x^2 + y^2 = 1 (since the output is to be a unit vector)
+        # Solve for x:
+        #   
+
+    def dot(self, other):
+        return float(self.x*other[0] + self.y*other[1])
 
     def add_path(self, path):
         """Add another path to this tile
@@ -266,10 +334,11 @@ class Tile(pygame.sprite.Sprite):
         y = self.position[1]
         p = self.size
         p2 = self.size / 2
+        p4 = self.size / 4
         # Global screen positions
         self.xpos = xWorld*p2 - (x * p2) + (y * p2) - p2
 ##        self.ypos = (x * p4) + (y * p4) - (z * ph)
-        self.ypos = (x * p2) + (y * p2)
+        self.ypos = (x * p4) + (y * p4)
         # Rect position takes into account the offset
         self.rect = (self.xpos + World.offx, self.ypos + World.offy, p, p)
         return self.rect
@@ -292,6 +361,9 @@ class Tile(pygame.sprite.Sprite):
                     paths_to_draw.append([a,d])
                     paths_to_draw2.append([a,d])
                 else:
+                    debug(str(self.box_endpoints))
+                    debug(str(p))
+
                     p0 = p[0]
                     p1 = p[1]
                     # This gets us +1, +0 or -1, to bring the real value of the end point up to the midpoint
@@ -342,9 +414,11 @@ class Tile(pygame.sprite.Sprite):
         # Draw the outline of the box
         pygame.draw.lines(self.image, True, darkblue, self.box_midpoints)
         # Draw the remaining box endpoints
-        for p in self.box_endpoints:
+        for n, p in enumerate(self.box_endpoints):
             # Draw red circles indicating the path endpoints
-            pygame.draw.circle(self.image, red, (int(p[0][0]),int(p[0][1])), 1)
+            pygame.draw.circle(self.image, red, (int(p[0][0]),int(p[0][1])), 0)
+            if n == 1:
+                pygame.draw.circle(self.image, green, (int(p[0][0]),int(p[0][1])), 2)
             # Draw normal lines indicating the path endpoints
 ##            pygame.draw.line(self.image, darkblue, p[0], p[0] + 20 * p[1])
             if DRAW_HINTS:
@@ -568,6 +642,10 @@ class DisplayMain(object):
                 a.append(b)
             self.map.append(a)
 
+
+
+        self.map[1][1]["layers"]["rails"].add_path([1, 13])  
+
         # Testing paths
         for x in range(2,7):
             self.map[x][4]["layers"]["rails"].add_path([1, 13]) 
@@ -581,6 +659,18 @@ class DisplayMain(object):
             self.map[x][6]["layers"]["rails"].add_path([2, 12]) 
             self.map[x][6]["layers"]["sleepers"].add_path([2, 12]) 
             self.map[x][6]["layers"]["ballast"].add_path([2, 12]) 
+
+        self.map[6][4]["layers"]["rails"].add_path([1, 10])  
+        self.map[5][3]["layers"]["rails"].add_path([22, 10])  
+        self.map[4][2]["layers"]["rails"].add_path([22, 13])  
+        self.map[3][2]["layers"]["rails"].add_path([1, 13])  
+
+
+
+        self.map[9][9]["layers"]["rails"].add_path([1, 13])  
+        self.map[9][9]["layers"]["rails"].add_path([10, 22])  
+        self.map[9][9]["layers"]["rails"].add_path([7, 19])  
+        self.map[9][9]["layers"]["rails"].add_path([4, 16])  
 
         while True:
             self.clock.tick(0)
