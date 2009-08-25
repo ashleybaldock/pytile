@@ -82,7 +82,6 @@ class Bezier(object):
 
         # This bypasses the generation of a bezier curve, and returns a straight line in a form which should still work with all the functions that depend on this
         if len(p) == 2:
-            #return ([p[1][0], p[0][0]], [p[1][2], p[0][2]])
             return ([p[1], p[0]], [p[1] - p[0],p[1] - p[0]])
 
         t = 1.0 / steps
@@ -209,35 +208,6 @@ class Tile(pygame.sprite.Sprite):
             self.box_endpoints.append([p[0],                                                p[1],    p[1].perpendicular()])
             self.box_endpoints.append([p[0] + p[1].perpendicular() * Tile.track_spacing,    p[1],    p[1].perpendicular()])
 
-#        self.box_endpoints.append([p[1][0] - p[1][1].perpendicular() * Tile.track_spacing,      p[1][1],    p[1][1].perpendicular()])
-#        self.box_endpoints.append([p[1][0],                                                     p[1][1],    p[1][1].perpendicular()])
-#        self.box_endpoints.append([p[1][0] + p[1][1].perpendicular() * Tile.track_spacing,      p[1][1],    p[1][1].perpendicular()])
-#
-#        self.box_endpoints.append([p[2][0] - p[2][1].rotated(-ISO_ANGLE) * Tile.track_spacing,  p[2][1],    p[2][1].rotated(-ISO_ANGLE)])
-#        self.box_endpoints.append([p[2][0],                                                     p[2][1],    p[2][1].rotated(-ISO_ANGLE)])
-#        self.box_endpoints.append([p[2][0] + p[2][1].rotated(-ISO_ANGLE) * Tile.track_spacing,  p[2][1],    p[2][1].rotated(-ISO_ANGLE)])
-#
-#        self.box_endpoints.append([p[3][0] - p[3][1].perpendicular() * Tile.track_spacing,      p[3][1],    p[3][1].perpendicular()])
-#        self.box_endpoints.append([p[3][0],                                                     p[3][1],    p[3][1].perpendicular()])
-#        self.box_endpoints.append([p[3][0] + p[3][1].perpendicular() * Tile.track_spacing,      p[3][1],    p[3][1].perpendicular()])
-#
-#        self.box_endpoints.append([p[4][0] - p[4][1].rotated(ISO_ANGLE) * Tile.track_spacing,   p[4][1],    p[4][1].rotated(ISO_ANGLE)])
-#        self.box_endpoints.append([p[4][0],                                                     p[4][1],    p[4][1].rotated(ISO_ANGLE)])
-#        self.box_endpoints.append([p[4][0] + p[4][1].rotated(ISO_ANGLE) * Tile.track_spacing,   p[4][1],    p[4][1].rotated(ISO_ANGLE)])
-#
-#        self.box_endpoints.append([p[5][0] - p[5][1].perpendicular() * Tile.track_spacing,      p[5][1],    p[5][1].perpendicular()])
-#        self.box_endpoints.append([p[5][0],                                                     p[5][1],    p[5][1].perpendicular()])
-#        self.box_endpoints.append([p[5][0] + p[5][1].perpendicular() * Tile.track_spacing,      p[5][1],    p[5][1].perpendicular()])
-#
-#        self.box_endpoints.append([p[6][0] - p[6][1].rotated(-ISO_ANGLE) * Tile.track_spacing,  p[6][1],    p[6][1].rotated(-ISO_ANGLE)])
-#        self.box_endpoints.append([p[6][0],                                                     p[6][1],    p[6][1].rotated(-ISO_ANGLE)])
-#        self.box_endpoints.append([p[6][0] + p[6][1].rotated(-ISO_ANGLE) * Tile.track_spacing,  p[6][1],    p[6][1].rotated(-ISO_ANGLE)])
-#
-#        self.box_endpoints.append([p[7][0] - p[7][1].perpendicular() * Tile.track_spacing,      p[7][1],    p[7][1].perpendicular()])
-#        self.box_endpoints.append([p[7][0],                                                     p[7][1],    p[7][1].perpendicular()])
-#        self.box_endpoints.append([p[7][0] + p[7][1].perpendicular() * Tile.track_spacing,      p[7][1],    p[7][1].perpendicular()])
-
-
         # Used for testing which control point the cursor is over (old method)
         self.endpoints = []
         screen_pos = vec2d(self.xpos, self.ypos)
@@ -254,10 +224,6 @@ class Tile(pygame.sprite.Sprite):
         self.init_box = True
         self.update()
 
-
-
-    def dot(self, other):
-        return float(self.x*other[0] + self.y*other[1])
 
     def add_path(self, path):
         """Add another path to this tile
@@ -324,7 +290,6 @@ class Tile(pygame.sprite.Sprite):
         p4 = self.size / 4
         # Global screen positions
         self.xpos = xWorld*p2 - (x * p2) + (y * p2) - p2
-##        self.ypos = (x * p4) + (y * p4) - (z * ph)
         self.ypos = (x * p4) + (y * p4)
         # Rect position takes into account the offset
         self.rect = (self.xpos + World.offx, self.ypos + World.offy, p, p)
@@ -351,7 +316,6 @@ class Tile(pygame.sprite.Sprite):
                     # This gets us +1, +0 or -1, to bring the real value of the end point up to the midpoint
                     p03 = -1 * ((p0 % 3) - 1)
                     p13 = -1 * ((p1 % 3) - 1)
-##                    print "p0: %s, p03: %s, p1: %s, p13: %s" % (p0, p03, p1, p13)
                     # Curve factor dictates the length between the two endpoints of each of the two curve control points
                     # By varying the length of these control points, we can make the curve smoother and sharper
                     # Taking two control points which make up a path, for each one multiply curve factor by either + or - of the
@@ -601,11 +565,11 @@ class DisplayMain(object):
 
         # Layers to draw, first listed drawn first
         layers = [
+                  "box",
                   "ballast",
                   "sleepers",
                   "rails",
                   "highlight",
-                  "box",
                   ]
 
         # 2D array, [x][y]
@@ -633,11 +597,11 @@ class DisplayMain(object):
             self.map[x][4]["layers"]["rails"].add_path([1, 13]) 
             self.map[x][4]["layers"]["sleepers"].add_path([1, 13]) 
             self.map[x][4]["layers"]["ballast"].add_path([1, 13]) 
-        for x in range(2,7):
+        for x in range(2,8):
             self.map[x][7]["layers"]["rails"].add_path([0, 14]) 
             self.map[x][7]["layers"]["sleepers"].add_path([0, 14]) 
             self.map[x][7]["layers"]["ballast"].add_path([0, 14]) 
-        for x in range(2,7):
+        for x in range(2,8):
             self.map[x][7]["layers"]["rails"].add_path([2, 12]) 
             self.map[x][7]["layers"]["sleepers"].add_path([2, 12]) 
             self.map[x][7]["layers"]["ballast"].add_path([2, 12]) 
