@@ -55,7 +55,7 @@ WINDOW_HEIGHT = 800
 xWorld = 10
 yWorld = 10
 
-TILE_SIZE = 64
+TILE_SIZE = 128
 
 ISO_ANGLE = 90-26.565
 
@@ -81,6 +81,7 @@ class Bezier(object):
 
         # This bypasses the generation of a bezier curve, and returns a straight line in a form which should still work with all the functions that depend on this
         if len(p) == 2:
+            #return ([p[1][0], p[0][0]], [p[1][2], p[0][2]])
             return ([p[1], p[0]], [p[1] - p[0],p[1] - p[0]])
 
         t = 1.0 / steps
@@ -129,7 +130,7 @@ class Bezier(object):
 class Tile(pygame.sprite.Sprite):
     """A tile containing tracks, drawn in layers"""
     init = False
-    def __init__(self, position, type, track_width=8, curve_factor=15):
+    def __init__(self, position, type, track_width=2.5, curve_factor=12):
         pygame.sprite.Sprite.__init__(self)
         if not Tile.init:
             Tile.bezier = Bezier()
@@ -145,7 +146,7 @@ class Tile(pygame.sprite.Sprite):
             Tile.sleeper_spacing = track_width * 0.75
             Tile.sleeper_width = track_width * 0.3
             Tile.sleeper_length = track_width * 1.5
-            Tile.rail_spacing = track_width
+            Tile.rail_spacing = track_width * 0.7
             Tile.rail_width = track_width * 0.2
 	    if Tile.rail_width < 1:
 		Tile.rail_width = 1
@@ -165,8 +166,8 @@ class Tile(pygame.sprite.Sprite):
         self.highlight_changed = False
         self.control_hint = None
 
-        self.box = [vec2d(Tile.size, Tile.size/2),
-                    vec2d(0, Tile.size/2),
+        self.box = [vec2d(Tile.size, Tile.size),
+                    vec2d(0, Tile.size),
                     vec2d(0, 0),
                     vec2d(Tile.size, 0)]
 
@@ -197,49 +198,43 @@ class Tile(pygame.sprite.Sprite):
             # Append the vector to the starting point followed by the vector from the starting point to the endpoint on the other side
             self.box_allmidpoints.append([p, (q - p).normalized()])
 
-        # Used for drawing the paths in the tile, [vector from origin to the point, gradient at that point]
+        # Used for drawing the paths in the tile, [vector from origin to the point, gradient at that point, tangent (in iso space) at that point]
         self.box_endpoints = []
 
         p = self.box_allmidpoints
 
-        self.box_endpoints.append([p[0][0] - p[0][1].rotated(ISO_ANGLE) * Tile.track_spacing, p[0][1]])
-        self.box_endpoints.append([p[0][0], p[0][1]])
-        self.box_endpoints.append([p[0][0] + p[0][1].rotated(ISO_ANGLE) * Tile.track_spacing, p[0][1]])
+        self.box_endpoints.append([p[0][0] - p[0][1].rotated(ISO_ANGLE) * Tile.track_spacing,   p[0][1],    p[0][1].rotated(ISO_ANGLE)])
+        self.box_endpoints.append([p[0][0],                                                     p[0][1],    p[0][1].rotated(ISO_ANGLE)])
+        self.box_endpoints.append([p[0][0] + p[0][1].rotated(ISO_ANGLE) * Tile.track_spacing,   p[0][1],    p[0][1].rotated(ISO_ANGLE)])
 
-        self.box_endpoints.append([p[1][0] - p[1][1].perpendicular() * Tile.track_spacing, p[1][1]])
-        self.box_endpoints.append([p[1][0], p[1][1]])
-        self.box_endpoints.append([p[1][0] + p[1][1].perpendicular() * Tile.track_spacing, p[1][1]])
+        self.box_endpoints.append([p[1][0] - p[1][1].perpendicular() * Tile.track_spacing,      p[1][1],    p[1][1].perpendicular()])
+        self.box_endpoints.append([p[1][0],                                                     p[1][1],    p[1][1].perpendicular()])
+        self.box_endpoints.append([p[1][0] + p[1][1].perpendicular() * Tile.track_spacing,      p[1][1],    p[1][1].perpendicular()])
 
-        self.box_endpoints.append([p[2][0] - p[2][1].rotated(-ISO_ANGLE) * Tile.track_spacing, p[2][1]])
-        self.box_endpoints.append([p[2][0], p[2][1]])
-        self.box_endpoints.append([p[2][0] + p[2][1].rotated(-ISO_ANGLE) * Tile.track_spacing, p[2][1]])
+        self.box_endpoints.append([p[2][0] - p[2][1].rotated(-ISO_ANGLE) * Tile.track_spacing,  p[2][1],    p[2][1].rotated(-ISO_ANGLE)])
+        self.box_endpoints.append([p[2][0],                                                     p[2][1],    p[2][1].rotated(-ISO_ANGLE)])
+        self.box_endpoints.append([p[2][0] + p[2][1].rotated(-ISO_ANGLE) * Tile.track_spacing,  p[2][1],    p[2][1].rotated(-ISO_ANGLE)])
 
-        self.box_endpoints.append([p[3][0] - p[3][1].perpendicular() * Tile.track_spacing, p[3][1]])
-        self.box_endpoints.append([p[3][0], p[3][1]])
-        self.box_endpoints.append([p[3][0] + p[3][1].perpendicular() * Tile.track_spacing, p[3][1]])
+        self.box_endpoints.append([p[3][0] - p[3][1].perpendicular() * Tile.track_spacing,      p[3][1],    p[3][1].perpendicular()])
+        self.box_endpoints.append([p[3][0],                                                     p[3][1],    p[3][1].perpendicular()])
+        self.box_endpoints.append([p[3][0] + p[3][1].perpendicular() * Tile.track_spacing,      p[3][1],    p[3][1].perpendicular()])
 
-        self.box_endpoints.append([p[4][0] - p[4][1].rotated(ISO_ANGLE) * Tile.track_spacing, p[4][1]])
-        self.box_endpoints.append([p[4][0], p[4][1]])
-        self.box_endpoints.append([p[4][0] + p[4][1].rotated(ISO_ANGLE) * Tile.track_spacing, p[4][1]])
+        self.box_endpoints.append([p[4][0] - p[4][1].rotated(ISO_ANGLE) * Tile.track_spacing,   p[4][1],    p[4][1].rotated(ISO_ANGLE)])
+        self.box_endpoints.append([p[4][0],                                                     p[4][1],    p[4][1].rotated(ISO_ANGLE)])
+        self.box_endpoints.append([p[4][0] + p[4][1].rotated(ISO_ANGLE) * Tile.track_spacing,   p[4][1],    p[4][1].rotated(ISO_ANGLE)])
 
-        self.box_endpoints.append([p[5][0] - p[5][1].perpendicular() * Tile.track_spacing, p[5][1]])
-        self.box_endpoints.append([p[5][0], p[5][1]])
-        self.box_endpoints.append([p[5][0] + p[5][1].perpendicular() * Tile.track_spacing, p[5][1]])
+        self.box_endpoints.append([p[5][0] - p[5][1].perpendicular() * Tile.track_spacing,      p[5][1],    p[5][1].perpendicular()])
+        self.box_endpoints.append([p[5][0],                                                     p[5][1],    p[5][1].perpendicular()])
+        self.box_endpoints.append([p[5][0] + p[5][1].perpendicular() * Tile.track_spacing,      p[5][1],    p[5][1].perpendicular()])
 
-        self.box_endpoints.append([p[6][0] - p[6][1].rotated(-ISO_ANGLE) * Tile.track_spacing, p[6][1].rotated(90-ISO_ANGLE)])
-        self.box_endpoints.append([p[6][0], p[6][1].rotated(90-ISO_ANGLE)])
-        self.box_endpoints.append([p[6][0] + p[6][1].rotated(-ISO_ANGLE) * Tile.track_spacing, p[6][1].rotated(90-ISO_ANGLE)])
+        self.box_endpoints.append([p[6][0] - p[6][1].rotated(-ISO_ANGLE) * Tile.track_spacing,  p[6][1],    p[6][1].rotated(-ISO_ANGLE)])
+        self.box_endpoints.append([p[6][0],                                                     p[6][1],    p[6][1].rotated(-ISO_ANGLE)])
+        self.box_endpoints.append([p[6][0] + p[6][1].rotated(-ISO_ANGLE) * Tile.track_spacing,  p[6][1],    p[6][1].rotated(-ISO_ANGLE)])
 
-        self.box_endpoints.append([p[7][0] - p[7][1].perpendicular() * Tile.track_spacing, p[7][1]])
-        self.box_endpoints.append([p[7][0], p[7][1]])
-        self.box_endpoints.append([p[7][0] + p[7][1].perpendicular() * Tile.track_spacing, p[7][1]])
+        self.box_endpoints.append([p[7][0] - p[7][1].perpendicular() * Tile.track_spacing,      p[7][1],    p[7][1].perpendicular()])
+        self.box_endpoints.append([p[7][0],                                                     p[7][1],    p[7][1].perpendicular()])
+        self.box_endpoints.append([p[7][0] + p[7][1].perpendicular() * Tile.track_spacing,      p[7][1],    p[7][1].perpendicular()])
 
-#        for p in self.box_allmidpoints:
-#            #self.box_endpoints.append([p[0] - p[1].perpendicular() * Tile.track_spacing, p[1].perpendicular()])
-#            #self.box_endpoints.append([p[0] + p[1].perpendicular() * Tile.track_spacing, p[1].perpendicular()])
-#            self.box_endpoints.append([p[0] - p[1].rotated(ISO_ANGLE) * Tile.track_spacing, p[1].rotated(ISO_ANGLE)])
-#            self.box_endpoints.append([p[0], p[1].rotated(ISO_ANGLE)])
-#            self.box_endpoints.append([p[0] + p[1].rotated(ISO_ANGLE) * Tile.track_spacing, p[1].rotated(ISO_ANGLE)])
 
         # Used for testing which control point the cursor is over (old method)
         self.endpoints = []
@@ -257,17 +252,7 @@ class Tile(pygame.sprite.Sprite):
         self.init_box = True
         self.update()
 
-    def iso_perpendicular(self, v1):
-        """Find the vector perpendicular to this one in isometric space"""
-        # Assume that isometric projection is using 30 degree angle
-        angle = 30
-        # v1.v2 = |v1|*|v2|*cos(theta)
-        # v1 should be a normalised vector, v2 will be produced as a normalised vector
-        # v1.v2 expands to v1.x*v2.x + v1.y*v2.y
-        # Thus: vx + vy = cos(theta)
-        # Also x^2 + y^2 = 1 (since the output is to be a unit vector)
-        # Solve for x:
-        #   
+
 
     def dot(self, other):
         return float(self.x*other[0] + self.y*other[1])
@@ -352,18 +337,13 @@ class Tile(pygame.sprite.Sprite):
             # Only update the image once when first drawn, can be persistent after that (redrawn when the paths change only)
             self.paths_changed = False
             paths_to_draw = []
-            paths_to_draw2 = []
             for p in self.paths:
                 a = self.box_endpoints[p[0]][0]
                 d = self.box_endpoints[p[1]][0]
                 # If this tile is a straight line no need to use a bezier curve
                 if p[0] + p[1] in [32,26,20,14]:
                     paths_to_draw.append([a,d])
-                    paths_to_draw2.append([a,d])
                 else:
-                    debug(str(self.box_endpoints))
-                    debug(str(p))
-
                     p0 = p[0]
                     p1 = p[1]
                     # This gets us +1, +0 or -1, to bring the real value of the end point up to the midpoint
@@ -378,16 +358,13 @@ class Tile(pygame.sprite.Sprite):
                     x = (self.box_endpoints[p[1]][1] * Tile.track_spacing).length
                     y = (self.box_endpoints[p[0]][1] * Tile.track_spacing).length
 
-                    b1 = self.box_endpoints[p[0]][0] + self.box_endpoints[p[0]][1] * (self.curve_factor + p13 * x * self.curve_multiplier)
-                    c1 = self.box_endpoints[p[1]][0] + self.box_endpoints[p[1]][1] * (self.curve_factor + p03 * y * self.curve_multiplier)
                     b = self.box_endpoints[p[0]][0] + self.box_endpoints[p[0]][1] * self.curve_factor
                     c = self.box_endpoints[p[1]][0] + self.box_endpoints[p[1]][1] * self.curve_factor
 
                     paths_to_draw.append([a,b,c,d])
-                    paths_to_draw2.append([a,b1,c1,d])
             if self.type == "rails":
-                for p, q in zip(paths_to_draw, paths_to_draw2):
-                    self.draw_rails(p, q)
+                for p in paths_to_draw:
+                    self.draw_rails(p)
             elif self.type == "sleepers":
                 for p in paths_to_draw:
                     self.draw_sleepers(p)
@@ -411,23 +388,22 @@ class Tile(pygame.sprite.Sprite):
             pygame.draw.circle(self.image, green, self.box_endpoints[self.control_hint][0], 3)
 
     def draw_box(self):
+        #Translate points into iso space
+        box_points = []
+        for p in self.box_endpoints:
+            box_points.append(p[0])
+        box_points = self.translate_points(box_points)
+        print "box_points: %s" % box_points
         # Draw the outline of the box
-        pygame.draw.lines(self.image, True, darkblue, self.box_midpoints)
+        pygame.draw.lines(self.image, True, darkblue, box_points)
         # Draw the remaining box endpoints
-        for n, p in enumerate(self.box_endpoints):
+        for n, p in enumerate(box_points):
             # Draw red circles indicating the path endpoints
-            pygame.draw.circle(self.image, red, (int(p[0][0]),int(p[0][1])), 0)
+            pygame.draw.circle(self.image, red, (int(p[0]),int(p[1])), 1)
             if n == 1:
-                pygame.draw.circle(self.image, green, (int(p[0][0]),int(p[0][1])), 2)
+                pygame.draw.circle(self.image, green, (int(p[0]),int(p[1])), 2)
             # Draw normal lines indicating the path endpoints
 ##            pygame.draw.line(self.image, darkblue, p[0], p[0] + 20 * p[1])
-            if DRAW_HINTS:
-                # Draw text indicating which path endpoint the dot is
-                s = Tile.font.render(str(self.box_endpoints.index(p)), False, green)
-                x,y = s.get_size()
-                x = x/2
-                y = y/2
-                self.image.blit(s, p[0] + 8 * p[1] - (x,y))
 
     def draw_sleepers(self, control_points):
         """Draw the sleeper component of the track"""
@@ -468,10 +444,12 @@ class Tile(pygame.sprite.Sprite):
             else:
                 s = 1
             for n in range(s, n_sleepers+1):
-                sleeper_points.append([self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing - ab_n*0.5*Tile.sleeper_width, a_to_b, -Tile.sleeper_length),
-                                       self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing - ab_n*0.5*Tile.sleeper_width, a_to_b, Tile.sleeper_length),
-                                       self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing + ab_n*0.5*Tile.sleeper_width, a_to_b, Tile.sleeper_length),
-                                       self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing + ab_n*0.5*Tile.sleeper_width, a_to_b, -Tile.sleeper_length)])
+                sleep_p = [self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing - ab_n*0.5*Tile.sleeper_width, a_to_b, -Tile.sleeper_length),
+                           self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing - ab_n*0.5*Tile.sleeper_width, a_to_b, Tile.sleeper_length),
+                           self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing + ab_n*0.5*Tile.sleeper_width, a_to_b, Tile.sleeper_length),
+                           self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing + ab_n*0.5*Tile.sleeper_width, a_to_b, -Tile.sleeper_length)]
+                # Translate points into iso perspective
+                sleeper_points.append(self.translate_points(sleep_p))
         # Finally draw all the sleeper points
         for p in sleeper_points:
             pygame.draw.polygon(self.image, brown, p, 0)
@@ -494,6 +472,8 @@ class Tile(pygame.sprite.Sprite):
             ballast_points.reverse()
             for p in range(0, len(cps)):
                 ballast_points.append(self.bezier.get_at_width(cps[p], tangents[p], -Tile.ballast_width))
+            # Translate points into iso space
+            ballast_points = self.translate_points(ballast_points)
             pygame.draw.polygon(surface, white, ballast_points, 0)
         # Set mask key to white, so only the outline parts drawn
         surface.set_colorkey(white, pygame.RLEACCEL)
@@ -505,11 +485,10 @@ class Tile(pygame.sprite.Sprite):
         self.image.set_colorkey(black)
 
 
-    def draw_rails(self, control_points, control_points2):
+    def draw_rails(self, control_points):
         """Draw the rails component of the track"""
         # Calculate bezier curve points and tangents
         cps, tangents = self.bezier.calculate_bezier(control_points, 30)
-        cps2, tangents2 = self.bezier.calculate_bezier(control_points2, 30)
         if DEBUG:
             pygame.draw.lines(self.image, red, False, cps, 1)
             pygame.draw.lines(self.image, silver, False, cps2, 1)
@@ -523,15 +502,19 @@ class Tile(pygame.sprite.Sprite):
 ##                pygame.draw.aalines(self.image, silver, False, points, True)
         for s in [1, -1]:
             points1 = []
-            points2 = []
-            points3 = []
             for p in range(0, len(cps)):
-                points1.append(self.bezier.get_at_width(cps[p], tangents[p], s*Tile.rail_spacing))
-                points2.append(self.bezier.get_at_width(cps[p], tangents[p], s*Tile.rail_spacing - Tile.rail_width/2.0))
-                points3.append(self.bezier.get_at_width(cps[p], tangents[p], s*Tile.rail_spacing + Tile.rail_width/2.0))
+                points1.append(self.bezier.get_at_width(cps[p], tangents[p], s*self.rail_spacing))
+            points1 = self.translate_points(points1)
             pygame.draw.lines(self.image, silver, False, points1, Tile.rail_width)
-##            pygame.draw.aalines(self.image, silver, False, points2, True)
-##            pygame.draw.aalines(self.image, silver, False, points3, True)
+
+    def translate_points(self, points):
+        """Translate a set of points to convert from world space into iso space"""
+        scale = vec2d(1,0.5)
+        out = []
+        for p in points:
+            out.append(p*scale)
+        return out
+
 
     def draw_controls(self, control_points):
         """Draw the controls component of the track"""
@@ -642,30 +625,56 @@ class DisplayMain(object):
                 a.append(b)
             self.map.append(a)
 
-
-
-        self.map[1][1]["layers"]["rails"].add_path([1, 13])  
-
         # Testing paths
         for x in range(2,7):
             self.map[x][4]["layers"]["rails"].add_path([1, 13]) 
             self.map[x][4]["layers"]["sleepers"].add_path([1, 13]) 
             self.map[x][4]["layers"]["ballast"].add_path([1, 13]) 
         for x in range(2,7):
-            self.map[x][6]["layers"]["rails"].add_path([0, 14]) 
-            self.map[x][6]["layers"]["sleepers"].add_path([0, 14]) 
-            self.map[x][6]["layers"]["ballast"].add_path([0, 14]) 
+            self.map[x][7]["layers"]["rails"].add_path([0, 14]) 
+            self.map[x][7]["layers"]["sleepers"].add_path([0, 14]) 
+            self.map[x][7]["layers"]["ballast"].add_path([0, 14]) 
         for x in range(2,7):
-            self.map[x][6]["layers"]["rails"].add_path([2, 12]) 
-            self.map[x][6]["layers"]["sleepers"].add_path([2, 12]) 
-            self.map[x][6]["layers"]["ballast"].add_path([2, 12]) 
+            self.map[x][7]["layers"]["rails"].add_path([2, 12]) 
+            self.map[x][7]["layers"]["sleepers"].add_path([2, 12]) 
+            self.map[x][7]["layers"]["ballast"].add_path([2, 12]) 
 
-        self.map[6][4]["layers"]["rails"].add_path([1, 10])  
-        self.map[5][3]["layers"]["rails"].add_path([22, 10])  
-        self.map[4][2]["layers"]["rails"].add_path([22, 13])  
+        self.map[6][4]["layers"]["rails"].add_path([13, 22])  
+        self.map[5][3]["layers"]["rails"].add_path([10, 22])  
+        self.map[4][2]["layers"]["rails"].add_path([10, 1])  
         self.map[3][2]["layers"]["rails"].add_path([1, 13])  
+        self.map[6][4]["layers"]["sleepers"].add_path([13, 22])  
+        self.map[5][3]["layers"]["sleepers"].add_path([10, 22])  
+        self.map[4][2]["layers"]["sleepers"].add_path([10, 1])  
+        self.map[3][2]["layers"]["sleepers"].add_path([1, 13])  
+        self.map[6][4]["layers"]["ballast"].add_path([13, 22])  
+        self.map[5][3]["layers"]["ballast"].add_path([10, 22])  
+        self.map[4][2]["layers"]["ballast"].add_path([10, 1])  
+        self.map[3][2]["layers"]["ballast"].add_path([1, 13])  
 
 
+
+        self.map[6][7]["layers"]["rails"].add_path([12, 23])  
+        self.map[5][6]["layers"]["rails"].add_path([2, 9])  
+        self.map[4][6]["layers"]["rails"].add_path([2, 12])  
+        self.map[6][7]["layers"]["rails"].add_path([14, 21])  
+        self.map[5][6]["layers"]["rails"].add_path([0, 11])  
+        self.map[4][6]["layers"]["rails"].add_path([0, 14])  
+        self.map[6][7]["layers"]["sleepers"].add_path([12, 23])  
+        self.map[5][6]["layers"]["sleepers"].add_path([2, 9])  
+        self.map[4][6]["layers"]["sleepers"].add_path([2, 12])  
+        self.map[6][7]["layers"]["sleepers"].add_path([14, 21])  
+        self.map[5][6]["layers"]["sleepers"].add_path([0, 11])  
+        self.map[4][6]["layers"]["sleepers"].add_path([0, 14])  
+        self.map[6][7]["layers"]["ballast"].add_path([12, 23])  
+        self.map[5][6]["layers"]["ballast"].add_path([2, 9])  
+        self.map[4][6]["layers"]["ballast"].add_path([2, 12])  
+        self.map[6][7]["layers"]["ballast"].add_path([14, 21])  
+        self.map[5][6]["layers"]["ballast"].add_path([0, 11])  
+        self.map[4][6]["layers"]["ballast"].add_path([0, 14])  
+
+
+        self.map[8][8]["layers"]["rails"].add_path([13, 22])  
 
         self.map[9][9]["layers"]["rails"].add_path([1, 13])  
         self.map[9][9]["layers"]["rails"].add_path([10, 22])  
