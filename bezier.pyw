@@ -56,6 +56,7 @@ xWorld = 10
 yWorld = 10
 
 TILE_SIZE = 128
+TILE_SIZE = 64
 
 ISO_ANGLE = 90-26.565
 
@@ -146,7 +147,7 @@ class Tile(pygame.sprite.Sprite):
             Tile.sleeper_spacing = track_width * 0.75
             Tile.sleeper_width = track_width * 0.3
             Tile.sleeper_length = track_width * 1.5
-            Tile.rail_spacing = track_width * 0.7
+            Tile.rail_spacing = track_width * 0.9
             Tile.rail_width = track_width * 0.2
 	    if Tile.rail_width < 1:
 		Tile.rail_width = 1
@@ -203,37 +204,38 @@ class Tile(pygame.sprite.Sprite):
 
         p = self.box_allmidpoints
 
-        self.box_endpoints.append([p[0][0] - p[0][1].rotated(ISO_ANGLE) * Tile.track_spacing,   p[0][1],    p[0][1].rotated(ISO_ANGLE)])
-        self.box_endpoints.append([p[0][0],                                                     p[0][1],    p[0][1].rotated(ISO_ANGLE)])
-        self.box_endpoints.append([p[0][0] + p[0][1].rotated(ISO_ANGLE) * Tile.track_spacing,   p[0][1],    p[0][1].rotated(ISO_ANGLE)])
+        for p in self.box_allmidpoints:
+            self.box_endpoints.append([p[0] - p[1].perpendicular() * Tile.track_spacing,    p[1],    p[1].perpendicular()])
+            self.box_endpoints.append([p[0],                                                p[1],    p[1].perpendicular()])
+            self.box_endpoints.append([p[0] + p[1].perpendicular() * Tile.track_spacing,    p[1],    p[1].perpendicular()])
 
-        self.box_endpoints.append([p[1][0] - p[1][1].perpendicular() * Tile.track_spacing,      p[1][1],    p[1][1].perpendicular()])
-        self.box_endpoints.append([p[1][0],                                                     p[1][1],    p[1][1].perpendicular()])
-        self.box_endpoints.append([p[1][0] + p[1][1].perpendicular() * Tile.track_spacing,      p[1][1],    p[1][1].perpendicular()])
-
-        self.box_endpoints.append([p[2][0] - p[2][1].rotated(-ISO_ANGLE) * Tile.track_spacing,  p[2][1],    p[2][1].rotated(-ISO_ANGLE)])
-        self.box_endpoints.append([p[2][0],                                                     p[2][1],    p[2][1].rotated(-ISO_ANGLE)])
-        self.box_endpoints.append([p[2][0] + p[2][1].rotated(-ISO_ANGLE) * Tile.track_spacing,  p[2][1],    p[2][1].rotated(-ISO_ANGLE)])
-
-        self.box_endpoints.append([p[3][0] - p[3][1].perpendicular() * Tile.track_spacing,      p[3][1],    p[3][1].perpendicular()])
-        self.box_endpoints.append([p[3][0],                                                     p[3][1],    p[3][1].perpendicular()])
-        self.box_endpoints.append([p[3][0] + p[3][1].perpendicular() * Tile.track_spacing,      p[3][1],    p[3][1].perpendicular()])
-
-        self.box_endpoints.append([p[4][0] - p[4][1].rotated(ISO_ANGLE) * Tile.track_spacing,   p[4][1],    p[4][1].rotated(ISO_ANGLE)])
-        self.box_endpoints.append([p[4][0],                                                     p[4][1],    p[4][1].rotated(ISO_ANGLE)])
-        self.box_endpoints.append([p[4][0] + p[4][1].rotated(ISO_ANGLE) * Tile.track_spacing,   p[4][1],    p[4][1].rotated(ISO_ANGLE)])
-
-        self.box_endpoints.append([p[5][0] - p[5][1].perpendicular() * Tile.track_spacing,      p[5][1],    p[5][1].perpendicular()])
-        self.box_endpoints.append([p[5][0],                                                     p[5][1],    p[5][1].perpendicular()])
-        self.box_endpoints.append([p[5][0] + p[5][1].perpendicular() * Tile.track_spacing,      p[5][1],    p[5][1].perpendicular()])
-
-        self.box_endpoints.append([p[6][0] - p[6][1].rotated(-ISO_ANGLE) * Tile.track_spacing,  p[6][1],    p[6][1].rotated(-ISO_ANGLE)])
-        self.box_endpoints.append([p[6][0],                                                     p[6][1],    p[6][1].rotated(-ISO_ANGLE)])
-        self.box_endpoints.append([p[6][0] + p[6][1].rotated(-ISO_ANGLE) * Tile.track_spacing,  p[6][1],    p[6][1].rotated(-ISO_ANGLE)])
-
-        self.box_endpoints.append([p[7][0] - p[7][1].perpendicular() * Tile.track_spacing,      p[7][1],    p[7][1].perpendicular()])
-        self.box_endpoints.append([p[7][0],                                                     p[7][1],    p[7][1].perpendicular()])
-        self.box_endpoints.append([p[7][0] + p[7][1].perpendicular() * Tile.track_spacing,      p[7][1],    p[7][1].perpendicular()])
+#        self.box_endpoints.append([p[1][0] - p[1][1].perpendicular() * Tile.track_spacing,      p[1][1],    p[1][1].perpendicular()])
+#        self.box_endpoints.append([p[1][0],                                                     p[1][1],    p[1][1].perpendicular()])
+#        self.box_endpoints.append([p[1][0] + p[1][1].perpendicular() * Tile.track_spacing,      p[1][1],    p[1][1].perpendicular()])
+#
+#        self.box_endpoints.append([p[2][0] - p[2][1].rotated(-ISO_ANGLE) * Tile.track_spacing,  p[2][1],    p[2][1].rotated(-ISO_ANGLE)])
+#        self.box_endpoints.append([p[2][0],                                                     p[2][1],    p[2][1].rotated(-ISO_ANGLE)])
+#        self.box_endpoints.append([p[2][0] + p[2][1].rotated(-ISO_ANGLE) * Tile.track_spacing,  p[2][1],    p[2][1].rotated(-ISO_ANGLE)])
+#
+#        self.box_endpoints.append([p[3][0] - p[3][1].perpendicular() * Tile.track_spacing,      p[3][1],    p[3][1].perpendicular()])
+#        self.box_endpoints.append([p[3][0],                                                     p[3][1],    p[3][1].perpendicular()])
+#        self.box_endpoints.append([p[3][0] + p[3][1].perpendicular() * Tile.track_spacing,      p[3][1],    p[3][1].perpendicular()])
+#
+#        self.box_endpoints.append([p[4][0] - p[4][1].rotated(ISO_ANGLE) * Tile.track_spacing,   p[4][1],    p[4][1].rotated(ISO_ANGLE)])
+#        self.box_endpoints.append([p[4][0],                                                     p[4][1],    p[4][1].rotated(ISO_ANGLE)])
+#        self.box_endpoints.append([p[4][0] + p[4][1].rotated(ISO_ANGLE) * Tile.track_spacing,   p[4][1],    p[4][1].rotated(ISO_ANGLE)])
+#
+#        self.box_endpoints.append([p[5][0] - p[5][1].perpendicular() * Tile.track_spacing,      p[5][1],    p[5][1].perpendicular()])
+#        self.box_endpoints.append([p[5][0],                                                     p[5][1],    p[5][1].perpendicular()])
+#        self.box_endpoints.append([p[5][0] + p[5][1].perpendicular() * Tile.track_spacing,      p[5][1],    p[5][1].perpendicular()])
+#
+#        self.box_endpoints.append([p[6][0] - p[6][1].rotated(-ISO_ANGLE) * Tile.track_spacing,  p[6][1],    p[6][1].rotated(-ISO_ANGLE)])
+#        self.box_endpoints.append([p[6][0],                                                     p[6][1],    p[6][1].rotated(-ISO_ANGLE)])
+#        self.box_endpoints.append([p[6][0] + p[6][1].rotated(-ISO_ANGLE) * Tile.track_spacing,  p[6][1],    p[6][1].rotated(-ISO_ANGLE)])
+#
+#        self.box_endpoints.append([p[7][0] - p[7][1].perpendicular() * Tile.track_spacing,      p[7][1],    p[7][1].perpendicular()])
+#        self.box_endpoints.append([p[7][0],                                                     p[7][1],    p[7][1].perpendicular()])
+#        self.box_endpoints.append([p[7][0] + p[7][1].perpendicular() * Tile.track_spacing,      p[7][1],    p[7][1].perpendicular()])
 
 
         # Used for testing which control point the cursor is over (old method)
@@ -393,13 +395,14 @@ class Tile(pygame.sprite.Sprite):
         for p in self.box_endpoints:
             box_points.append(p[0])
         box_points = self.translate_points(box_points)
+        box_mids = self.translate_points(self.box_midpoints)
         print "box_points: %s" % box_points
         # Draw the outline of the box
-        pygame.draw.lines(self.image, True, darkblue, box_points)
+        pygame.draw.lines(self.image, True, darkblue, box_mids)
         # Draw the remaining box endpoints
         for n, p in enumerate(box_points):
             # Draw red circles indicating the path endpoints
-            pygame.draw.circle(self.image, red, (int(p[0]),int(p[1])), 1)
+            pygame.draw.circle(self.image, red, (int(p[0]),int(p[1])), 0)
             if n == 1:
                 pygame.draw.circle(self.image, green, (int(p[0]),int(p[1])), 2)
             # Draw normal lines indicating the path endpoints
