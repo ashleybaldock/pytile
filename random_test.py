@@ -170,13 +170,14 @@ def generate(ppp, r, persistence, octaves):
     # Draw the 3D graph representation
     surface.lock()
     randomsX = regen_seeds(r, octaves)
-    randomsY = regen_seeds(r+100, octaves)
+##    randomsY = regen_seeds(r+100, octaves)
+    randomsY = regen_seeds(r+80, octaves)
     for x in range(D3_WIDTH):
-        xvals, amps, xresult = get_at_point(x, randomsX, 200, 0.7, octaves)
+        xvals, amps, xresult = get_at_point(x, randomsX, 300, 0.7, octaves)
         for y in range(D3_HEIGHT):
             xx = (D3_WIDTH/2 + x - y) * 2
             yy = (D3_HEIGHT + x + y)
-            yvals, amps, yresult = get_at_point(y, randomsY, 200, 0.7, octaves)
+            yvals, amps, yresult = get_at_point(y, randomsY, 300, 0.7, octaves)
             zval = (xresult + yresult)
             # zval will be in range -1<n<1
             # Multiply this by the graph's height extent
