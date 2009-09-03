@@ -1,7 +1,10 @@
+#!/usr/bin/python
 
 import pygame
 from pygame.locals import *
 import sys, os, random, math
+
+from numpy import *
 
 pygame.init()
 
@@ -104,7 +107,30 @@ def regen_seeds(r, octaves):
         randoms.append(random.randint(0,100))
     return randoms
 
-def get_at_point(p, randoms, ppp, persistence, octaves):
+
+def get_at_point_2D(x, xrandoms, y, yrandoms, ppp, persistence, octaves):
+    """Don't smooth on the 1D generation, smooth in 2D"""
+    # Returns an array of points representing the raw octave values and resultant value at a point
+    # Takes the point, ppp, persistence and octaves values
+    amps = []
+    yvals = []
+    # Divide p by ppp to find how many random points along we are, do this for each octave
+    for o in range(octaves):
+        pow2o = pow(2,o)
+        position, remainder = divmod(x, ppp / pow2o)
+        # Convert number of pixels along in a period into a % value for the interpolation function
+        if remainder != 0:
+            percentalong = float(remainder) / ppp * pow2o
+        else:
+            percentalong = 0
+        yval = gen_1D_value(xrandoms[o], position)
+        yvals.append(yval)
+        amps.append(pow(persistence, o))
+
+    return reduce(lambda x, y: x+(y[0]*y[1]), zip(yvals, amps), 0) / sum(amps) 
+
+
+def get_at_point_1D(p, randoms, ppp, persistence, octaves):
     # Returns an array of points representing the raw octave values and resultant value at a point
     # Takes the point, ppp, persistence and octaves values
     amps = []
@@ -149,36 +175,26 @@ def generate(ppp, r, persistence, octaves):
     surface.lock()
     randoms = regen_seeds(r, octaves)
     for x in range(X_LIMIT):
-        yvals, amps, result = get_at_point(x, randoms, ppp, persistence, octaves)
+        yvals, amps, result = get_at_point_1D(x, randoms, ppp, persistence, octaves)
         for n, amp, y in map(lambda x,y: (x[0],x[1],y), enumerate(amps), yvals):
             surface.set_at((X_OFFSET_LEFT+x,Y_TOP_OFFSET-y*Y_LIMIT*amp), colours[n])
         surface.set_at((X_OFFSET_LEFT+x,Y_BOTTOM_OFFSET-result*Y_LIMIT), RED)
     surface.unlock()
 
 
-##    # draw all random points on the line at correct interval
-##    for o, vals in enumerate(allvals):
-##        for n, v in enumerate(vals):
-##            amp = pow(persistence, o)
-##            pos = (X_OFFSET_LEFT+n*ppp/pow(2,o),Y_TOP_OFFSET-v*Y_LIMIT*amp)
-##            pygame.draw.circle(surface, GREEN, pos, 2)
-##            # For the main period also draw some red markers on the axis line
-##            if o == 0:
-##                pygame.draw.circle(surface, RED, (pos[0], Y_MIDPOINT), 3)
-##        pygame.draw.circle(surface, RED, pos, 3)
-
     # Draw the 3D graph representation
     surface.lock()
+    # Regenerate the random seeds for each dimension
     randomsX = regen_seeds(r, octaves)
-##    randomsY = regen_seeds(r+100, octaves)
-    randomsY = regen_seeds(r+80, octaves)
+    randomsY = regen_seeds(r+100, octaves)
+
     for x in range(D3_WIDTH):
-        xvals, amps, xresult = get_at_point(x, randomsX, 300, 0.7, octaves)
         for y in range(D3_HEIGHT):
             xx = (D3_WIDTH/2 + x - y) * 2
             yy = (D3_HEIGHT + x + y)
-            yvals, amps, yresult = get_at_point(y, randomsY, 300, 0.7, octaves)
-            zval = (xresult + yresult)
+            # Calculate the height of the map at this point
+            zval = get_at_point_2D(x, randomsX, y, randomsY, 300, 0.7, octaves)
+
             # zval will be in range -1<n<1
             # Multiply this by the graph's height extent
             SCALE = 100.0
@@ -186,7 +202,6 @@ def generate(ppp, r, persistence, octaves):
                 zs = -1
             else:
                 zs = 1
-##            for z in range(0, int(zval*SCALE), zs):
             z = zval*SCALE
             if z < 0:
                 R = 0
@@ -194,6 +209,7 @@ def generate(ppp, r, persistence, octaves):
             else:
                 R = abs(z/SCALE*100+155)
                 B = 0
+            # Draw a point to represent this height value
             surface.set_at((D3_OFF_X+xx, D3_OFF_Y+yy-z), (R, 0, B))
     surface.unlock()
 
