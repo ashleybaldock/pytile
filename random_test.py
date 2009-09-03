@@ -244,7 +244,7 @@ def generate(ppp, r, persistence, octaves):
 
             # zval will be in range -1<n<1
             # Multiply this by the graph's height extent
-            SCALE = 10.0
+            SCALE = 100.0
             if zval < 0:
                 zs = -1
             else:
