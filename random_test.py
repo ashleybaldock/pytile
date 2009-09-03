@@ -100,15 +100,54 @@ def regen_seed():
     r = random.randint(0,100)
     return r
 
-def regen_seeds(r, octaves):
-    random.seed(r)
+def regen_seeds(random_seed, values):
+    random.seed(random_seed)
     randoms = []
-    for o in range(octaves):
+    for o in range(values):
         randoms.append(random.randint(0,100))
     return randoms
 
+def pad_array(a):
+    """Pad an array around the edges to make it suitable for smoothing"""
+    b = insert(a, -1, a[-1,...], axis=0)
+    b = insert(b, 0, b[0,...], axis=0)
+    b = insert(b, -1, b[...,-1], axis=1)
+    b = insert(b, 0, b[...,0], axis=1)
+    return b
 
-def get_at_point_2D(x, xrandoms, y, yrandoms, ppp, persistence, octaves):
+def get_neighbours(a, x, y):
+    """Return array containing height values of the neighbours of a particular value in the input array"""
+    b = a[x-1:x+2,y-1:y+2]
+    return b
+
+
+k = fromfunction(lambda x,y: 10*x+y, (5,4), dtype=int)
+
+q = pad_array(k)
+
+print q
+print get_neighbours(q, 2, 3)
+
+
+def gen_2D_noise(xmax, ymax, randoms, octaves):
+    """Return a set of arrays representing each octave of noise"""
+    octsets = []
+    for o in range(octaves):
+        # Generate set of X values for generating the set of y values
+        xrandoms = regen_seeds(o, xmax)
+        a = []
+        for x in xrandoms:
+            random.seed(x)
+            b = []
+            for y in range(ymax + 1):
+                b.append(get_random())
+            a.append(b)
+        a = array(a)
+        octsets.append(a)
+    return octsets
+
+
+def get_at_point_2D(x, y, octsets, ppp, persistence, octaves):
     """Don't smooth on the 1D generation, smooth in 2D"""
     # Returns an array of points representing the raw octave values and resultant value at a point
     # Takes the point, ppp, persistence and octaves values
@@ -123,7 +162,9 @@ def get_at_point_2D(x, xrandoms, y, yrandoms, ppp, persistence, octaves):
             percentalong = float(remainder) / ppp * pow2o
         else:
             percentalong = 0
-        yval = gen_1D_value(xrandoms[o], position)
+
+        yval = CosineInterpolate(octsets[o][x][y], octsets[o][x][y+1], percentalong)
+
         yvals.append(yval)
         amps.append(pow(persistence, o))
 
@@ -185,19 +226,25 @@ def generate(ppp, r, persistence, octaves):
     # Draw the 3D graph representation
     surface.lock()
     # Regenerate the random seeds for each dimension
-    randomsX = regen_seeds(r, octaves)
-    randomsY = regen_seeds(r+100, octaves)
+    randoms = regen_seeds(r, octaves)
+
+    octsets = gen_2D_noise(D3_WIDTH, D3_HEIGHT, randoms, octaves)
+
+    print octsets
+    print octsets[0]
+    print octsets[0][0]
+    print octsets[0][0][0]
 
     for x in range(D3_WIDTH):
         for y in range(D3_HEIGHT):
             xx = (D3_WIDTH/2 + x - y) * 2
             yy = (D3_HEIGHT + x + y)
             # Calculate the height of the map at this point
-            zval = get_at_point_2D(x, randomsX, y, randomsY, 300, 0.7, octaves)
+            zval = get_at_point_2D(x, y, octsets, 300, 0.7, octaves)
 
             # zval will be in range -1<n<1
             # Multiply this by the graph's height extent
-            SCALE = 100.0
+            SCALE = 10.0
             if zval < 0:
                 zs = -1
             else:
