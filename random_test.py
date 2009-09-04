@@ -95,6 +95,11 @@ def CosineInterpolate(a, b, x):
     f = (1 - math.cos(ft)) * 0.5
     return a*(1-f) + b*f
 
+def cosine_interpolate_2D(v1, v2, v3, v4, x, y):
+    A = CosineInterpolate(v1, v2, x)
+    B = CosineInterpolate(v3, v4, x)
+    return CosineInterpolate(A, B, y)
+
 def regen_seed():
     random.seed()
     r = random.randint(0,100)
@@ -129,12 +134,12 @@ print q
 print get_neighbours(q, 2, 3)
 
 
-def gen_2D_noise(xmax, ymax, randoms, octaves):
+def gen_2D_noise(xmax, ymax, randoms, ppp, persistence, octaves):
     """Return a set of arrays representing each octave of noise"""
     octsets = []
     for o in range(octaves):
         # Generate set of X values for generating the set of y values
-        xrandoms = regen_seeds(o, xmax)
+        xrandoms = regen_seeds(randoms[o], xmax + 1)
         a = []
         for x in xrandoms:
             random.seed(x)
@@ -149,26 +154,31 @@ def gen_2D_noise(xmax, ymax, randoms, octaves):
 
 def get_at_point_2D(x, y, octsets, ppp, persistence, octaves):
     """Don't smooth on the 1D generation, smooth in 2D"""
-    # Returns an array of points representing the raw octave values and resultant value at a point
-    # Takes the point, ppp, persistence and octaves values
     amps = []
-    yvals = []
-    # Divide p by ppp to find how many random points along we are, do this for each octave
-    for o in range(octaves):
+    zvals = []
+    # Find nearest points in x and y
+    for o, octset in enumerate(octsets):
         pow2o = pow(2,o)
-        position, remainder = divmod(x, ppp / pow2o)
-        # Convert number of pixels along in a period into a % value for the interpolation function
-        if remainder != 0:
-            percentalong = float(remainder) / ppp * pow2o
+        positionX, remainderX = divmod(x, ppp / pow2o)
+        positionY, remainderY = divmod(y, ppp / pow2o)
+        if remainderX != 0:
+            percentalongX = float(remainderX) / ppp * pow2o
         else:
-            percentalong = 0
+            percentalongX = 0
+        if remainderY != 0:
+            percentalongY = float(remainderY) / ppp * pow2o
+        else:
+            percentalongY = 0
 
-        yval = CosineInterpolate(octsets[o][x][y], octsets[o][x][y+1], percentalong)
-
-        yvals.append(yval)
+        zval = cosine_interpolate_2D(octset[positionX][positionY],
+                                     octset[positionX+1][positionY],
+                                     octset[positionX][positionY+1],
+                                     octset[positionX+1][positionY+1], 
+                                     percentalongX, percentalongY)
+        zvals.append(zval)
         amps.append(pow(persistence, o))
 
-    return reduce(lambda x, y: x+(y[0]*y[1]), zip(yvals, amps), 0) / sum(amps) 
+    return reduce(lambda x, y: x+(y[0]*y[1]), zip(zvals, amps), 0) / sum(amps) 
 
 
 def get_at_point_1D(p, randoms, ppp, persistence, octaves):
@@ -226,9 +236,11 @@ def generate(ppp, r, persistence, octaves):
     # Draw the 3D graph representation
     surface.lock()
     # Regenerate the random seeds for each dimension
-    randoms = regen_seeds(r, octaves)
+##    randoms = regen_seeds(r, octaves)
 
-    octsets = gen_2D_noise(D3_WIDTH, D3_HEIGHT, randoms, octaves)
+##    octsets = gen_2D_noise(D3_WIDTH, D3_HEIGHT, randoms, ppp, persistence, octaves)
+##                         x,        y,         randoms, ppp, persistence, octaves
+    octsets = gen_2D_noise(D3_WIDTH, D3_HEIGHT, randoms, 100, 0.7, octaves)
 
     print octsets
     print octsets[0]
