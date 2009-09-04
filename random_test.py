@@ -51,19 +51,20 @@ YELLOW = (255,255,0)
 CYAN = (0,255,255)
 MAGENTA = (255,0,255)
 
-period = 1
-num_octaves = 2
-# Octaves from 0 to X
 # Octave 1 is period 1, Octave 2 is period 1/2, Octave 3 is period 1/4 etc.
 
 # pixels per period (in x dimension), 20 is smallest which looks good
-PPP = 100
+PPP = 300
 # Random seed, this specifies what the output will look like
-R = 50
+R = 64
 # Persistence, this specifies how much smaller details affect the end result
-PERSISTENCE = 0.6
+PERSISTENCE = 0.7
 # Octaves, number of frequency ranges
 OCTAVES = 6
+
+# Interpolation method
+INTER_METHOD = "linear"
+INTER_METHOD = "cosine"
 
 # Setup display surfaces
 screen = pygame.display.set_mode([X_SCREEN, Y_SCREEN])
@@ -99,6 +100,11 @@ def cosine_interpolate_2D(v1, v2, v3, v4, x, y):
     A = CosineInterpolate(v1, v2, x)
     B = CosineInterpolate(v3, v4, x)
     return CosineInterpolate(A, B, y)
+
+def linear_interpolate_2D(v1, v2, v3, v4, x, y):
+    A = LinearInterpolate(v1, v2, x)
+    B = LinearInterpolate(v3, v4, x)
+    return LinearInterpolate(A, B, y)
 
 def regen_seed():
     random.seed()
@@ -170,11 +176,16 @@ def get_at_point_2D(x, y, octsets, ppp, persistence, octaves):
         else:
             percentalongY = 0
 
-        zval = cosine_interpolate_2D(octset[positionX][positionY],
-                                     octset[positionX+1][positionY],
-                                     octset[positionX][positionY+1],
-                                     octset[positionX+1][positionY+1], 
-                                     percentalongX, percentalongY)
+        if INTER_METHOD == "linear":
+            interpolate = linear_interpolate_2D
+        elif INTER_METHOD == "cosine":
+            interpolate = cosine_interpolate_2D
+
+        zval = interpolate(octset[positionX][positionY],
+                           octset[positionX+1][positionY],
+                           octset[positionX][positionY+1],
+                           octset[positionX+1][positionY+1], 
+                           percentalongX, percentalongY)
         zvals.append(zval)
         amps.append(pow(persistence, o))
 
@@ -195,9 +206,16 @@ def get_at_point_1D(p, randoms, ppp, persistence, octaves):
             percentalong = float(remainder) / ppp * pow2o
         else:
             percentalong = 0
-        yval = CosineInterpolate(gen_1D_value(randoms[o],position),
-                                 gen_1D_value(randoms[o],position+1),
-                                 percentalong)
+
+        if INTER_METHOD == "linear":
+            interpolate = LinearInterpolate
+        elif INTER_METHOD == "cosine":
+            interpolate = CosineInterpolate
+
+        yval = interpolate(gen_1D_value(randoms[o],position),
+                           gen_1D_value(randoms[o],position+1),
+                           percentalong)
+
         yvals.append(yval)
         amps.append(pow(persistence, o))
 
@@ -223,36 +241,27 @@ def generate(ppp, r, persistence, octaves):
     # draw y axis
     pygame.draw.line(surface, WHITE, (X_OFFSET_LEFT,0), (X_OFFSET_LEFT,Y_SCREEN))
 
+    # Draw the 2D graph representation
     surface.lock()
     randoms = regen_seeds(r, octaves)
     for x in range(X_LIMIT):
         yvals, amps, result = get_at_point_1D(x, randoms, ppp, persistence, octaves)
         for n, amp, y in map(lambda x,y: (x[0],x[1],y), enumerate(amps), yvals):
-            surface.set_at((X_OFFSET_LEFT+x,Y_TOP_OFFSET-y*Y_LIMIT*amp), colours[n])
-        surface.set_at((X_OFFSET_LEFT+x,Y_BOTTOM_OFFSET-result*Y_LIMIT), RED)
+            surface.set_at((int(X_OFFSET_LEFT+x),int(Y_TOP_OFFSET-y*Y_LIMIT*amp)), colours[n])
+        surface.set_at((int(X_OFFSET_LEFT+x),int(Y_BOTTOM_OFFSET-result*Y_LIMIT)), RED)
     surface.unlock()
-
 
     # Draw the 3D graph representation
     surface.lock()
-    # Regenerate the random seeds for each dimension
-##    randoms = regen_seeds(r, octaves)
-
-##    octsets = gen_2D_noise(D3_WIDTH, D3_HEIGHT, randoms, ppp, persistence, octaves)
-##                         x,        y,         randoms, ppp, persistence, octaves
-    octsets = gen_2D_noise(D3_WIDTH, D3_HEIGHT, randoms, 100, 0.7, octaves)
-
-    print octsets
-    print octsets[0]
-    print octsets[0][0]
-    print octsets[0][0][0]
+    # Regenerate the sets of random numbers for each octave
+    octsets = gen_2D_noise(D3_WIDTH, D3_HEIGHT, randoms, ppp, persistence, octaves)
 
     for x in range(D3_WIDTH):
         for y in range(D3_HEIGHT):
             xx = (D3_WIDTH/2 + x - y) * 2
             yy = (D3_HEIGHT + x + y)
             # Calculate the height of the map at this point
-            zval = get_at_point_2D(x, y, octsets, 300, 0.7, octaves)
+            zval = get_at_point_2D(x, y, octsets, ppp, persistence, octaves)
 
             # zval will be in range -1<n<1
             # Multiply this by the graph's height extent
@@ -269,7 +278,7 @@ def generate(ppp, r, persistence, octaves):
                 R = abs(z/SCALE*100+155)
                 B = 0
             # Draw a point to represent this height value
-            surface.set_at((D3_OFF_X+xx, D3_OFF_Y+yy-z), (R, 0, B))
+            surface.set_at((int(D3_OFF_X+xx), int(D3_OFF_Y+yy-z)), (R, 0, B))
     surface.unlock()
 
 def mainloop():
@@ -284,7 +293,7 @@ def mainloop():
             if event.type == QUIT or key[K_ESCAPE]:
                 pygame.quit(); sys.exit()
             if event.type == KEYDOWN and event.key == K_F12:
-                pygame.image.save(surface, "Perlin Noise.png")
+                pygame.image.save(surface, "random_test.png")
             if event.type == KEYDOWN and event.key == K_r:
                 r = regen_seed()
                 generate(ppp, r, persistence, octaves)
