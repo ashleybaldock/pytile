@@ -56,7 +56,7 @@ xWorld = 10
 yWorld = 10
 
 TILE_SIZE = 128
-TILE_SIZE = 64
+#TILE_SIZE = 64
 
 ISO_ANGLE = 90-26.565
 
@@ -129,30 +129,68 @@ class Bezier(object):
 
 class Tile(pygame.sprite.Sprite):
     """A tile containing tracks, drawn in layers"""
-    init = False
+    init = True
+    props = {
+             "track_width": 0.05,           # Relative to tile size
+             "track_spacing": 2.0,
+             "sleeper_spacing": 0.75,
+             "sleeper_width": 0.3,
+             "sleeper_length": 1.5,
+             "rail_spacing": 0.9,
+             "rail_width": 0.2,
+             "ballast_width": 2.3,
+             "curve_factor": 0.3,           # Relative to tile size
+             "curve_multiplier": 0.02,
+             }
+    props_lookup = []
+    for key in props.keys():
+        props_lookup.append(key)
+
+    def get_dimension(self, key):
+        """Lookup and return a dimension value by numbered key"""
+        return Tile.props[Tile.props_lookup[key]]
+
+    def change_dimension(self, key, value):
+        """Change one of the dimension values, lookup is by key number"""
+        print Tile.props_lookup[key]
+        print key, value
+        print Tile.props[Tile.props_lookup[key]]
+        Tile.props[Tile.props_lookup[key]] = value
+        print Tile.props
+        self.update_dimensions()
+        print Tile.track_spacing
+        return True
+
+    def update_dimensions(self):
+        """Calculate actual dimensions for drawing track from the multiplier values"""
+        # Setup constants
+        # Track drawing
+        track_width = Tile.size * Tile.props["track_width"]
+        Tile.track_spacing = track_width * Tile.props["track_spacing"]
+        Tile.sleeper_spacing = track_width * Tile.props["sleeper_spacing"]
+        Tile.sleeper_width = track_width * Tile.props["sleeper_width"]
+        Tile.sleeper_length = track_width * Tile.props["sleeper_length"]
+        Tile.rail_spacing = track_width * Tile.props["rail_spacing"]
+        Tile.rail_width = track_width * Tile.props["rail_width"]
+        if Tile.rail_width < 1:
+            Tile.rail_width = 1
+        Tile.ballast_width = track_width * Tile.props["ballast_width"]
+        # Curve offsets
+        Tile.curve_factor = Tile.size * Tile.props["curve_factor"]
+        Tile.curve_multiplier = Tile.curve_factor * Tile.props["curve_multiplier"]
+
+
     def __init__(self, position, type, track_width=2.5, curve_factor=12):
         pygame.sprite.Sprite.__init__(self)
-        if not Tile.init:
+        if Tile.init:
             Tile.bezier = Bezier()
             tex = pygame.image.load("ballast_texture.png")
             Tile.ballast_texture = tex.convert()
-            Tile.init = True
+            Tile.init = False
             Tile.size = TILE_SIZE
             Tile.font = pygame.font.SysFont("Arial", 12)
             Tile.bezier_steps = 30
-            # Setup constants
-            track_width = Tile.size * 0.05
-            Tile.track_spacing = track_width * 2.0
-            Tile.sleeper_spacing = track_width * 0.75
-            Tile.sleeper_width = track_width * 0.3
-            Tile.sleeper_length = track_width * 1.5
-            Tile.rail_spacing = track_width * 0.9
-            Tile.rail_width = track_width * 0.2
-	    if Tile.rail_width < 1:
-		Tile.rail_width = 1
-            Tile.ballast_width = track_width * 2.3
-            Tile.curve_factor = curve_factor
-            Tile.curve_multiplier = curve_factor * 0.02
+            self.update_dimensions()
 
         # Position of the tile in tile coordinates from which the world coordinates are derived
         self.position = position
@@ -295,10 +333,10 @@ class Tile(pygame.sprite.Sprite):
         self.rect = (self.xpos + World.offx, self.ypos + World.offy, p, p)
         return self.rect
 
-    def update(self):
+    def update(self, update_type=0):
         """Draw the image this tile represents"""
         # Draw a track for every entry in paths
-        if self.paths_changed and self.type in ["rails", "sleepers", "ballast"]:
+        if (self.paths_changed or update_type == 2) and self.type in ["rails", "sleepers", "ballast"]:
             # Reset image
             self.image.fill(black)
             # Only update the image once when first drawn, can be persistent after that (redrawn when the paths change only)
@@ -648,6 +686,9 @@ class DisplayMain(object):
         self.map[9][9]["layers"]["rails"].add_path([7, 19])  
         self.map[9][9]["layers"]["rails"].add_path([4, 16])  
 
+        self.altervalue = 0
+        self.modified = True
+
         while True:
             self.clock.tick(0)
             # If there's a quit event, don't bother parsing the event queue
@@ -663,74 +704,44 @@ class DisplayMain(object):
                     if event.key == pygame.K_ESCAPE:
                         pygame.display.quit()
                         sys.exit()
-                    if event.key == pygame.K_d:
-                        self.mode = "delete"
-                        print "set mode: delete"
-                    if event.key == pygame.K_a:
-                        self.mode = "add"
-                        print "set mode: add"
+                    if event.key == pygame.K_q:
+                        # Decrease currently active value
+                        self.map[0][0]["layers"]["rails"].change_dimension(self.altervalue, self.map[0][0]["layers"]["rails"].get_dimension(self.altervalue) - 0.01)
+                        self.modified = 2
+                        print "decrease"
+                    if event.key == pygame.K_w:
+                        # Increase currently active value
+                        self.map[0][0]["layers"]["rails"].change_dimension(self.altervalue, self.map[0][0]["layers"]["rails"].get_dimension(self.altervalue) + 0.01)
+                        self.modified = 2
+                        print "increase"
+                    if pygame.key.name(event.key) in map(lambda x: str(x), range(10)):
+                        # If key is a number key
+                        self.altervalue = int(pygame.key.name(event.key))
+                        print "Now altering value of attribute: %s" % Tile.props_lookup[self.altervalue]
+
                 if event.type == MOUSEMOTION:
                     if event.buttons[2] == 1:
                         rmbpos = event.pos
                         if rmbpos != self.last_rmbpos:
                             World.offx -= self.last_rmbpos[0] - rmbpos[0]
                             World.offy -= self.last_rmbpos[1] - rmbpos[1]
-                        print "offx: %s, offy: %s" % (World.offx, World.offy)
+                        #print "offx: %s, offy: %s" % (World.offx, World.offy)
                         self.last_rmbpos = rmbpos
-                        self.sprites.update()
-                        self.refresh_screen = True
+                        self.modified = 1
                 if event.type == MOUSEBUTTONDOWN:
                     if event.button == 3:
                         self.last_rmbpos = event.pos
                         self.refresh_screen = True
                 if event.type == MOUSEBUTTONUP:
+                    pass
 ##                    if event.button == 3:
 ##                        self.drag_start = None
-                    if event.button == 1:
-                        print "Mouse button event starts"
-                        if self.start_positions:
-                            print "existing operation in progress..."
-                            end_positions = self.control_locate(event.pos)
-                            if end_positions:
-                                for e in end_positions:
-                                    for s in self.start_positions:
-                                        if e[0] == s[0] and e[1] == s[1]:
-                                            if self.mode == "add":
-                                                # Paths should be added to the map, rather than the tiles in future!
-                                                print "adding path: %s->%s to tile: (%s,%s)" % (s[2], e[2],s[0],s[1])
-                                                self.map[s[0]][s[1]]["layers"]["rails"].add_path([s[2], e[2]])
-                                                self.map[s[0]][s[1]]["layers"]["sleepers"].add_path([s[2], e[2]])
-                                                self.map[s[0]][s[1]]["layers"]["ballast"].add_path([s[2], e[2]])
-                                            if self.mode == "delete":
-                                                # Paths should be added to the map, rather than the tiles in future!
-                                                print "removing path: %s->%s from tile: (%s,%s)" % (s[2], e[2],s[0],s[1])
-                                                self.map[s[0]][s[1]]["layers"]["rails"].remove_path([s[2], e[2]])
-                                                self.map[s[0]][s[1]]["layers"]["sleepers"].remove_path([s[2], e[2]])
-                                                self.map[s[0]][s[1]]["layers"]["ballast"].remove_path([s[2], e[2]])
-                                            # Since this track drawing operation is complete, clear the highlights
-                                            clear = True
-                                            self.dirty.append(self.map[s[0]][s[1]]["layers"]["highlight"].rect)
-                                if clear:
-                                    # Second loop, if we found something first time around remove all the highlights
-                                    print "removing control hints from all tiles"
-                                    for s in self.start_positions:
-                                        print "removing control hint: %s from tile (%s,%s)" % (s[2], s[0], s[1])
-                                        self.map[s[0]][s[1]]["layers"]["highlight"].set_control_hint(None)
-                                        self.dirty.append(self.map[s[0]][s[1]]["layers"]["highlight"].rect)
-                                        print "...done"
-                                    self.start_positions = None
-                        else:
-                            debug("new operation...")
-                            self.start_positions = self.control_locate(event.pos)
-                            debug("start positions: %s")
-                            if self.start_positions:
-                                for s in self.start_positions:
-                                    debug("adding control hint: %s to tile (%s,%s)" % (s[2], s[0], s[1]))
-                                    self.map[s[0]][s[1]]["layers"]["highlight"].set_control_hint(s[2])
-                                    self.dirty.append(self.map[s[0]][s[1]]["layers"]["highlight"].rect)
-                                    debug("...done")
-                            debug("end operation")
 
+
+            if self.modified:
+                self.sprites.update(self.modified)
+                self.refresh_screen = True
+                self.modfied = False
 
             # Write some useful info on the top bar
             self.fps_elapsed += self.clock.get_time()
