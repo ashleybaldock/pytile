@@ -6,6 +6,8 @@ import sys, os, random, math
 
 from numpy import *
 
+import noise
+
 pygame.init()
 
 # Size of the screen
@@ -140,56 +142,56 @@ print q
 print get_neighbours(q, 2, 3)
 
 
-def gen_2D_noise(xmax, ymax, randoms, ppp, persistence, octaves):
-    """Return a set of arrays representing each octave of noise"""
-    octsets = []
-    for o in range(octaves):
-        # Generate set of X values for generating the set of y values
-        xrandoms = regen_seeds(randoms[o], xmax + 1)
-        a = []
-        for x in xrandoms:
-            random.seed(x)
-            b = []
-            for y in range(ymax + 1):
-                b.append(get_random())
-            a.append(b)
-        a = array(a)
-        octsets.append(a)
-    return octsets
+##def gen_2D_noise(xmax, ymax, randoms, ppp, persistence, octaves):
+##    """Return a set of arrays representing each octave of noise"""
+##    octsets = []
+##    for o in range(octaves):
+##        # Generate set of X values for generating the set of y values
+##        xrandoms = regen_seeds(randoms[o], xmax + 1)
+##        a = []
+##        for x in xrandoms:
+##            random.seed(x)
+##            b = []
+##            for y in range(ymax + 1):
+##                b.append(get_random())
+##            a.append(b)
+##        a = array(a)
+##        octsets.append(a)
+##    return octsets
 
 
-def get_at_point_2D(x, y, octsets, ppp, persistence, octaves):
-    """Don't smooth on the 1D generation, smooth in 2D"""
-    amps = []
-    zvals = []
-    # Find nearest points in x and y
-    for o, octset in enumerate(octsets):
-        pow2o = pow(2,o)
-        positionX, remainderX = divmod(x, ppp / pow2o)
-        positionY, remainderY = divmod(y, ppp / pow2o)
-        if remainderX != 0:
-            percentalongX = float(remainderX) / ppp * pow2o
-        else:
-            percentalongX = 0
-        if remainderY != 0:
-            percentalongY = float(remainderY) / ppp * pow2o
-        else:
-            percentalongY = 0
-
-        if INTER_METHOD == "linear":
-            interpolate = linear_interpolate_2D
-        elif INTER_METHOD == "cosine":
-            interpolate = cosine_interpolate_2D
-
-        zval = interpolate(octset[positionX][positionY],
-                           octset[positionX+1][positionY],
-                           octset[positionX][positionY+1],
-                           octset[positionX+1][positionY+1], 
-                           percentalongX, percentalongY)
-        zvals.append(zval)
-        amps.append(pow(persistence, o))
-
-    return reduce(lambda x, y: x+(y[0]*y[1]), zip(zvals, amps), 0) / sum(amps) 
+##def get_at_point_2D(x, y, octsets, ppp, persistence, octaves):
+##    """Don't smooth on the 1D generation, smooth in 2D"""
+##    amps = []
+##    zvals = []
+##    # Find nearest points in x and y
+##    for o, octset in enumerate(octsets):
+##        pow2o = pow(2,o)
+##        positionX, remainderX = divmod(x, ppp / pow2o)
+##        positionY, remainderY = divmod(y, ppp / pow2o)
+##        if remainderX != 0:
+##            percentalongX = float(remainderX) / ppp * pow2o
+##        else:
+##            percentalongX = 0
+##        if remainderY != 0:
+##            percentalongY = float(remainderY) / ppp * pow2o
+##        else:
+##            percentalongY = 0
+##
+##        if INTER_METHOD == "linear":
+##            interpolate = linear_interpolate_2D
+##        elif INTER_METHOD == "cosine":
+##            interpolate = cosine_interpolate_2D
+##
+##        zval = interpolate(octset[positionX][positionY],
+##                           octset[positionX+1][positionY],
+##                           octset[positionX][positionY+1],
+##                           octset[positionX+1][positionY+1], 
+##                           percentalongX, percentalongY)
+##        zvals.append(zval)
+##        amps.append(pow(persistence, o))
+##
+##    return reduce(lambda x, y: x+(y[0]*y[1]), zip(zvals, amps), 0) / sum(amps) 
 
 
 def get_at_point_1D(p, randoms, ppp, persistence, octaves):
@@ -253,15 +255,15 @@ def generate(ppp, r, persistence, octaves):
 
     # Draw the 3D graph representation
     surface.lock()
-    # Regenerate the sets of random numbers for each octave
-    octsets = gen_2D_noise(D3_WIDTH, D3_HEIGHT, randoms, ppp, persistence, octaves)
+    # Generate a 2D perlin noise object based on initial seed and other values
+    perlin2D = noise.Perlin2D(D3_WIDTH, D3_HEIGHT, r, "cosine", ppp, persistence, octaves)
 
     for x in range(D3_WIDTH):
         for y in range(D3_HEIGHT):
             xx = (D3_WIDTH/2 + x - y) * 2
             yy = (D3_HEIGHT + x + y)
             # Calculate the height of the map at this point
-            zval = get_at_point_2D(x, y, octsets, ppp, persistence, octaves)
+            zval = perlin2D.get_at_point_2D(x, y)
 
             # zval will be in range -1<n<1
             # Multiply this by the graph's height extent
