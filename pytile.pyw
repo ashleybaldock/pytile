@@ -173,44 +173,38 @@ class TrackSprite(pygame.sprite.Sprite):
             TrackSprite.bezier = bezier.Bezier()
             tex = pygame.image.load("ballast_texture.png")
             TrackSprite.ballast_texture = tex.convert()
-            TrackSprite.init = False
             TrackSprite.size = TrackSprite.TILE_SIZE
-            TrackSprite.font = pygame.font.SysFont("Arial", 12)
             TrackSprite.bezier_steps = 30
             self.update_dimensions()
+            self.gen_box()
         self.xWorld = xWorld
         self.yWorld = yWorld
         self.zWorld = zWorld
         self.exclude = exclude
-        self.gen_box()
+        self.update_paths()
         self.update()
-    # Need methods to:
-    #   Generate track graphics for various layers
-    #   Add generated images to the cache and lookup previously generated ones in the cache
 
     def gen_box(self):
         """Generate the array of box endpoints used for drawing tracks"""
-        self.box = [vec2d(self.size, self.size),
-                    vec2d(0, self.size),
-                    vec2d(0, 0),
-                    vec2d(self.size, 0)]
-
-        self.calc_rect()
+        box = [vec2d(self.size, self.size),
+               vec2d(0, self.size),
+               vec2d(0, 0),
+               vec2d(self.size, 0)]
 
         box_allmidpoints = []
         box_mids_temp = []
         box_mids_temp2 = []
 
-        self.midpoints = []
-        self.endpoints = []
+        TrackSprite.midpoints = []
+        TrackSprite.endpoints = []
 
-        for p in range(len(self.box)):
-            self.midpoints.append(self.bezier.find_midpoint(self.box[p-1], self.box[p]))
+        for p in range(len(box)):
+            TrackSprite.midpoints.append(self.bezier.find_midpoint(box[p-1], box[p]))
 
-        for p in range(len(self.midpoints)):
+        for p in range(len(TrackSprite.midpoints)):
             # Vector from origin to start point, unit vector representing the gradient of this vector
-            box_mids_temp.append(self.bezier.find_midpoint(self.midpoints[p-1], self.midpoints[p]))
-            box_mids_temp.append(self.midpoints[p])
+            box_mids_temp.append(self.bezier.find_midpoint(TrackSprite.midpoints[p-1], TrackSprite.midpoints[p]))
+            box_mids_temp.append(TrackSprite.midpoints[p])
 
         # Copy the midpoints array
         for p in box_mids_temp:
@@ -223,9 +217,9 @@ class TrackSprite(pygame.sprite.Sprite):
             box_allmidpoints.append([p, (q - p).normalized()])
 
         for p in box_allmidpoints:
-            self.endpoints.append([p[0] - p[1].perpendicular() * self.track_spacing, p[1], p[1].perpendicular()])
-            self.endpoints.append([p[0], p[1], p[1].perpendicular()])
-            self.endpoints.append([p[0] + p[1].perpendicular() * self.track_spacing, p[1], p[1].perpendicular()])
+            TrackSprite.endpoints.append([p[0] - p[1].perpendicular() * self.track_spacing, p[1], p[1].perpendicular()])
+            TrackSprite.endpoints.append([p[0], p[1], p[1].perpendicular()])
+            TrackSprite.endpoints.append([p[0] + p[1].perpendicular() * self.track_spacing, p[1], p[1].perpendicular()])
 
     def get_dimension(self, key):
         """Lookup and return a dimension value by numbered key"""
@@ -253,22 +247,50 @@ class TrackSprite(pygame.sprite.Sprite):
         TrackSprite.curve_factor = TrackSprite.size * TrackSprite.props["curve_factor"]
         TrackSprite.curve_multiplier = TrackSprite.curve_factor * TrackSprite.props["curve_multiplier"]
 
+    def update_xyz(self):
+        """Update xyz coords to match those in the array"""
+        self.zWorld = World.array[self.xWorld][self.yWorld][0]
+        return self.calc_rect()
+    def update_paths(self):
+        """Read paths for this tile from World array and update image accordingly"""
+        self.paths = World.array[self.xWorld][self.yWorld][2]
+        # paths in form [[start, end(, starttype, endtype)], ...]
     def update(self):
         """Draw image and return nothing"""
         # Look up own image in the cache, if not present composite the image
         #self.image = self.lookup_image(self.paths)
-        # For test, just return a test image
-        cps = self.calc_control_points([13,22])
-        i1 = self.draw_rails(cps)
-        i2 = self.draw_sleepers(cps)
-        i3a = self.draw_ballast_mask(cps)
-        i3 = self.map_ballast_texture(i3a)
-        i3.blit(i2, (0,0))
-        i3.blit(i1, (0,0))
-        self.image = i3
+
+        # Generate a new surface to draw onto
+        self.image = pygame.Surface((self.size, self.size))
+        # Fill surface with transparent colour
+        self.image.fill(transparent)
+
+        layers = [[],[],[]]
+        layer_props = [1,0,0]
+
+        for p in self.paths:
+            cps = self.calc_control_points(p[0:2])
+            # When multiple waytypes implemented look up in "type" attribute how many layers, order of layers etc.
+            layers[0].append(self.draw_ballast_mask(cps))
+            layers[1].append(self.draw_sleepers(cps))
+            layers[2].append(self.draw_rails(cps))
+        # Merge all layers down
+        for n, l in zip(layer_props, layers):
+            im = False
+            for i in l:
+                if not im:
+                    im = i
+                else:
+                    im.blit(i, (0,0))
+            # Map texture if required
+            if n == 1:
+                im = self.map_ballast_texture(im)
+            self.image.blit(im, (0,0))
+
+        # Finally ensure surface is set back to correct colourkey for further additions
+        self.image.set_colorkey(transparent)
 
         self.calc_rect()
-
 
     def draw_rails(self, control_points):
         """Draw one set of rails using some control points and return a surface"""
@@ -342,8 +364,6 @@ class TrackSprite(pygame.sprite.Sprite):
         surface.set_colorkey(transparent)
         return surface
 
-
-
     def draw_ballast_mask(self, control_points):
         """Draw the mask used to produce the ballast component of the image"""
         # Draw out to the image
@@ -385,7 +405,6 @@ class TrackSprite(pygame.sprite.Sprite):
         # Finally ensure surface is set back to correct colourkey for further additions
         surface.set_colorkey(transparent)
         return outsurface
-
 
     def calc_control_points(self, p):
         """Calculate control points from a path"""
@@ -670,8 +689,6 @@ class DisplayMain(object):
                                              fg=(0,0,0), bg=(255,255,255), bold=False)
         self.overlay_sprites.add(self.active_tool_sprite, layer=100)
 
-        self.testsprite = TrackSprite(10,10,0)
-        self.overlay_sprites.add(self.testsprite, layer=100000)
 
         while True:
             self.clock.tick(0)
@@ -822,7 +839,7 @@ class DisplayMain(object):
                 self.dirty.append(t.rect)
 
                 # Calculate layer
-                l = x + y
+                l = self.get_layer(x,y)
 
                 # Update the tile type
                 t.update_type()
@@ -836,6 +853,10 @@ class DisplayMain(object):
                 cliffs.insert(0, t)
                 self.orderedSpritesDict[(x, y)] = cliffs
                 self.orderedSprites.add(cliffs, layer=l)
+
+    def get_layer(self, x, y):
+        """Return the layer a sprite should be based on some parameters"""
+        return (x + y) * 10
 
     def paint_world(self):
         """Paint the world as a series of sprites
@@ -853,12 +874,22 @@ class DisplayMain(object):
                 add_to_dict = []
                 # Tile must be within the bounds of the map
                 if (x >= 0 and y >= 0) and (x < World.WorldX and y < World.WorldY):
-                    l = x + y
+                    l = self.get_layer(x,y)
                     # Add the main tile
                     tiletype = self.array_to_string(World.array[x][y][1])
                     t = TileSprite(tiletype, x, y, World.array[x][y][0], exclude=False)
                     add_to_dict.append(t)
                     self.orderedSprites.add(t, layer=l)
+                    # If there are tracks on this tile, add a track sprite
+                    try:
+                        World.array[x][y][2]
+                    except IndexError:
+                        pass
+                    else:
+                        t = TrackSprite(x, y, World.array[x][y][0], exclude=True)
+                        add_to_dict.append(t)
+                        self.orderedSprites.add(t, layer=l+1)
+
                     # Add vertical surfaces (cliffs) for this tile (if any)
                     for t in self.make_cliffs(x, y):
                         add_to_dict.append(t)
