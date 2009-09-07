@@ -148,7 +148,7 @@ class TrackSprite(pygame.sprite.Sprite):
     image = None
     cache = {}
     bezier = None
-    TILE_SIZE = 64
+    TILE_SIZE = p
     props = {
              "track_width": 0.05,           # Relative to tile size
              "track_spacing": 2.0,
@@ -268,8 +268,8 @@ class TrackSprite(pygame.sprite.Sprite):
         layers = [[],[],[]]
         layer_props = [1,0,0]
 
-        for p in self.paths:
-            cps = self.calc_control_points(p[0:2])
+        for path in self.paths:
+            cps = self.calc_control_points(path[0:2])
             # When multiple waytypes implemented look up in "type" attribute how many layers, order of layers etc.
             layers[0].append(self.draw_ballast_mask(cps))
             layers[1].append(self.draw_sleepers(cps))
@@ -281,11 +281,11 @@ class TrackSprite(pygame.sprite.Sprite):
                 if not im:
                     im = i
                 else:
-                    im.blit(i, (0,0))
+                    im.blit(i, (0, 0))
             # Map texture if required
             if n == 1:
                 im = self.map_ballast_texture(im)
-            self.image.blit(im, (0,0))
+            self.image.blit(im, (0, p2))
 
         # Finally ensure surface is set back to correct colourkey for further additions
         self.image.set_colorkey(transparent)
@@ -851,8 +851,21 @@ class DisplayMain(object):
                 # Recreate the cliffs
                 cliffs = self.make_cliffs(x, y)
                 cliffs.insert(0, t)
+
+                # If there are tracks on this tile, add a track sprite
+                # Track sprite doesn't need to be re-added, only updated!
+                try:
+                    World.array[x][y][2]
+                except IndexError:
+                    pass
+                else:
+                    ts = TrackSprite(x, y, World.array[x][y][0], exclude=True)
+
+                # Add the regenerated sprites back into the appropriate places
                 self.orderedSpritesDict[(x, y)] = cliffs
+                self.orderedSpritesDict[(x, y)].append(ts)
                 self.orderedSprites.add(cliffs, layer=l)
+                self.orderedSprites.add(ts, layer=l+1)
 
     def get_layer(self, x, y):
         """Return the layer a sprite should be based on some parameters"""
