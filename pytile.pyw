@@ -51,10 +51,30 @@ from copy import copy
 import world
 World = world.World()
 
+import bezier
+from vec2d import *
+
 import tools
 
 import logger
 debug = logger.Log()
+
+# Some useful colours
+grey = (100,100,100)
+lightgray = (200,200,200)
+red = (255,0,0)
+darkred = (192,0,0)
+green = (0,255,0)
+darkgreen = (0,128,0)
+blue = (0,0,255)
+darkblue = (0,0,192)
+brown = (72,64,0)
+silver = (224,216,216)
+black = (0,0,0)
+white = (255,255,255)
+yellow = (255,255,0)
+
+transparent = (231,255,255)
 
 # Pre-compute often used multiples
 p = 64
@@ -120,6 +140,298 @@ class TextSprite(pygame.sprite.Sprite):
 
         self.rect = (self.position[0], self.position[1], self.image.get_width(), self.image.get_height())
         return self.rect
+
+
+class TrackSprite(pygame.sprite.Sprite):
+    """Railway track sprites"""
+    init = True
+    image = None
+    cache = {}
+    bezier = None
+    TILE_SIZE = 64
+    props = {
+             "track_width": 0.05,           # Relative to tile size
+             "track_spacing": 2.0,
+             "sleeper_spacing": 0.75,
+             "sleeper_width": 0.3,
+             "sleeper_length": 1.5,
+             "rail_spacing": 0.9,
+             "rail_width": 0.2,
+             "ballast_width": 2.3,
+             "curve_factor": 0.3,           # Relative to tile size
+             "curve_multiplier": 0.02,
+             }
+    props_lookup = []
+    for key in props.keys():
+        props_lookup.append(key)
+
+    def __init__(self, xWorld, yWorld, zWorld, exclude=True):
+        """"""
+        pygame.sprite.Sprite.__init__(self)
+        if TrackSprite.init:
+            TrackSprite.init = False
+            TrackSprite.bezier = bezier.Bezier()
+            tex = pygame.image.load("ballast_texture.png")
+            TrackSprite.ballast_texture = tex.convert()
+            TrackSprite.init = False
+            TrackSprite.size = TrackSprite.TILE_SIZE
+            TrackSprite.font = pygame.font.SysFont("Arial", 12)
+            TrackSprite.bezier_steps = 30
+            self.update_dimensions()
+        self.xWorld = xWorld
+        self.yWorld = yWorld
+        self.zWorld = zWorld
+        self.exclude = exclude
+        self.gen_box()
+        self.update()
+    # Need methods to:
+    #   Generate track graphics for various layers
+    #   Add generated images to the cache and lookup previously generated ones in the cache
+
+    def gen_box(self):
+        """Generate the array of box endpoints used for drawing tracks"""
+        self.box = [vec2d(self.size, self.size),
+                    vec2d(0, self.size),
+                    vec2d(0, 0),
+                    vec2d(self.size, 0)]
+
+        self.calc_rect()
+
+        box_allmidpoints = []
+        box_mids_temp = []
+        box_mids_temp2 = []
+
+        self.midpoints = []
+        self.endpoints = []
+
+        for p in range(len(self.box)):
+            self.midpoints.append(self.bezier.find_midpoint(self.box[p-1], self.box[p]))
+
+        for p in range(len(self.midpoints)):
+            # Vector from origin to start point, unit vector representing the gradient of this vector
+            box_mids_temp.append(self.bezier.find_midpoint(self.midpoints[p-1], self.midpoints[p]))
+            box_mids_temp.append(self.midpoints[p])
+
+        # Copy the midpoints array
+        for p in box_mids_temp:
+            box_mids_temp2.append(p)
+        # Offset the midpoints array
+        for p in range(4):
+            box_mids_temp2.insert(0, box_mids_temp2.pop())
+
+        for p, q in zip(box_mids_temp, box_mids_temp2):
+            box_allmidpoints.append([p, (q - p).normalized()])
+
+        for p in box_allmidpoints:
+            self.endpoints.append([p[0] - p[1].perpendicular() * self.track_spacing, p[1], p[1].perpendicular()])
+            self.endpoints.append([p[0], p[1], p[1].perpendicular()])
+            self.endpoints.append([p[0] + p[1].perpendicular() * self.track_spacing, p[1], p[1].perpendicular()])
+
+    def get_dimension(self, key):
+        """Lookup and return a dimension value by numbered key"""
+        return TrackSprite.props[TrackSprite.props_lookup[key]]
+    def change_dimension(self, key, value):
+        """Change one of the dimension values, lookup is by key number"""
+        TrackSprite.props[TrackSprite.props_lookup[key]] = value
+        self.update_dimensions()
+        return True
+    def update_dimensions(self):
+        """Calculate actual dimensions for drawing track from the multiplier values"""
+        # Setup constants
+        # Track drawing
+        track_width = TrackSprite.size * TrackSprite.props["track_width"]
+        TrackSprite.track_spacing = track_width * TrackSprite.props["track_spacing"]
+        TrackSprite.sleeper_spacing = track_width * TrackSprite.props["sleeper_spacing"]
+        TrackSprite.sleeper_width = track_width * TrackSprite.props["sleeper_width"]
+        TrackSprite.sleeper_length = track_width * TrackSprite.props["sleeper_length"]
+        TrackSprite.rail_spacing = track_width * TrackSprite.props["rail_spacing"]
+        TrackSprite.rail_width = track_width * TrackSprite.props["rail_width"]
+        if TrackSprite.rail_width < 1:
+            TrackSprite.rail_width = 1
+        TrackSprite.ballast_width = track_width * TrackSprite.props["ballast_width"]
+        # Curve offsets
+        TrackSprite.curve_factor = TrackSprite.size * TrackSprite.props["curve_factor"]
+        TrackSprite.curve_multiplier = TrackSprite.curve_factor * TrackSprite.props["curve_multiplier"]
+
+    def update(self):
+        """Draw image and return nothing"""
+        # Look up own image in the cache, if not present composite the image
+        #self.image = self.lookup_image(self.paths)
+        # For test, just return a test image
+        cps = self.calc_control_points([13,22])
+        i1 = self.draw_rails(cps)
+        i2 = self.draw_sleepers(cps)
+        i3a = self.draw_ballast_mask(cps)
+        i3 = self.map_ballast_texture(i3a)
+        i3.blit(i2, (0,0))
+        i3.blit(i1, (0,0))
+        self.image = i3
+
+        self.calc_rect()
+
+
+    def draw_rails(self, control_points):
+        """Draw one set of rails using some control points and return a surface"""
+        # Generate a new surface to draw onto
+        surface = pygame.Surface((self.size, self.size))
+        # Fill surface with transparent colour
+        surface.fill(transparent)
+        # Calculate bezier curve points and tangents
+        cps, tangents = self.bezier.calculate_bezier(control_points, 30)
+        for s in [1, -1]:
+            points1 = []
+            for p in range(0, len(cps)):
+                points1.append(self.bezier.get_at_width(cps[p], tangents[p], s*self.rail_spacing))
+            points1 = self.translate_points(points1)
+            pygame.draw.lines(surface, silver, False, points1, self.rail_width)
+        # Finally ensure surface is set back to correct colourkey for further additions
+        surface.set_colorkey(transparent)
+        return surface
+
+    def draw_sleepers(self, control_points):
+        """Draw a set of sleepers and return a surface containing them"""
+        # Draw out to the image
+        surface = pygame.Surface((self.size, self.size))
+        # Fill surface with transparent colour
+        surface.fill(transparent)
+        # Calculate bezier curve points and tangents
+        cps, tangents = self.bezier.calculate_bezier(control_points, 30)
+        overflow = self.sleeper_spacing * -0.5
+        sleeper_points = []
+        start = True
+        # calculate total length of this curve section based on the straight lines which make it up
+        total_length = 0
+        for p in range(1, len(cps)):
+            # find gradient of a->b
+            b = cps[p]
+            a = cps[p-1]
+            a_to_b = b - a
+            ab_n = a_to_b.normalized()
+            total_length += a_to_b.get_length() / ab_n.get_length()
+        # number of sleepers is length, (minus one interval to make the ends line up) divided by interval length
+        num_sleepers = float(total_length) / float(TrackSprite.sleeper_spacing)
+        true_spacing = float(total_length) / float(math.ceil(num_sleepers))
+        for p in range(1, len(cps)):
+            # find gradient of a->b
+            b = cps[p]
+            a = cps[p-1]
+            a_to_b = b - a
+            ab_n = a_to_b.normalized()
+            # vector to add to start vector, to get offset start location
+            start_vector = overflow * ab_n
+            # number of sleepers to draw in this section
+            n_sleepers, overflow = divmod((a_to_b + start_vector).get_length(), (ab_n * true_spacing).get_length())
+            n_sleepers = int(n_sleepers)
+            # loop through n_sleepers, draw a sleeper at the start of each sleeper spacing interval
+            if start:
+                s = 0
+                start = False
+            else:
+                s = 1
+            for n in range(s, n_sleepers+1):
+                sleep_p = [self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing - ab_n*0.5*self.sleeper_width, a_to_b, -self.sleeper_length),
+                           self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing - ab_n*0.5*self.sleeper_width, a_to_b, self.sleeper_length),
+                           self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing + ab_n*0.5*self.sleeper_width, a_to_b, self.sleeper_length),
+                           self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing + ab_n*0.5*self.sleeper_width, a_to_b, -self.sleeper_length)]
+                # translate points into iso perspective
+                sleeper_points.append(self.translate_points(sleep_p))
+        # finally draw all the sleeper points
+        for p in sleeper_points:
+            pygame.draw.polygon(surface, brown, p, 0)
+        # Finally ensure surface is set back to correct colourkey for further additions
+        surface.set_colorkey(transparent)
+        return surface
+
+
+
+    def draw_ballast_mask(self, control_points):
+        """Draw the mask used to produce the ballast component of the image"""
+        # Draw out to the image
+        surface = pygame.Surface((self.size, self.size))
+        # Transparent surface, draw mask in white, set colourkey to transparent so blitting these textures
+        # onto one another will result in final mask. When final mask obtained, set colourkey
+        # to white and blit over the texture, see map_ballast_texture
+        # Fill surface with transparent colour
+        surface.fill(transparent)
+        # Calculate bezier curve points and tangents
+        cps, tangents = self.bezier.calculate_bezier(control_points, 30)
+        # Polygon defined by the two lines at either side of the track
+        ballast_points = []
+        # Add one side
+        for p in range(0, len(cps)):
+            ballast_points.append(self.bezier.get_at_width(cps[p], tangents[p], TrackSprite.ballast_width))
+        ballast_points.reverse()
+        for p in range(0, len(cps)):
+            ballast_points.append(self.bezier.get_at_width(cps[p], tangents[p], -TrackSprite.ballast_width))
+        # Translate points into iso space
+        ballast_points = self.translate_points(ballast_points)
+        # Draw the polygon to the surface
+        pygame.draw.polygon(surface, white, ballast_points, 0)
+        # Set transparency so these surfaces can be composited
+        surface.set_colorkey(transparent)
+        return surface
+
+    def map_ballast_texture(self, surface):
+        """Take a surface generated by calls to draw_ballast_mask and apply a ballast texture to it"""
+        # Set mask key to white, so only the outline parts drawn
+        surface.set_colorkey(white, pygame.RLEACCEL)
+        outsurface = pygame.Surface((self.size, self.size))
+        # Blit in the texture
+        outsurface.blit(self.ballast_texture, (0,0), (0, 0, self.size, self.size))
+        # Blit in the mask to obscure invisible parts of the texture with black
+        outsurface.blit(surface, (0,0))
+        # Then set colourkey of the final surface to black to remove the mask
+        outsurface.set_colorkey(transparent)
+        # Finally ensure surface is set back to correct colourkey for further additions
+        surface.set_colorkey(transparent)
+        return outsurface
+
+
+    def calc_control_points(self, p):
+        """Calculate control points from a path"""
+        a = self.endpoints[p[0]][0]
+        d = self.endpoints[p[1]][0]
+        # If this tile is a straight line no need to use a bezier curve
+        if p[0] + p[1] in [32,26,20,14]:
+            return [a,d]
+        else:
+            p0 = p[0]
+            p1 = p[1]
+            # This gets us +1, +0 or -1, to bring the real value of the end point up to the midpoint
+            p03 = -1 * ((p0 % 3) - 1)
+            p13 = -1 * ((p1 % 3) - 1)
+            # Curve factor is the length between the two endpoints of each of the two curve control points
+            # By varying the length of these control points, we can make the curve smoother and sharper
+            # Taking two control points which make up a path, for each one multiply curve factor by 
+            # either + or - of the offset location of the other point
+            # Find midpoint to real point vectors
+            x = (self.endpoints[p[1]][1] * TrackSprite.track_spacing).length
+            y = (self.endpoints[p[0]][1] * TrackSprite.track_spacing).length
+
+            b = self.endpoints[p[0]][0] + self.endpoints[p[0]][1] * self.curve_factor
+            c = self.endpoints[p[1]][0] + self.endpoints[p[1]][1] * self.curve_factor
+
+            return [a,b,c,d]
+
+    def calc_rect(self):
+        """Calculate the current rect of this tile"""
+        x = self.xWorld
+        y = self.yWorld
+        z = self.zWorld
+        # Global screen positions
+        self.xpos = World.WorldWidth2 - (x * p2) + (y * p2) - p2
+        self.ypos = (x * p4) + (y * p4) - (z * ph)
+        # Rect position takes into account the offset
+        self.rect = (self.xpos - World.dxoff, self.ypos - World.dyoff, p, p)
+        return self.rect
+
+    def translate_points(self, points):
+        """Translate a set of points to convert from world space into iso space"""
+        scale = vec2d(1,0.5)
+        out = []
+        for p in points:
+            out.append(p*scale)
+        return out
 
 
 
@@ -346,6 +658,7 @@ class DisplayMain(object):
         # overlay_sprites is for text that overlays the terrain in the background
         self.overlay_sprites = pygame.sprite.LayeredUpdates()
 
+
         # Set up instructions font
         font_size = 18
         instructions_offx = 10
@@ -357,6 +670,8 @@ class DisplayMain(object):
                                              fg=(0,0,0), bg=(255,255,255), bold=False)
         self.overlay_sprites.add(self.active_tool_sprite, layer=100)
 
+        self.testsprite = TrackSprite(10,10,0)
+        self.overlay_sprites.add(self.testsprite, layer=100000)
 
         while True:
             self.clock.tick(0)

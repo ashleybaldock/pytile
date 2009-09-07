@@ -56,7 +56,8 @@ xWorld = 10
 yWorld = 10
 
 TILE_SIZE = 128
-#TILE_SIZE = 64
+#TILE_SIZE = 96
+#TILE_SIZE = 96
 
 ISO_ANGLE = 90-26.565
 
@@ -152,13 +153,8 @@ class Tile(pygame.sprite.Sprite):
 
     def change_dimension(self, key, value):
         """Change one of the dimension values, lookup is by key number"""
-        print Tile.props_lookup[key]
-        print key, value
-        print Tile.props[Tile.props_lookup[key]]
         Tile.props[Tile.props_lookup[key]] = value
-        print Tile.props
         self.update_dimensions()
-        print Tile.track_spacing
         return True
 
     def update_dimensions(self):
@@ -343,29 +339,7 @@ class Tile(pygame.sprite.Sprite):
             self.paths_changed = False
             paths_to_draw = []
             for p in self.paths:
-                a = self.box_endpoints[p[0]][0]
-                d = self.box_endpoints[p[1]][0]
-                # If this tile is a straight line no need to use a bezier curve
-                if p[0] + p[1] in [32,26,20,14]:
-                    paths_to_draw.append([a,d])
-                else:
-                    p0 = p[0]
-                    p1 = p[1]
-                    # This gets us +1, +0 or -1, to bring the real value of the end point up to the midpoint
-                    p03 = -1 * ((p0 % 3) - 1)
-                    p13 = -1 * ((p1 % 3) - 1)
-                    # Curve factor dictates the length between the two endpoints of each of the two curve control points
-                    # By varying the length of these control points, we can make the curve smoother and sharper
-                    # Taking two control points which make up a path, for each one multiply curve factor by either + or - of the
-                    # offset location of the other point
-                    # Find midpoint to real point vectors
-                    x = (self.box_endpoints[p[1]][1] * Tile.track_spacing).length
-                    y = (self.box_endpoints[p[0]][1] * Tile.track_spacing).length
-
-                    b = self.box_endpoints[p[0]][0] + self.box_endpoints[p[0]][1] * self.curve_factor
-                    c = self.box_endpoints[p[1]][0] + self.box_endpoints[p[1]][1] * self.curve_factor
-
-                    paths_to_draw.append([a,b,c,d])
+                paths_to_draw.append(self.calc_control_points(p))
             if self.type == "rails":
                 for p in paths_to_draw:
                     self.draw_rails(p)
@@ -378,18 +352,33 @@ class Tile(pygame.sprite.Sprite):
         if self.init_box and self.type == "box":
             self.init_box = False
             self.draw_box()
-        # Highlight can change on its own
-        if self.highlight_changed and self.type == "highlight":
-            # Reset the image to blank
-            self.image.fill(black)
-            self.draw_highlight()
         self.calc_rect()
 
-    def draw_highlight(self):
-        """Draw the highlight which indicates the selected tile endpoint"""
-        # Draw control hints for this tile
-        if self.control_hint:
-            pygame.draw.circle(self.image, green, self.box_endpoints[self.control_hint][0], 3)
+    def calc_control_points(self, p):
+        """Calculate control points from a path"""
+        a = self.box_endpoints[p[0]][0]
+        d = self.box_endpoints[p[1]][0]
+        # If this tile is a straight line no need to use a bezier curve
+        if p[0] + p[1] in [32,26,20,14]:
+            return [a,d]
+        else:
+            p0 = p[0]
+            p1 = p[1]
+            # This gets us +1, +0 or -1, to bring the real value of the end point up to the midpoint
+            p03 = -1 * ((p0 % 3) - 1)
+            p13 = -1 * ((p1 % 3) - 1)
+            # Curve factor is the length between the two endpoints of each of the two curve control points
+            # By varying the length of these control points, we can make the curve smoother and sharper
+            # Taking two control points which make up a path, for each one multiply curve factor by 
+            # either + or - of the offset location of the other point
+            # Find midpoint to real point vectors
+            x = (self.box_endpoints[p[1]][1] * Tile.track_spacing).length
+            y = (self.box_endpoints[p[0]][1] * Tile.track_spacing).length
+
+            b = self.box_endpoints[p[0]][0] + self.box_endpoints[p[0]][1] * self.curve_factor
+            c = self.box_endpoints[p[1]][0] + self.box_endpoints[p[1]][1] * self.curve_factor
+
+            return [a,b,c,d]
 
     def draw_box(self):
         #Translate points into iso space
@@ -468,7 +457,6 @@ class Tile(pygame.sprite.Sprite):
         for control_points in points_to_draw:
             # Calculate bezier curve points and tangents
             cps, tangents = self.bezier.calculate_bezier(control_points, 30)
-            # Draw the ballast under the track, this will be a polygon in the rough shape of the trackwork which will then be replaced with a texture
             # Polygon defined by the two lines at either side of the track
             ballast_points = []
             # Add one side
@@ -497,14 +485,6 @@ class Tile(pygame.sprite.Sprite):
         if DEBUG:
             pygame.draw.lines(self.image, red, False, cps, 1)
             pygame.draw.lines(self.image, silver, False, cps2, 1)
-##        return True
-##        softness = 50
-##        for s in [1, -1]:
-##            for q in range(0, rail_width*softness):
-##                points = []
-##                for p in range(0, len(cps)):
-##                    points.append(Bezier.get_at_width(cps[p], tangents[p], s*rail_spacing+s*q/softness))
-##                pygame.draw.aalines(self.image, silver, False, points, True)
         for s in [1, -1]:
             points1 = []
             for p in range(0, len(cps)):
@@ -519,20 +499,6 @@ class Tile(pygame.sprite.Sprite):
         for p in points:
             out.append(p*scale)
         return out
-
-
-    def draw_controls(self, control_points):
-        """Draw the controls component of the track"""
-        # Calculate bezier curve points and tangents
-        cps, tangents = Bezier.calculate_bezier(control_points, 30)
-        # Draw bezier curve control points
-        for p in control_points:
-            pygame.draw.circle(screen, blue, p, 3)
-        # Draw out to the image
-        pygame.draw.lines(self.image, lightgray, False, [control_points[0],control_points[1]])
-        pygame.draw.lines(self.image, lightgray, False, [control_points[2],control_points[3]])
-        # Draw the base bezier curve
-        pygame.draw.lines(self.image, red, False, cps)
 
 
 
