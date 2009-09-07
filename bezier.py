@@ -59,8 +59,6 @@ TILE_SIZE = 128
 #TILE_SIZE = 96
 #TILE_SIZE = 96
 
-ISO_ANGLE = 90-26.565
-
 DRAW_HINTS = False
 
 class World(object):
@@ -81,7 +79,7 @@ class Bezier(object):
         This function uses the forward differencing algorithm described here: 
         http://www.niksula.cs.hut.fi/~hkankaan/Homepages/bezierfast.html"""
 
-        # This bypasses the generation of a bezier curve, and returns a straight line in a form which should still work with all the functions that depend on this
+        # Bypasses the generation of a bezier curve in straight-line cases
         if len(p) == 2:
             return ([p[1], p[0]], [p[1] - p[0],p[1] - p[0]])
 
@@ -111,10 +109,12 @@ class Bezier(object):
         return (points, tangents)
 
     def get_at_width(self, point, tangent, width):
+        """"""
         newpoint = point + tangent.perpendicular_normal() * width
         return newpoint
 
     def get_point_at_width(self, a, b, width):
+        """"""
         a_to_b = b - a
         c = a + a_to_b.perpendicular_normal() * width
         d = b + a_to_b.perpendicular_normal() * width
@@ -242,15 +242,6 @@ class Tile(pygame.sprite.Sprite):
             self.box_endpoints.append([p[0],                                                p[1],    p[1].perpendicular()])
             self.box_endpoints.append([p[0] + p[1].perpendicular() * Tile.track_spacing,    p[1],    p[1].perpendicular()])
 
-        # Used for testing which control point the cursor is over (old method)
-        self.endpoints = []
-        screen_pos = vec2d(self.xpos, self.ypos)
-        for p in range(len(self.box_allmidpoints)):
-            self.endpoints.append(screen_pos + self.box_allmidpoints[p][0] - self.box_allmidpoints[p][1] * Tile.track_spacing)
-            self.endpoints.append(screen_pos + self.position + self.box_allmidpoints[p][0])
-            self.endpoints.append(screen_pos + self.position + self.box_allmidpoints[p][0] + self.box_allmidpoints[p][1] * Tile.track_spacing)
-
-
         self.image = pygame.Surface((self.size, self.size/2))
         self.image.fill(black)
         self.image.set_colorkey(black, pygame.RLEACCEL)
@@ -289,6 +280,7 @@ class Tile(pygame.sprite.Sprite):
                 return True
             else:
                 return False
+
     def remove_path(self, path):
         """Remove a path from this tile
         Return True if path removed, False if path doesn't exist"""
@@ -302,7 +294,6 @@ class Tile(pygame.sprite.Sprite):
             return True
         else:
             return False
-
 
     def set_control_hint(self, endpoint_number):
         """Add a control hint to this sprite, used to indicate which endpoints are active
@@ -400,51 +391,50 @@ class Tile(pygame.sprite.Sprite):
 ##            pygame.draw.line(self.image, darkblue, p[0], p[0] + 20 * p[1])
 
     def draw_sleepers(self, control_points):
-        """Draw the sleeper component of the track"""
-        # Calculate bezier curve points and tangents
+        """draw the sleeper component of the track"""
+        # calculate bezier curve points and tangents
         cps, tangents = self.bezier.calculate_bezier(control_points, 30)
         overflow = Tile.sleeper_spacing * -0.5
         sleeper_points = []
         start = True
-        # Calculate total length of this curve section based on the straight lines which make it up
+        # calculate total length of this curve section based on the straight lines which make it up
         total_length = 0
         for p in range(1, len(cps)):
-            # Find gradient of a->b
+            # find gradient of a->b
             b = cps[p]
             a = cps[p-1]
             a_to_b = b - a
             ab_n = a_to_b.normalized()
             total_length += a_to_b.get_length() / ab_n.get_length()
-        # Number of sleepers is length, (minus one interval to make the ends line up) divided by interval length
+        # number of sleepers is length, (minus one interval to make the ends line up) divided by interval length
         num_sleepers = float(total_length) / float(Tile.sleeper_spacing)
         true_spacing = float(total_length) / float(math.ceil(num_sleepers))
-##        print "base spacing: %s, calculated spacing: %s\n(length: %s, number of sleepers: %s)" % (Tile.sleeper_spacing,true_spacing,total_length,num_sleepers,)
         
         for p in range(1, len(cps)):
-            # Find gradient of a->b
+            # find gradient of a->b
             b = cps[p]
             a = cps[p-1]
             a_to_b = b - a
             ab_n = a_to_b.normalized()
-            # Vector to add to start vector, to get offset start location
+            # vector to add to start vector, to get offset start location
             start_vector = overflow * ab_n
-            # Number of sleepers to draw in this section
+            # number of sleepers to draw in this section
             n_sleepers, overflow = divmod((a_to_b + start_vector).get_length(), (ab_n * true_spacing).get_length())
             n_sleepers = int(n_sleepers)
-            # Loop through n_sleepers, draw a sleeper at the start of each sleeper spacing interval
+            # loop through n_sleepers, draw a sleeper at the start of each sleeper spacing interval
             if start:
                 s = 0
                 start = False
             else:
                 s = 1
             for n in range(s, n_sleepers+1):
-                sleep_p = [self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing - ab_n*0.5*Tile.sleeper_width, a_to_b, -Tile.sleeper_length),
-                           self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing - ab_n*0.5*Tile.sleeper_width, a_to_b, Tile.sleeper_length),
-                           self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing + ab_n*0.5*Tile.sleeper_width, a_to_b, Tile.sleeper_length),
-                           self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing + ab_n*0.5*Tile.sleeper_width, a_to_b, -Tile.sleeper_length)]
-                # Translate points into iso perspective
+                sleep_p = [self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing - ab_n*0.5*self.sleeper_width, a_to_b, -self.sleeper_length),
+                           self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing - ab_n*0.5*self.sleeper_width, a_to_b, self.sleeper_length),
+                           self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing + ab_n*0.5*self.sleeper_width, a_to_b, self.sleeper_length),
+                           self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing + ab_n*0.5*self.sleeper_width, a_to_b, -self.sleeper_length)]
+                # translate points into iso perspective
                 sleeper_points.append(self.translate_points(sleep_p))
-        # Finally draw all the sleeper points
+        # finally draw all the sleeper points
         for p in sleeper_points:
             pygame.draw.polygon(self.image, brown, p, 0)
 
@@ -623,8 +613,6 @@ class DisplayMain(object):
         self.map[4][2]["layers"]["ballast"].add_path([10, 1])  
         self.map[3][2]["layers"]["ballast"].add_path([1, 13])  
 
-
-
         self.map[6][7]["layers"]["rails"].add_path([12, 23])  
         self.map[5][6]["layers"]["rails"].add_path([2, 9])  
         self.map[4][6]["layers"]["rails"].add_path([2, 12])  
@@ -643,14 +631,6 @@ class DisplayMain(object):
         self.map[6][7]["layers"]["ballast"].add_path([14, 21])  
         self.map[5][6]["layers"]["ballast"].add_path([0, 11])  
         self.map[4][6]["layers"]["ballast"].add_path([0, 14])  
-
-
-        self.map[8][8]["layers"]["rails"].add_path([13, 22])  
-
-        self.map[9][9]["layers"]["rails"].add_path([1, 13])  
-        self.map[9][9]["layers"]["rails"].add_path([10, 22])  
-        self.map[9][9]["layers"]["rails"].add_path([7, 19])  
-        self.map[9][9]["layers"]["rails"].add_path([4, 16])  
 
         self.altervalue = 0
         self.modified = True
