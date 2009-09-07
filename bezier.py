@@ -302,10 +302,6 @@ class Tile(pygame.sprite.Sprite):
         self.highlight_changed = True
         self.update()
 
-    def return_endpoints(self):
-        """Return the absolute control points for this tile"""
-        return self.endpoints
-                
     def calc_rect(self):
         """Calculate the current rect of this tile"""
         x = self.position[0]
@@ -582,7 +578,6 @@ class DisplayMain(object):
                 for c, d in enumerate(layers):
                     b["layers"][d] = Tile((x,y), d)
                     self.sprites.add(b["layers"][d], layer=c)
-                b["controls"] = b["layers"]["box"].return_endpoints()
                 a.append(b)
             self.map.append(a)
 
