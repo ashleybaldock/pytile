@@ -757,9 +757,6 @@ class DisplayMain(object):
 
             for event in pygame.event.get():
                 if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        pygame.display.quit()
-                        sys.exit()
                     if event.key == pygame.K_F12:
                         pygame.image.save(self.screen, "pytile_sc.png")
                     if not self.lmb_tool.process_key(event.key):
@@ -777,6 +774,10 @@ class DisplayMain(object):
                             self.lmb_tool = tools.Test()
                             self.active_tool_sprite.text = ["Terrain modification"]
                             self.dirty.append(self.active_tool_sprite.update())
+                        # Some tools may use the escape key
+                        if event.key == pygame.K_ESCAPE:
+                            pygame.display.quit()
+                            sys.exit()
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     # LMB

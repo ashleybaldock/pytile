@@ -83,9 +83,7 @@ class Tool(object):
                 for t in collision_list:
                     if t.exclude == False:
                         return t
-                    else:
-                        # None of the collided sprites has collision enabled
-                        return None
+                return None
             else:
                 # No collision means nothing to select
                 return None
