@@ -43,7 +43,7 @@
 
 
 
-import os, sys
+import os, sys, operator
 import pygame
 import random, math
 from copy import copy
@@ -258,12 +258,59 @@ class TrackSprite(pygame.sprite.Sprite):
     def update(self):
         """Draw image and return nothing"""
         # Look up own image in the cache, if not present composite the image
-        #self.image = self.lookup_image(self.paths)
+        self.image = self.lookup_image(self.paths)
+        if not self.image:
+            self.image = self.generate_image(self.paths)
+            self.add_cache_image(self.paths, self.image)
 
+        self.calc_rect()
+
+    def lookup_image(self, paths):
+        """Try to lookup an image in the cache, returns image or False if it isn't cached"""
+        key = self.make_cache_key(paths)
+        if self.cache.has_key(key):
+            # debug("Looking up cache key %s succeeded!" % str(key))
+            return self.cache[key]
+        else:
+            debug("Looking up cache key %s failed, key does not exist" % str(key))
+            return False
+
+    def make_cache_key(self, paths):
+        """Make an imutable string key suitable for doing image cache lookups"""
+        # Strip any duplicates (shouldn't be but worth checking)
+
+        # First ensure that all paths are in small->big order, e.g. [13,1,t,t] converts to [1,13,t,t]
+        for path in paths:
+            if path[0] > path[1]:
+                path.insert(1, path.pop(0))
+        # Then ensure that list of paths is similarly ordered, e.g. [[10,22,t,t],[1,13,t,t]] converts to [[1,13,t,t],[10,22,t,t]]
+        paths.sort(key=operator.itemgetter(slice(0,2)))
+        # Convert to a tuple for immutable dict key
+        a = []
+        for path in paths:
+            a.append(tuple(path))
+        return tuple(a)
+
+    def add_cache_image(self, paths, surface):
+        """Add an image to the cache"""
+        # Entries in the cache are of form:
+        #   ((1,13,type1,type1),(1,10,type1,type1), ... ) : [combined, layer1, layer2, layer3, ... ]
+        # Each layer is an image, combined is the overall result, this is always [0] in the array
+        key = self.make_cache_key(paths)
+        #self.cache[key] = []
+        #for surface in surfaces:
+        #    self.cache[key].append(surface)
+        debug("Adding cache image with key: %s" % str(key))
+        self.cache[key] = surface
+        return True
+
+
+    def generate_image(self, paths):
+        """Generate an image and add it to the cache"""
         # Generate a new surface to draw onto
-        self.image = pygame.Surface((self.size, self.size))
+        surface = pygame.Surface((self.size, self.size))
         # Fill surface with transparent colour
-        self.image.fill(transparent)
+        surface.fill(transparent)
 
         layers = [[],[],[]]
         layer_props = [1,0,0]
@@ -285,12 +332,19 @@ class TrackSprite(pygame.sprite.Sprite):
             # Map texture if required
             if n == 1:
                 im = self.map_ballast_texture(im)
-            self.image.blit(im, (0, p2))
+            surface.blit(im, (0, p2))
+
+        debug("Generating image from paths: %s" % paths)
 
         # Finally ensure surface is set back to correct colourkey for further additions
-        self.image.set_colorkey(transparent)
+        surface.set_colorkey(transparent)
 
-        self.calc_rect()
+        return surface
+
+
+
+
+
 
     def draw_rails(self, control_points):
         """Draw one set of rails using some control points and return a surface"""
