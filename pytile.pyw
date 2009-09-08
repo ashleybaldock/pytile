@@ -908,6 +908,10 @@ class DisplayMain(object):
                 cliffs = self.make_cliffs(x, y)
                 cliffs.insert(0, t)
 
+                # Add the regenerated sprites back into the appropriate places
+                self.orderedSpritesDict[(x, y)] = cliffs
+                self.orderedSprites.add(cliffs, layer=l)
+
                 # If there are tracks on this tile, add a track sprite
                 # Track sprite doesn't need to be re-added, only updated!
                 try:
@@ -917,11 +921,8 @@ class DisplayMain(object):
                 else:
                     ts = TrackSprite(x, y, World.array[x][y][0], exclude=True)
 
-                # Add the regenerated sprites back into the appropriate places
-                self.orderedSpritesDict[(x, y)] = cliffs
-                self.orderedSpritesDict[(x, y)].append(ts)
-                self.orderedSprites.add(cliffs, layer=l)
-                self.orderedSprites.add(ts, layer=l+1)
+                    self.orderedSprites.add(ts, layer=l+1)
+                    self.orderedSpritesDict[(x, y)].append(ts)
 
     def get_layer(self, x, y):
         """Return the layer a sprite should be based on some parameters"""
