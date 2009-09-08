@@ -24,6 +24,9 @@ import os, sys
 import pygame
 import random
 
+import logger
+debug = logger.Log()
+
 # Pre-compute often used multiples
 p = 64
 p2 = p / 2
@@ -605,6 +608,20 @@ class World(object):
                    [[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],[0,[0,0,0,0]],],]
                    
         return(TileMap)
+
+
+    def add_path(self, x, y, path):
+        """Add a path to the World"""
+        # This needs bounds checking/sanitisation etc. added
+        try:
+            World.array[x][y][2]
+        except IndexError:
+            World.array[x][y].append([path])
+            debug("(NEW) Adding path: %s to location: (%s,%s)" % (path, x, y))
+        else:
+            World.array[x][y][2].append(path)
+            debug("(EXISTING) Adding path: %s to location: (%s,%s)" % (path, x, y))
+        return True
 
 
 # Terrain can be modified in several ways

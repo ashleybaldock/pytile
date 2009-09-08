@@ -48,6 +48,9 @@ import pygame
 import random, math
 from copy import copy
 
+import logger
+debug = logger.Log()
+
 import world
 World = world.World()
 
@@ -56,8 +59,6 @@ from vec2d import *
 
 import tools
 
-import logger
-debug = logger.Log()
 
 # Some useful colours
 grey = (100,100,100)
@@ -780,24 +781,24 @@ class DisplayMain(object):
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     # LMB
                     if event.button == 1:
-                        self.lmb_tool.begin(event.pos)
+                        self.lmb_tool.begin(event.pos, self.orderedSprites)
                     # RMB
                     if event.button == 3:
-                        self.rmb_tool.begin(event.pos)
+                        self.rmb_tool.begin(event.pos, self.orderedSprites)
                 if event.type == pygame.MOUSEBUTTONUP:
                     # LMB
                     if event.button == 1:
-                        self.lmb_tool.end(event.pos)
+                        self.lmb_tool.end(event.pos, self.orderedSprites)
                     # RMB
                     if event.button == 3:
-                        self.rmb_tool.end(event.pos)
+                        self.rmb_tool.end(event.pos, self.orderedSprites)
                 if event.type == pygame.MOUSEMOTION:
                     # LMB is pressed, update all the time to keep highlight working
 ##                    if event.buttons[0] == 1:
                     self.lmb_tool.update(event.pos, self.orderedSprites)
                     # RMB is pressed, only update while RMB pressed
                     if event.buttons[2] == 1:
-                        self.rmb_tool.update(event.pos)
+                        self.rmb_tool.update(event.pos, self.orderedSprites)
                     # No buttons are pressed
 ##                    else:
 ##                        pass

@@ -27,6 +27,10 @@ import random
 import world
 World = world.World()
 
+
+import logger
+debug = logger.Log()
+
 # Pre-compute often used multiples
 p = 64
 p2 = p / 2
@@ -123,14 +127,14 @@ class Move(Tool):
             return True
         else:
             return False
-    def begin(self, start):
+    def begin(self, start, collisionlist):
         """"""
         self.start = start
-    def end(self, final):
+    def end(self, final, collisionlist):
         """"""
         self.current = final
         self.start = None
-    def update(self, current):
+    def update(self, current, collisionlist):
         """"""
         self.current = current
         if self.start:
@@ -152,6 +156,7 @@ class Track(Tool):
     start = None
     aoe = []
     width = 1
+    active = False
     def __init__(self):
         """"""
         # Call init method of parent
@@ -162,6 +167,10 @@ class Track(Tool):
         self.subtile = None
         # tiles - all the tiles in the primary area of effect (ones which are modified first)
         self.tiles = []
+        # Set start state
+        self.startpos = None
+        self.endpos = None
+        self.active = False
         # Whether to redraw areas of the screen for aoe/highlight
         self.aoe_changed = False
         self.highlight_changed = False
@@ -183,7 +192,7 @@ class Track(Tool):
     def active(self):
         """Return true if tool currently being used and screen needs updating"""
         # Used to test whether the tiles being returned need to be updated
-        if self.start:
+        if self.active:
             return True
         else:
             return False
@@ -244,17 +253,55 @@ class Track(Tool):
                 tiles.append((x + xx, y + yy))
         return tiles
 
-    def begin(self, start):
-        """Reset the start position for a new operation"""
-        self.start = start
-        self.addback = 0
-    def end(self, final):
-        """End of application of tool"""
-        self.current = final
-        self.tiles = []
-        self.start = None
+    def begin(self, start, collisionlist):
+        """Mouse button DOWN"""
+    def end(self, position, collisionlist):
+        """Mouse button UP"""
+        if self.active:
+            # First point has already been selected
+            tile = self.collide_locate(position, collisionlist)
+            if tile and not tile.exclude:
+                subtile = self.subtile_position(position, tile)
+                self.endpos = [(tile.xWorld,tile.yWorld), self.collide_convert(subtile, end=True)]
+                debug("endpos is now: %s" % self.endpos)
+                # If we're doing a 2->1 type of track, need to ensure both arrays have same number of items
+                if len(self.startpos[1]) > len(self.endpos[1]):
+                    self.endpos[1].append(self.endpos[1][0])
+                elif len(self.startpos[1]) < len(self.endpos[1]):
+                    self.startpos[1].append(self.startpos[1][0])
+                # Add a path to the World for each set of start/end positions
+                for s, e in zip(self.startpos[1], self.endpos[1]):
+                    World.add_path(tile.xWorld, tile.yWorld, [s,e])
+                # Set which tiles need updating
+                self.aoe = [(tile.xWorld, tile.yWorld)]
+                self.set_aoe_changed(True)
+                # Reset the tool
+                self.endpos = None
+                self.startpos = None
+                self.active = False
+                debug("endpos is now: %s" % self.endpos)
+                self.tile = tile
+                self.subtile = subtile
+            else:
+                # Invalid location clicked on, do nothing
+                pass
+        else:
+            # First point selection
+            tile = self.collide_locate(position, collisionlist)
+            if tile and not tile.exclude:
+                subtile = self.subtile_position(position, tile)
+                self.startpos = [(tile.xWorld,tile.yWorld), self.collide_convert(subtile, start=True)]
+                self.active = True
+                debug("startpos is now: %s" % self.startpos)
+                self.tile = tile
+                self.subtile = subtile
+            else:
+                # Invalid location clicked on, do nothing
+                pass
+
+
     def update(self, current, collisionlist):
-        """Tool updated, current cursor position is newpos"""
+        """Mouse position MOVE"""
         # If start is None, then there's no dragging operation ongoing, just update the position of the highlight
         self.current = current
         if self.start == None:
@@ -275,8 +322,24 @@ class Track(Tool):
                 self.tile = None
                 self.subtile = None
  
-
-
+    def collide_convert(self, subtile, start=False, end=False):
+        """Convert subtile edge locations from collide_detect form to track drawing form"""
+        a = [5,3,1,7,4,2,0,6]
+        b = a[subtile-1]
+        # Convert to an endpoint, depends on whether we're drawing single or double track
+        if self.width == 1:
+            # Single track, return only one endpoint, found by multiplying the side the endpoint is on
+            # by three, then adding one (to offset to the middle of the side)
+            return [b*3+1]
+        else:
+            # Double track, return two endpoints, found by multiplying the side the endpoing is on
+            # by three, then adding 2 to one (to offset correctly). Which one we add 2 to depends on
+            # whether this is the start or end of a segment (since if we did the same on both, the
+            # tracks would produce a crossover)
+            if start:
+                return [b*3,b*3+2]
+            elif end:
+                return [b*3+2,b*3]
 
 
 
@@ -400,11 +463,11 @@ class Test(Tool):
                 tiles.append((x + xx, y + yy))
         return tiles
 
-    def begin(self, start):
+    def begin(self, start, collisionlist):
         """Reset the start position for a new operation"""
         self.start = start
         self.addback = 0
-    def end(self, final):
+    def end(self, final, collisionlist):
         """End of application of tool"""
         self.current = final
         self.tiles = []
