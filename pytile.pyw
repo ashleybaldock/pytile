@@ -782,24 +782,24 @@ class DisplayMain(object):
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     # LMB
                     if event.button == 1:
-                        self.lmb_tool.begin(event.pos, self.orderedSprites)
+                        self.lmb_tool.mouse_down(event.pos, self.orderedSprites)
                     # RMB
                     if event.button == 3:
-                        self.rmb_tool.begin(event.pos, self.orderedSprites)
+                        self.rmb_tool.mouse_down(event.pos, self.orderedSprites)
                 if event.type == pygame.MOUSEBUTTONUP:
                     # LMB
                     if event.button == 1:
-                        self.lmb_tool.end(event.pos, self.orderedSprites)
+                        self.lmb_tool.mouse_up(event.pos, self.orderedSprites)
                     # RMB
                     if event.button == 3:
-                        self.rmb_tool.end(event.pos, self.orderedSprites)
+                        self.rmb_tool.mouse_up(event.pos, self.orderedSprites)
                 if event.type == pygame.MOUSEMOTION:
                     # LMB is pressed, update all the time to keep highlight working
 ##                    if event.buttons[0] == 1:
-                    self.lmb_tool.update(event.pos, self.orderedSprites)
+                    self.lmb_tool.mouse_move(event.pos, self.orderedSprites)
                     # RMB is pressed, only update while RMB pressed
                     if event.buttons[2] == 1:
-                        self.rmb_tool.update(event.pos, self.orderedSprites)
+                        self.rmb_tool.mouse_move(event.pos, self.orderedSprites)
                     # No buttons are pressed
 ##                    else:
 ##                        pass
@@ -864,9 +864,6 @@ class DisplayMain(object):
 
     def update_world(self, tiles, highlight={}):
         """Instead of completely regenerating the entire world, just update certain tiles"""
-        debug("start: update_world")
-        debug("tiles = %s" % tiles)
-        debug("highlight = %s" % highlight)
         # Add all the items in tiles to the checked_nearby hash table
         nearbytiles = []
         for t in tiles:
@@ -881,15 +878,12 @@ class DisplayMain(object):
         # This is a direct reference back to the aoe specified in the tool,
         # need to make a copy to use this!
         tiles.extend(nearbytiles)
-        debug("tiles+nearbytiles = %s" % tiles)
         for t in tiles:
             x, y = t
             # If an override is defined in highlight for this tile,
             # update based on that rather than on contents of World
             if highlight.has_key((x,y)):
                 tile = highlight[(x,y)]
-                debug("Setting tile from highlight, (%s,%s)" % (x, y))
-                debug(str(tile))
             else:
                 tile = World.array[x][y]
             # Look the tile up in the group using the position, this will give us the tile and all its cliffs

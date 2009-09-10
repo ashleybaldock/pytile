@@ -574,7 +574,7 @@ class World(object):
         World.WorldWidth2 = World.WorldWidth / 2
         World.WorldHeight = ((World.WorldX + World.WorldY) * p4) + p2
 
-    # Tile structure [height, vertexheight[left, bottom, right, top]]
+    # Tile structure [height, vertexheight[left, bottom, right, top], [path_start, path_end], highlightinfo]
 
 
     def MakeArray(self):
