@@ -112,6 +112,9 @@ class TextSprite(pygame.sprite.Sprite):
         self.font.set_italic(italic)
         self.font.set_underline(underline)
 
+        self.rect = None
+        self.last_rect = None
+
         self.text = textstring
         self.update()
 
@@ -139,8 +142,14 @@ class TextSprite(pygame.sprite.Sprite):
             self.image.blit(t, (self.borderwidth + self.padding,
                                 self.borderwidth + self.padding + (self.line_spacing + t.get_height()) * n))
 
-        self.rect = (self.position[0], self.position[1], self.image.get_width(), self.image.get_height())
-        return self.rect
+        # Store the last rect so if the new one is smaller we can update those bits of the screen too
+        self.last_rect = self.rect
+        self.rect = pygame.Rect(self.position[0], self.position[1], self.image.get_width(), self.image.get_height())
+
+        if self.last_rect is None:
+            return self.rect
+        else:
+            return self.last_rect.union(self.rect)
 
 
 class TrackSprite(pygame.sprite.Sprite):
