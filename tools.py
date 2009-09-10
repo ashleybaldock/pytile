@@ -176,6 +176,7 @@ class Track(Tool):
     def process_key(self, key):
         """Process keystrokes sent to this tool"""
         keyname = pygame.key.name(key)
+        debug("process_key: %s" % keyname)
         ret = False
         if keyname == "1":
             self.width = 1
@@ -183,7 +184,6 @@ class Track(Tool):
         elif keyname == "2":
             self.width = 2
             ret = True
-        print keyname
         return ret
     def active(self):
         """Return true if tool currently being used and screen needs updating"""
@@ -211,12 +211,6 @@ class Track(Tool):
     def get_highlight(self):
         """Return the current highlight area for this tool"""
         return self.highlight
-    def get_last_highlight(self):
-        """Return the previous highlight"""
-        return self.last_highlight
-    def set_last_highlight(self, highlight):
-        """When the highlight position is updated let the tool know the last highlight location"""
-        self.last_highlight = highlight
     # Internal
     def set_highlight(self, value):
         """Set the current highlight for this tool"""
@@ -293,7 +287,7 @@ class Track(Tool):
     def mouse_move(self, position, collisionlist):
         """Mouse position MOVE"""
         # If start is None, then there's no dragging operation ongoing, just update the position of the highlight
-        self.current = current
+        self.current = position
         if self.start == None:
             tile = self.collide_locate(self.current, collisionlist)
             if tile and not tile.exclude:
@@ -360,6 +354,7 @@ class Test(Tool):
     def process_key(self, key):
         """Process keystrokes sent to this tool"""
         keyname = pygame.key.name(key)
+        debug("process_key: %s" % keyname)
         ret = False
         if keyname == "k":
             Test.xdims += 1

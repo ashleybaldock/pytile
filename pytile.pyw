@@ -812,9 +812,6 @@ class DisplayMain(object):
                     self.refresh_screen = 1
 
             if self.lmb_tool.has_aoe_changed():
-                debug("changed!")
-                print self.lmb_tool.get_last_aoe()
-                print self.lmb_tool.get_highlight()
                 # Update the screen to reflect changes made by tools
                 self.update_world(self.lmb_tool.get_last_aoe(), self.lmb_tool.get_highlight())
                 self.update_world(self.lmb_tool.get_aoe(), self.lmb_tool.get_highlight())
@@ -838,9 +835,6 @@ class DisplayMain(object):
                 else:
                     pygame.display.set_caption("FPS: %i | dxoff: %s dyoff: %s" %
                                                (self.clock.get_fps(), World.dxoff, World.dyoff))
-
-            # Draw the sprite group to the screen (doesn't necessarily refresh the screen)
-##            rectlist = self.orderedSprites.draw(self.screen)
 
             # If land height has been altered, or the screen has been moved
             # we need to refresh the entire screen
@@ -926,7 +920,6 @@ class DisplayMain(object):
                     pass
                 else:
                     if tile[2] != []:
-                        print x, y, tile[0]
                         ts = TrackSprite(x, y, tile[0], exclude=True)
                         ts.update_xyz()
 
