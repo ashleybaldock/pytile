@@ -27,6 +27,7 @@ import random
 import world
 World = world.World()
 
+import copy
 
 import logger
 debug = logger.Log()
@@ -351,6 +352,7 @@ class Test(Tool):
     ydims = 1
     start = None
     aoe = []
+    last_aoe = []
     smooth = False
     def __init__(self):
         """First time the Test tool is used"""
@@ -407,6 +409,9 @@ class Test(Tool):
     def get_aoe(self):
         """Return the current area of effect for this tool"""
         return self.aoe
+    def get_last_aoe(self):
+        """Return the current area of effect for this tool"""
+        return self.last_aoe
     def has_aoe_changed(self):
         """Return True if the area of effect of this tool has changed since the last call to this function"""
         return self.aoe_changed
@@ -415,6 +420,7 @@ class Test(Tool):
         self.aoe_changed = v
     def clear_aoe(self):
         """Clear the area of effect, changes will only be drawn if has_aoe_changed returns True"""
+        self.last_aoe = copy.copy(self.aoe)
         self.aoe = []
         return True
 
@@ -443,13 +449,24 @@ class Test(Tool):
         """Find the primary area of effect of the tool, based on tool dimensions
         Return a list of tiles to modify in [(x,y), modifier] form
         Used to specify region which will be highlighted"""
-        tiles = []
+        tiles = {}
         if Test.xdims > 1 or Test.ydims > 1:
             for xx in range(Test.xdims):
                 for yy in range(Test.ydims):
-                    tiles.append([(x + xx, y + yy), 9])
+                    t = copy.copy(World.array[x][y])
+                    if len(t) == 2:
+                        t.append([])
+                    t.append(9)
+                    tiles[(x+xx,y+yy)] = t
         else:
-            tiles = [[(x, y), subtile]]
+            t = copy.copy(World.array[x][y])
+            if len(t) == 2:
+                t.append([])
+            t.append(subtile)
+            tiles[(x,y)] = t
+        print Test.xdims, Test.ydims
+        print self.xdims, self.ydims
+        debug("find_highlight, tiles: %s" % tiles)
         return tiles
 
 
@@ -459,6 +476,7 @@ class Test(Tool):
         for xx in range(Test.xdims):
             for yy in range(Test.ydims):
                 tiles.append((x + xx, y + yy))
+        debug("find_rect_aoe = %s" % tiles)
         return tiles
 
     def begin(self, start, collisionlist):
@@ -481,14 +499,15 @@ class Test(Tool):
                 # Only update the highlight if the cursor has changed enough to require it
                 if tile != self.tile or subtile != self.subtile:
                     self.set_highlight(self.find_highlight(tile.xWorld, tile.yWorld, subtile))
-                    self.set_highlight_changed(True)
+                    self.set_aoe_changed(True)
+                    self.aoe = self.find_rect_aoe(tile.xWorld, tile.yWorld)
                 else:
-                    self.set_highlight_changed(False)
+                    self.set_aoe_changed(False)
                 self.tile = tile
                 self.subtile = subtile
             else:
-                self.set_highlight(None)
-                self.set_highlight_changed(True)
+                self.set_highlight({})
+                self.set_aoe_changed(True)
                 self.tile = None
                 self.subtile = None
         # Otherwise a drag operation is on-going, do usual tool behaviour
@@ -541,8 +560,6 @@ class Test(Tool):
 
                 # Set this so that the changed portion of the map is updated on screen
                 self.set_aoe_changed(True)
-                # Must also re-draw the highlight if we're changing the map
-                self.set_highlight_changed(True)
 
 
     def modify_tiles(self, tiles, amount, subtile=9, soft=False):

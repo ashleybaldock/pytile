@@ -812,37 +812,26 @@ class DisplayMain(object):
                     self.refresh_screen = 1
 
             if self.lmb_tool.has_aoe_changed():
+                debug("changed!")
+                print self.lmb_tool.get_last_aoe()
+                print self.lmb_tool.get_highlight()
                 # Update the screen to reflect changes made by tools
-                self.update_world(self.lmb_tool.get_aoe())
+                self.update_world(self.lmb_tool.get_last_aoe(), self.lmb_tool.get_highlight())
+                self.update_world(self.lmb_tool.get_aoe(), self.lmb_tool.get_highlight())
                 self.lmb_tool.set_aoe_changed(False)
-##                self.lmb_tool.clear_aoe()
+                self.lmb_tool.clear_aoe()
 
             if self.rmb_tool.active():
-                # Repaint the entire screen for now until something better is implemented
+                # Repaint the entire screen until something better is implemented
                 self.paint_world()
                 self.refresh_screen = 1
-
-            # Add all highlighted tiles to the dirty sprites list to redraw them
-            if self.lmb_tool.has_highlight_changed():
-                # Remove the old highlight from the screen (if there was one)
-                if self.lmb_tool.get_last_highlight() is not None:
-                    for t in self.lmb_tool.get_last_highlight():
-                        if self.orderedSpritesDict.has_key(t[0]):
-                            self.dirty.append(self.orderedSpritesDict[t[0]][0].change_highlight(0))
-                # Add the new highlight (if there is one)
-                if self.lmb_tool.get_highlight() is not None:
-                    for t in self.lmb_tool.get_highlight():
-                        if self.orderedSpritesDict.has_key(t[0]):
-                            self.dirty.append(self.orderedSpritesDict[t[0]][0].change_highlight(t[1]))
-                    self.lmb_tool.set_last_highlight(self.lmb_tool.get_highlight())
 
             # Write some useful info on the top bar
             self.fps_elapsed += self.clock.get_time()
             if self.fps_elapsed >= self.fps_refresh:
                 self.fps_elapsed = 0
-                hl = self.lmb_tool.get_highlight()
-                if hl:
-                    ii = self.orderedSpritesDict[hl[0][0]][0]
+                ii = self.lmb_tool.tile
+                if ii:
                     layer = self.orderedSprites.get_layer_of_sprite(ii)
                     pygame.display.set_caption("FPS: %i | Tile: (%s,%s) of type: %s, layer: %s | dxoff: %s dyoff: %s" %
                                                (self.clock.get_fps(), ii.xWorld, ii.yWorld, ii.type, layer, World.dxoff, World.dyoff))
@@ -873,8 +862,11 @@ class DisplayMain(object):
         """Convert a heightfield array to a string"""
         return "%s%s%s%s" % (array[0], array[1], array[2], array[3])
 
-    def update_world(self, tiles):
+    def update_world(self, tiles, highlight={}):
         """Instead of completely regenerating the entire world, just update certain tiles"""
+        debug("start: update_world")
+        debug("tiles = %s" % tiles)
+        debug("highlight = %s" % highlight)
         # Add all the items in tiles to the checked_nearby hash table
         nearbytiles = []
         for t in tiles:
@@ -886,9 +878,19 @@ class DisplayMain(object):
                 nearbytiles.append((x-1,y))
             if not (x,y-1) in tiles and not (x,y-1) in nearbytiles:
                 nearbytiles.append((x,y-1))
+        # This is a direct reference back to the aoe specified in the tool,
+        # need to make a copy to use this!
         tiles.extend(nearbytiles)
         for t in tiles:
             x, y = t
+            # If an override is defined in highlight for this tile,
+            # update based on that rather than on contents of World
+            if highlight.has_key((x,y)):
+                tile = highlight[(x,y)]
+                debug("Setting tile from highlight, (%s,%s)" % (x, y))
+                debug(str(tile))
+            else:
+                tile = World.array[x][y]
             # Look the tile up in the group using the position, this will give us the tile and all its cliffs
             if self.orderedSpritesDict.has_key((x, y)):
                 tileset = self.orderedSpritesDict[(x, y)]
@@ -903,6 +905,13 @@ class DisplayMain(object):
                 t.update_type()
                 # Update the tile image
                 t.update()
+                # Update cursor highlight for tile (if it has one)
+                try:
+                    tile[3]
+                except IndexError:
+                    pass
+                else:
+                    t.change_highlight(tile[3])
                 self.dirty.append(t.update_xyz())
                 
                 self.orderedSprites.remove(tileset)
@@ -917,22 +926,25 @@ class DisplayMain(object):
                 # If there are tracks on this tile, add a track sprite
                 # Track sprite doesn't need to be re-added, only updated!
                 try:
-                    World.array[x][y][2]
+                    tile[2]
                 except IndexError:
                     pass
                 else:
-                    ts = TrackSprite(x, y, World.array[x][y][0], exclude=True)
+                    if tile[2] != []:
+                        ts = TrackSprite(x, y, tile[0], exclude=True)
 
-                    self.orderedSprites.add(ts, layer=l+1)
-                    self.orderedSpritesDict[(x, y)].append(ts)
+                        self.orderedSprites.add(ts, layer=l+1)
+                        self.orderedSpritesDict[(x, y)].append(ts)
 
     def get_layer(self, x, y):
         """Return the layer a sprite should be based on some parameters"""
         return (x + y) * 10
 
-    def paint_world(self):
+    def paint_world(self, highlight={}):
         """Paint the world as a series of sprites
         Includes ground and other objects"""
+        # highlight defines tiles which should override the tiles stored in World
+        # can be accessed in the same way as World
         self.refresh_screen = 1
         self.orderedSprites.empty()     # This doesn't necessarily delete the sprites though?
         self.orderedSpritesDict = {}
@@ -946,21 +958,36 @@ class DisplayMain(object):
                 add_to_dict = []
                 # Tile must be within the bounds of the map
                 if (x >= 0 and y >= 0) and (x < World.WorldX and y < World.WorldY):
+                    # If an override is defined in highlight for this tile,
+                    # update based on that rather than on contents of World
+                    if highlight.has_key((x,y)):
+                        tile = highlight[(x,y)]
+                    else:
+                        tile = World.array[x][y]
                     l = self.get_layer(x,y)
                     # Add the main tile
-                    tiletype = self.array_to_string(World.array[x][y][1])
-                    t = TileSprite(tiletype, x, y, World.array[x][y][0], exclude=False)
+                    tiletype = self.array_to_string(tile[1])
+                    t = TileSprite(tiletype, x, y, tile[0], exclude=False)
+                    # Update cursor highlight for tile (if it has one)
+                    try:
+                        tile[3]
+                    except IndexError:
+                        pass
+                    else:
+                        t.change_highlight(tile[3])
+
                     add_to_dict.append(t)
                     self.orderedSprites.add(t, layer=l)
                     # If there are tracks on this tile, add a track sprite
                     try:
-                        World.array[x][y][2]
+                        tile[2]
                     except IndexError:
                         pass
                     else:
-                        t = TrackSprite(x, y, World.array[x][y][0], exclude=True)
-                        add_to_dict.append(t)
-                        self.orderedSprites.add(t, layer=l+1)
+                        if tile[2] != []:
+                            t = TrackSprite(x, y, tile[0], exclude=True)
+                            add_to_dict.append(t)
+                            self.orderedSprites.add(t, layer=l+1)
 
                     # Add vertical surfaces (cliffs) for this tile (if any)
                     for t in self.make_cliffs(x, y):
