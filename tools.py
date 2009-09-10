@@ -429,12 +429,6 @@ class Test(Tool):
     def get_highlight(self):
         """Return the current highlight area for this tool"""
         return self.highlight
-    def get_last_highlight(self):
-        """Return the previous highlight"""
-        return self.last_highlight
-    def set_last_highlight(self, highlight):
-        """When the highlight position is updated let the tool know the last highlight location"""
-        self.last_highlight = highlight
     def has_highlight_changed(self):
         """Return True if the area of effect of this tool has changed since last call to update()"""
         return self.highlight_changed
@@ -453,19 +447,22 @@ class Test(Tool):
         if Test.xdims > 1 or Test.ydims > 1:
             for xx in range(Test.xdims):
                 for yy in range(Test.ydims):
-                    t = copy.copy(World.array[x][y])
-                    if len(t) == 2:
-                        t.append([])
-                    t.append(9)
-                    tiles[(x+xx,y+yy)] = t
+                    try:
+                        World.array[x+xx][y+yy]
+                    except IndexError:
+                        pass
+                    else:
+                        t = copy.copy(World.array[x+xx][y+yy])
+                        if len(t) == 2:
+                            t.append([])
+                        t.append(9)
+                        tiles[(x+xx,y+yy)] = t
         else:
             t = copy.copy(World.array[x][y])
             if len(t) == 2:
                 t.append([])
             t.append(subtile)
             tiles[(x,y)] = t
-        print Test.xdims, Test.ydims
-        print self.xdims, self.ydims
         debug("find_highlight, tiles: %s" % tiles)
         return tiles
 
@@ -475,7 +472,9 @@ class Test(Tool):
         tiles = []
         for xx in range(Test.xdims):
             for yy in range(Test.ydims):
-                tiles.append((x + xx, y + yy))
+                # Tiles in aoe must be within the bounds of the World
+                if x+xx < World.WorldX and y+yy < World.WorldY:
+                    tiles.append((x + xx, y + yy))
         debug("find_rect_aoe = %s" % tiles)
         return tiles
 

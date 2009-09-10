@@ -881,6 +881,7 @@ class DisplayMain(object):
         # This is a direct reference back to the aoe specified in the tool,
         # need to make a copy to use this!
         tiles.extend(nearbytiles)
+        debug("tiles+nearbytiles = %s" % tiles)
         for t in tiles:
             x, y = t
             # If an override is defined in highlight for this tile,
@@ -931,7 +932,9 @@ class DisplayMain(object):
                     pass
                 else:
                     if tile[2] != []:
+                        print x, y, tile[0]
                         ts = TrackSprite(x, y, tile[0], exclude=True)
+                        ts.update_xyz()
 
                         self.orderedSprites.add(ts, layer=l+1)
                         self.orderedSpritesDict[(x, y)].append(ts)
