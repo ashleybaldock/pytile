@@ -166,7 +166,7 @@ class TrackSprite(pygame.sprite.Sprite):
     for key in props.keys():
         props_lookup.append(key)
 
-    def __init__(self, xWorld, yWorld, zWorld, exclude=True):
+    def __init__(self, xWorld, yWorld, zWorld, init_paths=None, exclude=True):
         """"""
         pygame.sprite.Sprite.__init__(self)
         if TrackSprite.init:
@@ -182,7 +182,10 @@ class TrackSprite(pygame.sprite.Sprite):
         self.yWorld = yWorld
         self.zWorld = zWorld
         self.exclude = exclude
-        self.update_paths()
+        if init_paths == None:
+            self.update_paths()
+        else:
+            self.paths = init_paths
         self.update()
 
     def gen_box(self):
@@ -725,7 +728,7 @@ class DisplayMain(object):
         # Most basic tool is the "inspection tool", this will highlight whatever it's over including tiles
         # Terrain raise/lower tool, live preview of affected area
         # Terrain leveling tool, click and drag to select area
-        self.lmb_tool = tools.Test()
+        self.lmb_tool = tools.Terrain()
         self.rmb_tool = tools.Move()
 
 
@@ -740,7 +743,7 @@ class DisplayMain(object):
         
         instructions_font = pygame.font.SysFont(pygame.font.get_default_font(), font_size)
         # Make a text sprite to display the instructions
-        self.active_tool_sprite = TextSprite((10,10), ["test text2"], instructions_font, 
+        self.active_tool_sprite = TextSprite((10,10), ["Terrain modification"], instructions_font, 
                                              fg=(0,0,0), bg=(255,255,255), bold=False)
         self.overlay_sprites.add(self.active_tool_sprite, layer=100)
 
@@ -771,7 +774,7 @@ class DisplayMain(object):
                         if event.key == pygame.K_h:
                             # Activate terrain modification mode
                             debug("Terrain modification mode active")
-                            self.lmb_tool = tools.Test()
+                            self.lmb_tool = tools.Terrain()
                             self.active_tool_sprite.text = ["Terrain modification"]
                             self.dirty.append(self.active_tool_sprite.update())
                         # Some tools may use the escape key
@@ -920,7 +923,7 @@ class DisplayMain(object):
                     pass
                 else:
                     if tile[2] != []:
-                        ts = TrackSprite(x, y, tile[0], exclude=True)
+                        ts = TrackSprite(x, y, tile[0], init_paths=tile[2], exclude=True)
                         ts.update_xyz()
 
                         self.orderedSprites.add(ts, layer=l+1)

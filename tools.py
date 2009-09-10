@@ -109,8 +109,8 @@ class Tool(object):
     def find_rect_aoe(self, x, y):
         """Return a list of tiles for the primary area of effect of the tool based on a box pattern"""
         tiles = []
-        for xx in range(Test.xdims):
-            for yy in range(Test.ydims):
+        for xx in range(self.xdims):
+            for yy in range(self.ydims):
                 # Tiles in aoe must be within the bounds of the World
                 if x+xx < World.WorldX and y+yy < World.WorldY:
                     tiles.append((x + xx, y + yy))
@@ -210,8 +210,10 @@ class Move(Tool):
 class Track(Tool):
     """Track drawing tool"""
     # Variables that persist through instances of this tool
-    # Reference with Test.var
+    # Reference with Track.var
     width = 1
+    xdims = 1
+    ydims = 1
     def __init__(self):
         """"""
         # Call init method of parent
@@ -240,25 +242,11 @@ class Track(Tool):
         Return a list of tiles to modify in [(x,y), modifier] form
         Used to specify region which will be highlighted"""
         tiles = {}
-        if Test.xdims > 1 or Test.ydims > 1:
-            for xx in range(Test.xdims):
-                for yy in range(Test.ydims):
-                    try:
-                        World.array[x+xx][y+yy]
-                    except IndexError:
-                        pass
-                    else:
-                        t = copy.copy(World.array[x+xx][y+yy])
-                        if len(t) == 2:
-                            t.append([])
-                        t.append(9)
-                        tiles[(x+xx,y+yy)] = t
-        else:
-            t = copy.copy(World.array[x][y])
-            if len(t) == 2:
-                t.append([])
-            t.append(subtile)
-            tiles[(x,y)] = t
+        t = copy.copy(World.array[x][y])
+        if len(t) == 2:
+            t.append([])
+        t.append(subtile)
+        tiles[(x,y)] = t
         return tiles
 
     def mouse_down(self, position, collisionlist):
@@ -315,25 +303,61 @@ class Track(Tool):
 
     def mouse_move(self, position, collisionlist):
         """Tool updated, current cursor position is newpos"""
-        # If start is None, then there's no dragging operation ongoing, just update the position of the highlight
-        self.current = position
-        tile = self.collide_locate(self.current, collisionlist)
-        if tile and not tile.exclude:
-            subtile = self.subtile_position(self.current, tile)
-            # Only update the highlight if the cursor has changed enough to require it
-            if tile != self.tile or subtile != self.subtile:
-                self.set_highlight(self.find_highlight(tile.xWorld, tile.yWorld, subtile))
+        if self.startpos:
+            # First point already selected, find closest endpoint and draw highlight between them
+            tile = self.collide_locate(position, collisionlist)
+            if tile and not tile.exclude:
+                x = tile.xWorld
+                y = tile.yWorld
+                subtile = self.subtile_position(position, tile)
+                # If user's clicked in the middle of the tile, don't do anything for the moment
+                if self.collide_convert(subtile, end=True):
+                    self.temp_endpos = [(tile.xWorld,tile.yWorld), self.collide_convert(subtile, end=True)]
+                else:
+                    return False
+                debug("(temporary) endpos is now: %s" % self.temp_endpos)
+                # If we're doing a 2->1 type of track, need to ensure both arrays have same number of items
+                self.temp_startpos = copy.copy(self.startpos)
+                if len(self.temp_startpos[1]) > len(self.temp_endpos[1]):
+                    self.temp_endpos[1].append(self.temp_endpos[1][0])
+                elif len(self.temp_startpos[1]) < len(self.temp_endpos[1]):
+                    self.temp_startpos[1].append(self.temp_startpos[1][0])
+                # Copy World for this tile
+                t = copy.deepcopy(World.array[x][y])
+                if len(t) == 2:
+                    t.append([])
+                # Add a path to the World for each set of start/end positions
+                for s, e in zip(self.temp_startpos[1], self.temp_endpos[1]):
+                    t[2].append([s,e])
+                # Assign highlight in dict
+                self.set_highlight({(x,y): t})
+                # Set which tiles need updating
+                self.aoe = [(x,y)]
                 self.set_aoe_changed(True)
-                self.aoe = self.find_rect_aoe(tile.xWorld, tile.yWorld)
+                self.tile = tile
+                self.subtile = subtile
             else:
-                self.set_aoe_changed(False)
-            self.tile = tile
-            self.subtile = subtile
+                # Invalid location clicked on, do nothing
+                pass
         else:
-            self.set_highlight({})
-            self.set_aoe_changed(True)
-            self.tile = None
-            self.subtile = None
+            # If startpos is None there's no dragging operation ongoing, just update the position of the highlight
+            tile = self.collide_locate(position, collisionlist)
+            if tile and not tile.exclude:
+                subtile = self.subtile_position(position, tile)
+                # Only update the highlight if the cursor has changed enough to require it
+                if tile != self.tile or subtile != self.subtile:
+                    self.set_highlight(self.find_highlight(tile.xWorld, tile.yWorld, subtile))
+                    self.set_aoe_changed(True)
+                    self.aoe = self.find_rect_aoe(tile.xWorld, tile.yWorld)
+                else:
+                    self.set_aoe_changed(False)
+                self.tile = tile
+                self.subtile = subtile
+            else:
+                self.set_highlight({})
+                self.set_aoe_changed(True)
+                self.tile = None
+                self.subtile = None
  
     def collide_convert(self, subtile, start=False, end=False):
         """Convert subtile edge locations from collide_detect form to track drawing form"""
@@ -357,17 +381,17 @@ class Track(Tool):
                 return [b*3+2,b*3]
 
 
-class Test(Tool):
-    """Testing tool"""
+class Terrain(Tool):
+    """Terrain modification tool"""
     # Variables that persist through instances of this tool
-    # Reference with Test.var
+    # Reference with Terrain.var
     xdims = 1
     ydims = 1
     smooth = False
     def __init__(self):
-        """First time the Test tool is used"""
+        """First time the Terrain tool is used"""
         # Call init method of parent
-        super(Test, self).__init__()
+        super(Terrain, self).__init__()
         # tiles - all the tiles in the primary area of effect (ones which are modified first)
         self.tiles = []
         # Other variables used
@@ -378,28 +402,29 @@ class Test(Tool):
         debug("process_key: %s" % keyname)
         ret = False
         if keyname == "k":
-            Test.xdims += 1
+            Terrain.xdims += 1
             ret = True
         elif keyname == "o":
-            Test.xdims -= 1
-            if Test.xdims < 1:
-                Test.xdims = 1
+            Terrain.xdims -= 1
+            if Terrain.xdims < 1:
+                Terrain.xdims = 1
             ret = True
         elif keyname == "l":
-            Test.ydims += 1
+            Terrain.ydims += 1
             ret = True
         elif keyname == "i":
-            Test.ydims -= 1
-            if Test.ydims < 1:
-                Test.ydims = 1
+            Terrain.ydims -= 1
+            if Terrain.ydims < 1:
+                Terrain.ydims = 1
             ret = True
         elif keyname == "s":
-            Test.smooth = not(Test.smooth)
+            Terrain.smooth = not(Terrain.smooth)
             ret = True
         if keyname in ["i","o","k","l"]:
-            self.set_highlight(self.find_highlight(self.tile.xWorld, self.tile.yWorld, self.subtile))
-            self.set_aoe_changed(True)
-            self.aoe = self.find_rect_aoe(self.tile.xWorld, self.tile.yWorld)
+            if self.tile:
+                self.set_highlight(self.find_highlight(self.tile.xWorld, self.tile.yWorld, self.subtile))
+                self.set_aoe_changed(True)
+                self.aoe = self.find_rect_aoe(self.tile.xWorld, self.tile.yWorld)
             ret = True
         return ret
 
@@ -408,9 +433,9 @@ class Test(Tool):
         Return a list of tiles to modify in [(x,y), modifier] form
         Used to specify region which will be highlighted"""
         tiles = {}
-        if Test.xdims > 1 or Test.ydims > 1:
-            for xx in range(Test.xdims):
-                for yy in range(Test.ydims):
+        if self.xdims > 1 or self.ydims > 1:
+            for xx in range(self.xdims):
+                for yy in range(self.ydims):
                     try:
                         World.array[x+xx][y+yy]
                     except IndexError:
@@ -497,9 +522,9 @@ class Test(Tool):
 
             if diff != 0:
                 if len(self.tiles) > 1:
-                    r = self.modify_tiles(self.tiles, diff, soft=Test.smooth)
+                    r = self.modify_tiles(self.tiles, diff, soft=Terrain.smooth)
                 else:
-                    r = self.modify_tiles(self.tiles, diff, subtile=self.subtile, soft=Test.smooth)
+                    r = self.modify_tiles(self.tiles, diff, subtile=self.subtile, soft=Terrain.smooth)
                 # Addback is calcuated as the actual height change minus the requested height change. 
                 # The remainder is the amount of cursor movement which doesn't actually do anything.
                 # For example, if the cursor moves down (lowering the terrain) and hits the "0" level 
