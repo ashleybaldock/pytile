@@ -317,7 +317,6 @@ class TrackSprite(pygame.sprite.Sprite):
         self.cache[key] = surface
         return True
 
-
     def generate_image(self, paths):
         """Generate an image and add it to the cache"""
         # Generate a new surface to draw onto
@@ -353,11 +352,6 @@ class TrackSprite(pygame.sprite.Sprite):
         surface.set_colorkey(transparent)
 
         return surface
-
-
-
-
-
 
     def draw_rails(self, control_points):
         """Draw one set of rails using some control points and return a surface"""
@@ -396,10 +390,19 @@ class TrackSprite(pygame.sprite.Sprite):
             a = cps[p-1]
             a_to_b = b - a
             ab_n = a_to_b.normalized()
-            total_length += a_to_b.get_length() / ab_n.get_length()
+            debug("a_to_b = %s, ab_n = %s" % (a_to_b, ab_n))
+            try:
+                total_length += a_to_b.get_length() / ab_n.get_length()
+            except ZeroDivisionError:
+                total_length += 0
+                pass
         # number of sleepers is length, (minus one interval to make the ends line up) divided by interval length
         num_sleepers = float(total_length) / float(TrackSprite.sleeper_spacing)
-        true_spacing = float(total_length) / float(math.ceil(num_sleepers))
+        try:
+            true_spacing = float(total_length) / float(math.ceil(num_sleepers))
+        except ZeroDivisionError:
+            true_spacing = 0
+            pass
         for p in range(1, len(cps)):
             # find gradient of a->b
             b = cps[p]
@@ -409,7 +412,12 @@ class TrackSprite(pygame.sprite.Sprite):
             # vector to add to start vector, to get offset start location
             start_vector = overflow * ab_n
             # number of sleepers to draw in this section
-            n_sleepers, overflow = divmod((a_to_b + start_vector).get_length(), (ab_n * true_spacing).get_length())
+            try:
+                n_sleepers, overflow = divmod((a_to_b + start_vector).get_length(), (ab_n * true_spacing).get_length())
+            except ZeroDivisionError:
+                n_sleepers = 0
+                overflow = 0
+                pass
             n_sleepers = int(n_sleepers)
             # loop through n_sleepers, draw a sleeper at the start of each sleeper spacing interval
             if start:
