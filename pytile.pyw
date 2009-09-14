@@ -33,12 +33,12 @@
 
 
 # To add tracks - 
-#   Need to extend World schema to have slots for the track data on tiles
-#   Extend world painting to include drawing of tracks
-#   Port over the bezier curve drawing system
-#   Port over perspective transform for the flat images the bezier curve system produces
-#   Add Different highlight types (indexable by name)
-#   Add methods to track tool to actually draw tracks
+#   Need to extend World schema to have slots for the track data on tiles                   - Done
+#   Extend world painting to include drawing of tracks                                      - Done
+#   Port over the bezier curve drawing system                                               - Done
+#   Port over perspective transform for the flat images the bezier curve system produces    - Using perspective mapping of vector points - Done
+#   Add Different highlight types (indexable by name)                                       - 
+#   Add methods to track tool to actually draw tracks                                       - Done
 #       Extend this method with pathfinding to draw more than one tile's worth of track
 
 
