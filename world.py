@@ -629,7 +629,9 @@ class World(object):
         """Return paths of 4 tiles edge-neighbouring this one
         If tile off world, or tile has no paths, return empty array for that tile"""
         paths = []
+        debug("get_4_neighbour_paths")
         for xx, yy in zip([x-1,x,x+1,x],[y,y+1,y,y-1]):
+            print xx, yy
             try:
                 World.array[xx][yy]
             except IndexError:
@@ -641,6 +643,7 @@ class World(object):
                     paths.append([])
                 else:
                     paths.append(World.array[xx][yy][2])
+        print paths
         return paths
 
 

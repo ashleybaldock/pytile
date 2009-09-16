@@ -299,19 +299,89 @@ class TrackSprite(pygame.sprite.Sprite):
         print self.xWorld, self.yWorld, self.paths, self.neighbour_paths
     def update(self):
         """Draw image and return nothing"""
+        # Generate a new surface to draw onto
+        surface = pygame.Surface((self.size, self.size))
+        # Fill surface with transparent colour
+        surface.fill(transparent)
+
         # 1. Look up neighbours to see if this tile needs to have any of their
         #    paths drawn on it too
+        N, E, S, W = self.neighbour_paths
+        print N, E, S, W
+        # nps arranged as N, E, S, W
+        NE = [3,4,5]
+        SE = [11,10,9]
+        SW = [15,16,17]
+        NW = [21,22,23]
+        # Check N for SW & SE
+        n_out = []
+        for a in N:
+            for b in SW + SE:
+                if b in a:
+                    n_out = N
+        # Check E for NW & SW
+        e_out = []
+        for a in E:
+            for b in NW + SW:
+                if b in a:
+                    e_out = E
+        # Check S for NW & NE
+        s_out = []
+        for a in S:
+            for b in NW + NE:
+                if b in a:
+                    s_out = S
+        # Check W for NE & SE
+        w_out = []
+        for a in W:
+            for b in NE + SE:
+                if b in a:
+                    w_out = W
+        outs = [n_out, e_out, s_out, w_out]
+        debug("out is: %s" % outs)
+
         # 2. If so, look up those images in the cache (should be there if
         #    neighbour tile has drawn them, if not generates them
+        xdiffs = [ p2,  p2, -p2, -p2]
+        ydiffs = [-p4,  p4,  p4, -p4]
+        rgbs = [red, green, yellow, blue]
+        if True:
+            # For some reason when this code is enabled it draws [[4,16]] wrongly
+            # draws it as a [[1,13]]??
+            # Maybe because the cached image is being generated incorrectly by a
+            # previous call from a tile other than the one concerned
+            # Also doesn't seem to like blitting to negative positions
+            for rgb, xdiff, ydiff, out in zip(rgbs, xdiffs, ydiffs, outs):
+                if out != []:
+                    print out
+                    im = self.lookup_image(out)
+                    if not im:
+                        print "generating..."
+                        im = self.generate_image(out)
+                        # Works if we remove this, problem must be with the cache
+                        # not storing the correct images
+                        #self.add_cache_image(out, im)
+                    # Generate a new surface to draw onto
+                    #im = pygame.Surface((self.size, self.size))
+                    # Fill surface with transparent colour
+                    #im.fill(rgb)
+                    surface.blit(im, (xdiff, ydiff))
+
         # 3. Lookup & generate (if necessary) own image
+        debug("self.paths: %s" % str(self.paths))
+        ownim = self.lookup_image(self.paths)
+        if not ownim:
+            ownim = self.generate_image(self.paths)
+            self.add_cache_image(self.paths, ownim)
         # 4. Composit all of these images together
+        surface.blit(ownim, (0,0))
         # 5. Blit over the mask image to ensure nothing outside of this tile
         #    gets drawn to interfere with other tiles
-        # Look up own image in the cache, if not present composite the image
-        self.image = self.lookup_image(self.paths)
-        if not self.image:
-            self.image = self.generate_image(self.paths)
-            self.add_cache_image(self.paths, self.image)
+        surface.blit(TrackSprite.tilemask, (0,0))
+        # Set transparency
+        surface.set_colorkey(transparent)
+        # 6. Set self.image to the surface we've created
+        self.image = surface
 
         self.calc_rect()
 
@@ -386,9 +456,6 @@ class TrackSprite(pygame.sprite.Sprite):
 
         debug("Generating image from paths: %s" % paths)
 
-        # Blit over the mask, to ensure sprite doesn't exceed tile boundaries
-        surface.blit(TrackSprite.tilemask, (0,0))
-
         # Finally ensure surface is set back to correct colourkey for further additions
         surface.set_colorkey(transparent)
 
@@ -431,7 +498,6 @@ class TrackSprite(pygame.sprite.Sprite):
             a = cps[p-1]
             a_to_b = b - a
             ab_n = a_to_b.normalized()
-            debug("a_to_b = %s, ab_n = %s" % (a_to_b, ab_n))
             try:
                 total_length += a_to_b.get_length() / ab_n.get_length()
             except ZeroDivisionError:
