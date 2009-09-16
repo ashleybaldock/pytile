@@ -629,9 +629,7 @@ class World(object):
         """Return paths of 4 tiles edge-neighbouring this one
         If tile off world, or tile has no paths, return empty array for that tile"""
         paths = []
-        debug("get_4_neighbour_paths")
         for xx, yy in zip([x-1,x,x+1,x],[y,y+1,y,y-1]):
-            print xx, yy
             try:
                 World.array[xx][yy]
             except IndexError:
@@ -643,8 +641,30 @@ class World(object):
                     paths.append([])
                 else:
                     paths.append(World.array[xx][yy][2])
-        print paths
         return paths
+
+    def get_4_overlap_paths(self, neighbour_paths):
+        """Return paths of tiles to NESW which overlap the tile in question
+        Takes a list of 4 sets of paths for the 4 points of the compass"""
+        # 1. Look up neighbours to see if this tile needs to have any of their
+        #    paths drawn on it too
+        N, E, S, W = neighbour_paths
+        # nps arranged as N, E, S, W
+        NE = [3,4,5]
+        SE = [11,10,9]
+        SW = [15,16,17]
+        NW = [21,22,23]
+        outs = []
+        # Check all directions for neighbouring paths which need to be drawn
+        for paths, tests in zip([N,E,S,W], [SW+SE, NW+SW, NE+NW, SE+NE]):
+            paths_out = []
+            for path in paths:
+                for test in tests:
+                    if test in path:
+                        paths_out = paths
+            outs.append(paths_out)
+        return outs
+
 
 
 # Terrain can be modified in several ways

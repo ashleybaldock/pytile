@@ -306,66 +306,24 @@ class TrackSprite(pygame.sprite.Sprite):
 
         # 1. Look up neighbours to see if this tile needs to have any of their
         #    paths drawn on it too
-        N, E, S, W = self.neighbour_paths
-        print N, E, S, W
-        # nps arranged as N, E, S, W
-        NE = [3,4,5]
-        SE = [11,10,9]
-        SW = [15,16,17]
-        NW = [21,22,23]
-        # Check N for SW & SE
-        n_out = []
-        for a in N:
-            for b in SW + SE:
-                if b in a:
-                    n_out = N
-        # Check E for NW & SW
-        e_out = []
-        for a in E:
-            for b in NW + SW:
-                if b in a:
-                    e_out = E
-        # Check S for NW & NE
-        s_out = []
-        for a in S:
-            for b in NW + NE:
-                if b in a:
-                    s_out = S
-        # Check W for NE & SE
-        w_out = []
-        for a in W:
-            for b in NE + SE:
-                if b in a:
-                    w_out = W
-        outs = [n_out, e_out, s_out, w_out]
+        outs = World.get_4_overlap_paths(self.neighbour_paths)
         debug("out is: %s" % outs)
 
         # 2. If so, look up those images in the cache (should be there if
         #    neighbour tile has drawn them, if not generates them
         xdiffs = [ p2,  p2, -p2, -p2]
         ydiffs = [-p4,  p4,  p4, -p4]
-        rgbs = [red, green, yellow, blue]
-        if True:
-            # For some reason when this code is enabled it draws [[4,16]] wrongly
-            # draws it as a [[1,13]]??
-            # Maybe because the cached image is being generated incorrectly by a
-            # previous call from a tile other than the one concerned
-            # Also doesn't seem to like blitting to negative positions
-            for rgb, xdiff, ydiff, out in zip(rgbs, xdiffs, ydiffs, outs):
-                if out != []:
-                    print out
-                    im = self.lookup_image(out)
-                    if not im:
-                        print "generating..."
-                        im = self.generate_image(out)
-                        # Works if we remove this, problem must be with the cache
-                        # not storing the correct images
-                        #self.add_cache_image(out, im)
-                    # Generate a new surface to draw onto
-                    #im = pygame.Surface((self.size, self.size))
-                    # Fill surface with transparent colour
-                    #im.fill(rgb)
-                    surface.blit(im, (xdiff, ydiff))
+        for xdiff, ydiff, out in zip(xdiffs, ydiffs, outs):
+            if out != []:
+                print out
+                im = self.lookup_image(out)
+                if not im:
+                    print "generating..."
+                    im = self.generate_image(out)
+                    # Works if we remove this, problem must be with the cache
+                    # not storing the correct images
+                    #self.add_cache_image(out, im)
+                surface.blit(im, (xdiff, ydiff))
 
         # 3. Lookup & generate (if necessary) own image
         debug("self.paths: %s" % str(self.paths))
@@ -373,13 +331,16 @@ class TrackSprite(pygame.sprite.Sprite):
         if not ownim:
             ownim = self.generate_image(self.paths)
             self.add_cache_image(self.paths, ownim)
+
         # 4. Composit all of these images together
         surface.blit(ownim, (0,0))
+
         # 5. Blit over the mask image to ensure nothing outside of this tile
         #    gets drawn to interfere with other tiles
         surface.blit(TrackSprite.tilemask, (0,0))
         # Set transparency
         surface.set_colorkey(transparent)
+
         # 6. Set self.image to the surface we've created
         self.image = surface
 
@@ -435,24 +396,25 @@ class TrackSprite(pygame.sprite.Sprite):
         layers = [[],[],[]]
         layer_props = [1,0,0]
 
-        for path in self.paths:
-            cps = self.calc_control_points(path[0:2])
-            # When multiple waytypes implemented look up in "type" attribute how many layers, order of layers etc.
-            layers[0].append(self.draw_ballast_mask(cps))
-            layers[1].append(self.draw_sleepers(cps))
-            layers[2].append(self.draw_rails(cps))
-        # Merge all layers down
-        for n, l in zip(layer_props, layers):
-            im = False
-            for i in l:
-                if not im:
-                    im = i
-                else:
-                    im.blit(i, (0, 0))
-            # Map texture if required
-            if n == 1:
-                im = self.map_ballast_texture(im)
-            surface.blit(im, (0, p2))
+        if self.paths != []:
+            for path in self.paths:
+                cps = self.calc_control_points(path[0:2])
+                # When multiple waytypes implemented look up in "type" attribute how many layers, order of layers etc.
+                layers[0].append(self.draw_ballast_mask(cps))
+                layers[1].append(self.draw_sleepers(cps))
+                layers[2].append(self.draw_rails(cps))
+            # Merge all layers down
+            for n, l in zip(layer_props, layers):
+                im = False
+                for i in l:
+                    if not im:
+                        im = i
+                    else:
+                        im.blit(i, (0, 0))
+                # Map texture if required
+                if n == 1:
+                    im = self.map_ballast_texture(im)
+                surface.blit(im, (0, p2))
 
         debug("Generating image from paths: %s" % paths)
 
@@ -1039,19 +1001,22 @@ class DisplayMain(object):
                 self.orderedSpritesDict[(x, y)] = cliffs
                 self.orderedSprites.add(cliffs, layer=l)
 
-                # If there are tracks on this tile, add a track sprite
-                # Track sprite doesn't need to be re-added, only updated!
-                try:
-                    tile[2]
-                except IndexError:
-                    pass
-                else:
-                    if tile[2] != []:
-                        ts = TrackSprite(x, y, tile[0], init_paths=tile[2], exclude=True)
-                        ts.update_xyz()
-
-                        self.orderedSprites.add(ts, layer=l+1)
-                        self.orderedSpritesDict[(x, y)].append(ts)
+                # Improvement: Track sprite doesn't need to be re-added, only updated!
+                # If there are tracks on this tile, or overlapping tracks on a 
+                # neighbouring tile then add a track sprite
+                paths = World.get_paths(x,y)
+                if paths == []:
+                    npaths = World.get_4_overlap_paths(World.get_4_neighbour_paths(x,y))
+                if paths != [] or npaths != [[],[],[],[]]:
+                    try:
+                        tile[2]
+                    except:
+                        t = TrackSprite(x, y, tile[0], exclude=True)
+                    else:
+                        t = TrackSprite(x, y, tile[0], init_paths=tile[2], exclude=True)
+                    #t.update_xyz()
+                    self.orderedSprites.add(t, layer=l+1)
+                    self.orderedSpritesDict[(x, y)].append(t)
 
     def get_layer(self, x, y):
         """Return the layer a sprite should be based on some parameters"""
@@ -1095,16 +1060,16 @@ class DisplayMain(object):
 
                     add_to_dict.append(t)
                     self.orderedSprites.add(t, layer=l)
-                    # If there are tracks on this tile, add a track sprite
-                    try:
-                        tile[2]
-                    except IndexError:
-                        pass
-                    else:
-                        if tile[2] != []:
-                            t = TrackSprite(x, y, tile[0], exclude=True)
-                            add_to_dict.append(t)
-                            self.orderedSprites.add(t, layer=l+1)
+
+                    # If there are tracks on this tile, or overlapping tracks on a 
+                    # neighbouring tile then add a track sprite
+                    paths = World.get_paths(x,y)
+                    if paths == []:
+                        npaths = World.get_4_overlap_paths(World.get_4_neighbour_paths(x,y))
+                    if paths != [] or npaths != [[],[],[],[]]:
+                        t = TrackSprite(x, y, tile[0], exclude=True)
+                        add_to_dict.append(t)
+                        self.orderedSprites.add(t, layer=l+1)
 
                     # Add vertical surfaces (cliffs) for this tile (if any)
                     for t in self.make_cliffs(x, y):
