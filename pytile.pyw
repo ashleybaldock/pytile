@@ -172,10 +172,12 @@ class TrackSprite(pygame.sprite.Sprite):
              "curve_multiplier": 0.02,
              }
     props_lookup = []
+    tilemask = None
     for key in props.keys():
         props_lookup.append(key)
 
-    def __init__(self, xWorld, yWorld, zWorld, init_paths=None, exclude=True):
+    def __init__(self, xWorld, yWorld, zWorld, init_paths=None, 
+                 init_neighbour_paths=None, exclude=True):
         """"""
         pygame.sprite.Sprite.__init__(self)
         if TrackSprite.init:
@@ -187,15 +189,38 @@ class TrackSprite(pygame.sprite.Sprite):
             TrackSprite.bezier_steps = 30
             self.update_dimensions()
             self.gen_box()
+            TrackSprite.tilemask = self.make_mask()
         self.xWorld = xWorld
         self.yWorld = yWorld
         self.zWorld = zWorld
         self.exclude = exclude
+        # Init paths and neighbour_paths for this tile
+        # Either init from the World, or, in the case of highlights (and other
+        # temporary drawing operations) from an array passed in
         if init_paths == None:
             self.update_paths()
         else:
             self.paths = init_paths
+        if init_neighbour_paths == None:
+            self.update_neighbour_paths()
+        else:
+            self.neighbour_paths = init_neighbour_paths
         self.update()
+
+    def make_mask(self):
+        """Make a mask image ready for combination with the output image"""
+        # Generate a new surface to draw onto
+        surface = pygame.Surface((p, p))
+        # Fill surface with transparent colour
+        surface.fill(transparent)
+        pointlist = [(p/2,p),(0,p/4+p/2),(p/2-1,p/2+1),(p/2,p/2+1),(p-1,p/4+p/2),(p/2,p-1)] 
+        # Draw the mask in black, transparent background, but this image has its
+        # transparency set to black. When blitted over another image the black
+        # part won't be drawn, but the transparent colour part will
+        pygame.draw.polygon(surface, black, pointlist)
+        # Finally ensure surface is set back to correct colourkey for further additions
+        surface.set_colorkey(black)
+        return surface
 
     def gen_box(self):
         """Generate the array of box endpoints used for drawing tracks"""
@@ -265,11 +290,23 @@ class TrackSprite(pygame.sprite.Sprite):
         self.zWorld = World.array[self.xWorld][self.yWorld][0]
         return self.calc_rect()
     def update_paths(self):
-        """Read paths for this tile from World array and update image accordingly"""
-        self.paths = World.array[self.xWorld][self.yWorld][2]
+        """Read paths for this tile from World array"""
+        self.paths = World.get_paths(self.xWorld, self.yWorld)
         # paths in form [[start, end(, starttype, endtype)], ...]
+    def update_neighbour_paths(self):
+        """Read neighbouring paths from the World array"""
+        self.neighbour_paths = World.get_4_neighbour_paths(self.xWorld, self.yWorld)
+        print self.xWorld, self.yWorld, self.paths, self.neighbour_paths
     def update(self):
         """Draw image and return nothing"""
+        # 1. Look up neighbours to see if this tile needs to have any of their
+        #    paths drawn on it too
+        # 2. If so, look up those images in the cache (should be there if
+        #    neighbour tile has drawn them, if not generates them
+        # 3. Lookup & generate (if necessary) own image
+        # 4. Composit all of these images together
+        # 5. Blit over the mask image to ensure nothing outside of this tile
+        #    gets drawn to interfere with other tiles
         # Look up own image in the cache, if not present composite the image
         self.image = self.lookup_image(self.paths)
         if not self.image:
@@ -280,6 +317,7 @@ class TrackSprite(pygame.sprite.Sprite):
 
     def lookup_image(self, paths):
         """Try to lookup an image in the cache, returns image or False if it isn't cached"""
+        # 
         key = self.make_cache_key(paths)
         if self.cache.has_key(key):
             # debug("Looking up cache key %s succeeded!" % str(key))
@@ -347,6 +385,9 @@ class TrackSprite(pygame.sprite.Sprite):
             surface.blit(im, (0, p2))
 
         debug("Generating image from paths: %s" % paths)
+
+        # Blit over the mask, to ensure sprite doesn't exceed tile boundaries
+        surface.blit(TrackSprite.tilemask, (0,0))
 
         # Finally ensure surface is set back to correct colourkey for further additions
         surface.set_colorkey(transparent)

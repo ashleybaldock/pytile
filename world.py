@@ -617,6 +617,31 @@ class World(object):
             debug("(EXISTING) Adding path: %s to location: (%s,%s)" % (path, x, y))
         return True
 
+    def get_paths(self, x, y):
+        """Return paths at specified tile coordinate"""
+        try:
+            World.array[x][y][2]
+        except IndexError:
+            return []
+        else:
+            return World.array[x][y][2]
+    def get_4_neighbour_paths(self, x, y):
+        """Return paths of 4 tiles edge-neighbouring this one
+        If tile off world, or tile has no paths, return empty array for that tile"""
+        paths = []
+        for xx, yy in zip([x-1,x,x+1,x],[y,y+1,y,y-1]):
+            try:
+                World.array[xx][yy]
+            except IndexError:
+                paths.append([])
+            else:
+                try:
+                    World.array[xx][yy][2]
+                except IndexError:
+                    paths.append([])
+                else:
+                    paths.append(World.array[xx][yy][2])
+        return paths
 
 
 # Terrain can be modified in several ways
