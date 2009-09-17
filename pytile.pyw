@@ -176,7 +176,6 @@ class TrackSprite(pygame.sprite.Sprite):
     for key in props.keys():
         props_lookup.append(key)
 
-
     def __init__(self, xWorld, yWorld, zWorld, init_paths=None, 
                  init_neighbour_paths=None, exclude=True):
         """"""
@@ -208,17 +207,17 @@ class TrackSprite(pygame.sprite.Sprite):
             self.neighbour_paths = init_neighbour_paths
         # Bottom-most layer first
         self.layer_profiles = [
-                               {"name":"ballast",
-                                "render":self.map_ballast_texture,
-                                "function":self.draw_ballast_mask,
+                               {"name": "ballast",
+                                "render": self.map_ballast_texture,
+                                "function": self.draw_ballast_mask,
                                 },
-                               {"name":"sleepers",
-                                "render":False,
-                                "function":self.draw_sleepers,
+                               {"name": "sleepers",
+                                "render": False,
+                                "function": self.draw_sleepers,
                                 },
-                               {"name":"rails",
-                                "render":False,
-                                "function":self.draw_rails,
+                               {"name": "rails",
+                                "render": False,
+                                "function": self.draw_rails,
                                 },
                               ]
         self.update()
@@ -229,12 +228,11 @@ class TrackSprite(pygame.sprite.Sprite):
         surface = pygame.Surface((p, p))
         # Fill surface with transparent colour
         surface.fill(transparent)
-        pointlist = [(p/2,p),(0,p/4+p/2),(p/2-1,p/2+1),(p/2,p/2+1),(p-1,p/4+p/2),(p/2,p-1)] 
+        pointlist = [(p2,p),(0,p4+p2),(p2-1,p2+1),(p2,p2+1),(p-1,p4+p2),(p2,p-1)] 
         # Draw the mask in black, transparent background, but this image has its
         # transparency set to black. When blitted over another image the black
         # part won't be drawn, but the transparent colour part will
         pygame.draw.polygon(surface, black, pointlist)
-        # Finally ensure surface is set back to correct colourkey for further additions
         surface.set_colorkey(black)
         return surface
 
@@ -379,11 +377,13 @@ class TrackSprite(pygame.sprite.Sprite):
         """Make an imutable string key suitable for doing image cache lookups"""
         # Strip any duplicates (shouldn't be but worth checking)
 
-        # First ensure that all paths are in small->big order, e.g. [13,1,t,t] converts to [1,13,t,t]
+        # First ensure that all paths are in small->big order
+        # e.g. [13,1,t,t] converts to [1,13,t,t]
         for path in paths:
             if path[0] > path[1]:
                 path.insert(1, path.pop(0))
-        # Then ensure that list of paths is similarly ordered, e.g. [[10,22,t,t],[1,13,t,t]] converts to [[1,13,t,t],[10,22,t,t]]
+        # Then ensure that list of paths is similarly ordered
+        # e.g. [[10,22,t,t],[1,13,t,t]] converts to [[1,13,t,t],[10,22,t,t]]
         paths.sort(key=operator.itemgetter(slice(0,2)))
         # Convert to a tuple for immutable dict key
         a = []
@@ -394,13 +394,14 @@ class TrackSprite(pygame.sprite.Sprite):
     def add_cache_image(self, paths, surfaces):
         """Add an image set to the cache"""
         # Entries in the cache are of form:
-        #   ((1,13,type1,type1),(1,10,type1,type1), ... ) : [combined, layer1, layer2, layer3, ... ]
-        # Each layer is an image, combined is the overall result, this is always [0] in the array
+        #   ((1,13,type1,type1),(1,10,type1,type1), ... ) : 
+        #    [combined, layer1, layer2, layer3, ... ]
+        # Each layer is an image, combined is the overall result, 
+        # this is always [0] in the array
         key = self.make_cache_key(paths)
         debug("Adding cache images with key: %s" % str(key))
         self.cache[key] = surfaces
         return True
-
 
     def generate_image(self, paths):
         """Generate a set of images representing this set of track
@@ -841,7 +842,6 @@ class DisplayMain(object):
         self.active_tool_sprite = TextSprite((10,10), ["Terrain modification"], instructions_font, 
                                              fg=(0,0,0), bg=(255,255,255), bold=False)
         self.overlay_sprites.add(self.active_tool_sprite, layer=100)
-
 
         while True:
             self.clock.tick(0)
