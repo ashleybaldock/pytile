@@ -1004,16 +1004,14 @@ class DisplayMain(object):
                 # Improvement: Track sprite doesn't need to be re-added, only updated!
                 # If there are tracks on this tile, or overlapping tracks on a 
                 # neighbouring tile then add a track sprite
-                paths = World.get_paths(x,y)
+                try:
+                    paths = tile[2]
+                except IndexError:
+                    paths = World.get_paths(x,y)
                 if paths == []:
-                    npaths = World.get_4_overlap_paths(World.get_4_neighbour_paths(x,y))
+                    npaths = World.get_4_overlap_paths(World.get_4_neighbour_paths(x,y, highlight))
                 if paths != [] or npaths != [[],[],[],[]]:
-                    try:
-                        tile[2]
-                    except:
-                        t = TrackSprite(x, y, tile[0], exclude=True)
-                    else:
-                        t = TrackSprite(x, y, tile[0], init_paths=tile[2], exclude=True)
+                    t = TrackSprite(x, y, tile[0], init_paths=paths, exclude=True)
                     #t.update_xyz()
                     self.orderedSprites.add(t, layer=l+1)
                     self.orderedSpritesDict[(x, y)].append(t)
