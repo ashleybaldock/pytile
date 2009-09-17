@@ -46,7 +46,7 @@
 import os, sys, operator
 import pygame
 import random, math
-from copy import copy
+from copy import copy, deepcopy
 
 import logger
 debug = logger.Log()
@@ -176,6 +176,7 @@ class TrackSprite(pygame.sprite.Sprite):
     for key in props.keys():
         props_lookup.append(key)
 
+
     def __init__(self, xWorld, yWorld, zWorld, init_paths=None, 
                  init_neighbour_paths=None, exclude=True):
         """"""
@@ -205,6 +206,21 @@ class TrackSprite(pygame.sprite.Sprite):
             self.update_neighbour_paths()
         else:
             self.neighbour_paths = init_neighbour_paths
+        # Bottom-most layer first
+        self.layer_profiles = [
+                               {"name":"ballast",
+                                "render":self.map_ballast_texture,
+                                "function":self.draw_ballast_mask,
+                                },
+                               {"name":"sleepers",
+                                "render":False,
+                                "function":self.draw_sleepers,
+                                },
+                               {"name":"rails",
+                                "render":False,
+                                "function":self.draw_rails,
+                                },
+                              ]
         self.update()
 
     def make_mask(self):
@@ -304,36 +320,39 @@ class TrackSprite(pygame.sprite.Sprite):
         # Fill surface with transparent colour
         surface.fill(transparent)
 
-        # 1. Look up neighbours to see if this tile needs to have any of their
-        #    paths drawn on it too
-        outs = World.get_4_overlap_paths(self.neighbour_paths)
-        debug("out is: %s" % outs)
+        # 1. Setup array to hold all layers ready for composition
+        all4ims = []
+        for n in range(len(self.layer_profiles)):
+            all4ims.append([])
 
-        # 2. If so, look up those images in the cache (should be there if
-        #    neighbour tile has drawn them, if not generates them
+        # 2. Lookup & generate own image
+        ownims = self.lookup_image(self.paths)
+        if not ownims:
+            ownims = self.generate_image(self.paths)
+            self.add_cache_image(self.paths, ownims)
+        for n, im in enumerate(ownims):
+            all4ims[n].append((im, (0,0)))
+
+        # 3. Look up neighbours to see if this tile needs to have any of their
+        #    paths drawn on it too
+        # Offsets in x/y to blit neighbours
         xdiffs = [ p2,  p2, -p2, -p2]
         ydiffs = [-p4,  p4,  p4, -p4]
-        for xdiff, ydiff, out in zip(xdiffs, ydiffs, outs):
+        outs = World.get_4_overlap_paths(self.neighbour_paths)
+        for n, xdiff, ydiff, out in zip([0,1,2,3], xdiffs, ydiffs, outs):
             if out != []:
-                print out
-                im = self.lookup_image(out)
-                if not im:
-                    print "generating..."
-                    im = self.generate_image(out)
-                    # Works if we remove this, problem must be with the cache
-                    # not storing the correct images
-                    #self.add_cache_image(out, im)
-                surface.blit(im, (xdiff, ydiff))
+                ims = self.lookup_image(out)
+                if not ims:
+                    ims = self.generate_image(out)
+                for n, im in enumerate(ims):
+                    # For each layer, add the image and the position to blit it
+                    # to in the ouput
+                    all4ims[n].append((im, (xdiff,ydiff)))
 
-        # 3. Lookup & generate (if necessary) own image
-        debug("self.paths: %s" % str(self.paths))
-        ownim = self.lookup_image(self.paths)
-        if not ownim:
-            ownim = self.generate_image(self.paths)
-            self.add_cache_image(self.paths, ownim)
-
-        # 4. Composit all of these images together
-        surface.blit(ownim, (0,0))
+        # 4. Composite all of these images together
+        for imset in all4ims:
+            for im, pos in imset:
+                surface.blit(im, pos)
 
         # 5. Blit over the mask image to ensure nothing outside of this tile
         #    gets drawn to interfere with other tiles
@@ -347,7 +366,7 @@ class TrackSprite(pygame.sprite.Sprite):
         self.calc_rect()
 
     def lookup_image(self, paths):
-        """Try to lookup an image in the cache, returns image or False if it isn't cached"""
+        """Try to lookup an image set in the cache, returns image set or False if it isn't cached"""
         key = self.make_cache_key(paths)
         if self.cache.has_key(key):
             # debug("Looking up cache key %s succeeded!" % str(key))
@@ -372,56 +391,42 @@ class TrackSprite(pygame.sprite.Sprite):
             a.append(tuple(path))
         return tuple(a)
 
-    def add_cache_image(self, paths, surface):
-        """Add an image to the cache"""
+    def add_cache_image(self, paths, surfaces):
+        """Add an image set to the cache"""
         # Entries in the cache are of form:
         #   ((1,13,type1,type1),(1,10,type1,type1), ... ) : [combined, layer1, layer2, layer3, ... ]
         # Each layer is an image, combined is the overall result, this is always [0] in the array
         key = self.make_cache_key(paths)
-        #self.cache[key] = []
-        #for surface in surfaces:
-        #    self.cache[key].append(surface)
-        debug("Adding cache image with key: %s" % str(key))
-        self.cache[key] = surface
+        debug("Adding cache images with key: %s" % str(key))
+        self.cache[key] = surfaces
         return True
 
+
     def generate_image(self, paths):
-        """Generate an image and add it to the cache"""
-        # Generate a new surface to draw onto
-        surface = pygame.Surface((self.size, self.size))
-        # Fill surface with transparent colour
-        surface.fill(transparent)
+        """Generate a set of images representing this set of track
+        paths and add it to the cache"""
+        # List of surfaces which, when blitted together, make up this graphic
+        surfaces = []
+        debug("Generating images from paths: %s" % paths)
 
-        layers = [[],[],[]]
-        layer_props = [1,0,0]
-
-        if self.paths != []:
-            for path in self.paths:
-                cps = self.calc_control_points(path[0:2])
-                # When multiple waytypes implemented look up in "type" attribute how many layers, order of layers etc.
-                layers[0].append(self.draw_ballast_mask(cps))
-                layers[1].append(self.draw_sleepers(cps))
-                layers[2].append(self.draw_rails(cps))
-            # Merge all layers down
-            for n, l in zip(layer_props, layers):
-                im = False
-                for i in l:
-                    if not im:
-                        im = i
-                    else:
-                        im.blit(i, (0, 0))
-                # Map texture if required
-                if n == 1:
-                    im = self.map_ballast_texture(im)
-                surface.blit(im, (0, p2))
-
-        debug("Generating image from paths: %s" % paths)
-
-        # Finally ensure surface is set back to correct colourkey for further additions
-        surface.set_colorkey(transparent)
-
-        return surface
-
+        for layer in self.layer_profiles:
+            # Generate a new surface to draw onto
+            surface = pygame.Surface((self.size, self.size))
+            # Fill surface with transparent colour
+            surface.fill(transparent)
+            if self.paths != []:
+                for path in self.paths:
+                    # Improvement: Move this out of this look to do it only once per
+                    # path, rather than once per path per layer
+                    cps = self.calc_control_points(path[0:2])
+                    surface.blit(layer["function"](cps), (0, p2))
+                    if layer["render"]:
+                        surface = layer["render"](surface)
+            surface.set_colorkey(transparent)
+            surfaces.append(surface)
+        debug("surfaces array = %s" % str(surfaces))
+        return surfaces
+        
     def draw_rails(self, control_points):
         """Draw one set of rails using some control points and return a surface"""
         # Generate a new surface to draw onto
