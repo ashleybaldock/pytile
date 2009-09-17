@@ -161,13 +161,13 @@ class TrackSprite(pygame.sprite.Sprite):
     TILE_SIZE = p
     props = {
              "track_width": 0.05,           # Relative to tile size
-             "track_spacing": 2.0,
+             "track_spacing": 2.5,
              "sleeper_spacing": 0.75,
              "sleeper_width": 0.3,
              "sleeper_length": 1.5,
              "rail_spacing": 0.9,
              "rail_width": 0.2,
-             "ballast_width": 2.3,
+             "ballast_width": 3.5,
              "curve_factor": 0.3,           # Relative to tile size
              "curve_multiplier": 0.02,
              }
