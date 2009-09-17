@@ -348,7 +348,6 @@ class TrackSprite(pygame.sprite.Sprite):
 
     def lookup_image(self, paths):
         """Try to lookup an image in the cache, returns image or False if it isn't cached"""
-        # 
         key = self.make_cache_key(paths)
         if self.cache.has_key(key):
             # debug("Looking up cache key %s succeeded!" % str(key))
@@ -554,8 +553,13 @@ class TrackSprite(pygame.sprite.Sprite):
         """Calculate control points from a path"""
         a = self.endpoints[p[0]][0]
         d = self.endpoints[p[1]][0]
+        # Straight lines
+        sl = [(0,14),(1,13),(2,12),
+              (3,17),(4,16),(5,15),
+              (6,20),(7,19),(8,18),
+              (9,23),(10,22),(11,21)]
         # If this tile is a straight line no need to use a bezier curve
-        if p[0] + p[1] in [32,26,20,14]:
+        if (p[0], p[1]) in sl:
             return [a,d]
         else:
             p0 = p[0]
