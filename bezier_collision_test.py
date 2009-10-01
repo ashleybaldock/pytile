@@ -52,6 +52,9 @@ black = (0,0,0)
 white = (255,255,255)
 yellow = (255,255,0)
 
+nothing = (0,0,0,0)
+opaque = (0,0,0,255)
+
 FPS_REFRESH = 500
 WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 800
@@ -71,10 +74,16 @@ class ControlMover(Tool):
     def collide_control_points(self, mousepos, sprites):
         """Collide invisible mouseSprite against invisible control_points
         for all sprites, to find control_point we're interacting with"""
-        control_points = []
+        allsprites = pygame.sprite.Group()
+
         for s in sprites:
-            for cp in sprites.control_points:
-                control_points.append(cp)
+            allsprites.add(s.CPGroup.sprites())
+        colsprite = self.collide_locate(mousepos, allsprites)
+        if colsprite:
+            print colsprite.label
+    def mouse_move(self, position, collisionlist):
+        """Tool updated, current cursor position is newpos"""
+        self.collide_control_points(position, collisionlist)
 
 
 class CPSprite(pygame.sprite.Sprite):
@@ -83,7 +92,7 @@ class CPSprite(pygame.sprite.Sprite):
     image = None
     mask = None
     radius = 10
-    def __init__(self, position):
+    def __init__(self, position, label=None):
         pygame.sprite.Sprite.__init__(self)
         if CPSprite.image is None:
             CPSprite.image = pygame.Surface((CPSprite.radius*2, CPSprite.radius*2))
@@ -92,16 +101,21 @@ class CPSprite(pygame.sprite.Sprite):
                                CPSprite.radius)
         if CPSprite.mask is None:
             s = pygame.Surface((CPSprite.radius, CPSprite.radius))
-            s.fill(black)
-            pygame.draw.circle(s, white, (CPSprite.radius*2, CPSprite.radius*2), 
+            s.fill(nothing)
+            pygame.draw.circle(s, opaque, (CPSprite.radius*2, CPSprite.radius*2), 
                                CPSprite.radius)
-            MouseSprite.mask = pygame.mask.from_threshold(s, white)
+            CPSprite.mask = pygame.mask.from_surface(s, 1)
         self.mask = CPSprite.mask
         self.image = CPSprite.image
         self.rect = pygame.Rect(position.x - CPSprite.radius, 
                                 position.y - CPSprite.radius, 
                                 CPSprite.radius, 
                                 CPSprite.radius)
+        if label is None:
+            self.label = "No Label"
+        else:
+            self.label = label
+        self.exclude = False
     def update(self, position):
         self.rect = pygame.Rect(position.x - CPSprite.radius, 
                                 position.y - CPSprite.radius, 
@@ -200,13 +214,13 @@ class BezCurve(pygame.sprite.Sprite):
         self.CPDict = {}
         print self.control_points
         for cp, key in zip(self.control_points, ["e0", "e1", "e2", "e3"]):
-            sp = CPSprite(cp + self.position)
+            sp = CPSprite(cp + self.position, label=key)
             self.CPGroup.add(sp)
             self.CPDict[key] = sp
         # Calculate the sprite's rect
         self.calc_rect()
         # Add CP for middle of shape to move it
-        sp = CPSprite(self.position + vec2d(self.width / 2, self.height / 2))
+        sp = CPSprite(self.position + vec2d(self.width / 2, self.height / 2), label="move")
         self.CPGroup.add(sp)
         self.CPDict["move"] = sp
         # Debugging printout of entire dict/group
@@ -376,6 +390,8 @@ class DisplayMain(object):
                 for a in self.dirty:
                     self.screen.fill(darkgreen, a)
                 rectlist = self.sprites.draw(self.screen)
+                for s in self.sprites.sprites():
+                    s.CPGroup.draw(self.screen)
                 pygame.display.update(self.dirty)
 
     def update_world(self):
