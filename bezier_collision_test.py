@@ -90,22 +90,17 @@ class CPSprite(pygame.sprite.Sprite):
     """Invisible sprite to represent control points of sprites"""
     # This sprite never gets drawn, so no need to worry about what it looks like
     image = None
-    mask = None
+    #mask = None
     radius = 10
     def __init__(self, position, label=None):
         pygame.sprite.Sprite.__init__(self)
         if CPSprite.image is None:
             CPSprite.image = pygame.Surface((CPSprite.radius*2, CPSprite.radius*2))
+            CPSprite.image.fill(black)
             pygame.draw.circle(CPSprite.image, white, 
                                (CPSprite.radius, CPSprite.radius), 
                                CPSprite.radius)
-        if CPSprite.mask is None:
-            s = pygame.Surface((CPSprite.radius, CPSprite.radius))
-            s.fill(nothing)
-            pygame.draw.circle(s, opaque, (CPSprite.radius*2, CPSprite.radius*2), 
-                               CPSprite.radius)
-            CPSprite.mask = pygame.mask.from_surface(s, 1)
-        self.mask = CPSprite.mask
+            CPSprite.image.set_colorkey(black)
         self.image = CPSprite.image
         self.rect = pygame.Rect(position.x - CPSprite.radius, 
                                 position.y - CPSprite.radius, 
