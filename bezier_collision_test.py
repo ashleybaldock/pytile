@@ -31,6 +31,7 @@ from pygame.locals import *
 from numpy import *
 
 from bezier import Bezier
+from tools import Tool, MouseSprite
 
 import logger
 debug = logger.Log()
@@ -55,6 +56,68 @@ FPS_REFRESH = 500
 WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 800
 
+class ControlMover(Tool):
+    """"""
+    def __init__(self):
+        """First time this tool is used"""
+        super(ControlMover, self).__init__()
+    # Find all sprites collided with this point on the screen
+    # Draw their control points, and collide detect against those to find
+    # the one which we need to modify
+    # Once the control point and the sprite are determined, use sprite's
+    # control_point_modify method to change them
+    # This returns a rect area, which should be set as the tool's aoe
+    # This in turn will be used to update the screen
+    def collide_control_points(self, mousepos, sprites):
+        """Collide invisible mouseSprite against invisible control_points
+        for all sprites, to find control_point we're interacting with"""
+        control_points = []
+        for s in sprites:
+            for cp in sprites.control_points:
+                control_points.append(cp)
+
+
+class CPSprite(pygame.sprite.Sprite):
+    """Invisible sprite to represent control points of sprites"""
+    # This sprite never gets drawn, so no need to worry about what it looks like
+    image = None
+    mask = None
+    radius = 10
+    def __init__(self, position):
+        pygame.sprite.Sprite.__init__(self)
+        if CPSprite.image is None:
+            CPSprite.image = pygame.Surface((CPSprite.radius*2, CPSprite.radius*2))
+            pygame.draw.circle(CPSprite.image, white, 
+                               (CPSprite.radius, CPSprite.radius), 
+                               CPSprite.radius)
+        if CPSprite.mask is None:
+            s = pygame.Surface((CPSprite.radius, CPSprite.radius))
+            s.fill(black)
+            pygame.draw.circle(s, white, (CPSprite.radius*2, CPSprite.radius*2), 
+                               CPSprite.radius)
+            MouseSprite.mask = pygame.mask.from_threshold(s, white)
+        self.mask = CPSprite.mask
+        self.image = CPSprite.image
+        self.rect = pygame.Rect(position.x - CPSprite.radius, 
+                                position.y - CPSprite.radius, 
+                                CPSprite.radius, 
+                                CPSprite.radius)
+    def update(self, position):
+        self.rect = pygame.Rect(position.x - CPSprite.radius, 
+                                position.y - CPSprite.radius, 
+                                CPSprite.radius, 
+                                CPSprite.radius)
+
+class ScreenMover(Tool):
+    """"""
+    def __init__(self):
+        """First time this tool is used"""
+        super(ScreenMover, self).__init__()
+    def active(self):
+        return False
+
+
+
 class Circle(pygame.sprite.Sprite):
     """A circle graphic"""
     init = True
@@ -67,8 +130,29 @@ class Circle(pygame.sprite.Sprite):
         # Position of this graphic
         self.position = position
 
-        # 4 Control points defining the curve
+        # Circles defined by radius
         self.radius = radius
+        # Control points, one in center, one for radius
+        # Control points are relative to the position
+        self.control_points = [vec2d(self.radius,
+                                     self.radius), 
+                               vec2d(self.radius * 2,
+                                     self.radius)]
+        # CPGroup, sprite group containing all control points for quick access
+        self.CPGroup = pygame.sprite.Group()
+        # CPDict, dict containing keyed control points for easy access to modify
+        self.CPDict = {}
+        sp = CPSprite(self.position + vec2d(self.radius, self.radius))
+        self.CPGroup.add(sp)
+        self.CPDict["move"] = sp
+        # Calculate the sprite's rect
+        self.calc_rect()
+        # Add CP for middle of shape to move it
+        sp = CPSprite(self.position + vec2d(self.radius * 2, self.radius))
+        self.CPGroup.add(sp)
+        self.CPDict["radius"] = sp
+        # Debugging printout of entire dict/group
+        debug("CPDict: %s, CPGroup: %s" % (str(self.CPDict), str(self.CPGroup.sprites())))
         self.calc_rect()
         self.update()
 
@@ -86,10 +170,9 @@ class Circle(pygame.sprite.Sprite):
 
         # Draw the circle
         pygame.draw.circle(self.image, white, (self.radius, self.radius), self.radius, 1)
-        # Draw circle center control point
-        pygame.draw.circle(self.image, red, (self.radius, self.radius), 2)
-        # Draw circle radius control point
-        pygame.draw.circle(self.image, red, (self.radius*2, self.radius), 2)
+        # Draw circle conntrol points
+        for p in self.control_points:
+            pygame.draw.circle(self.image, red, p, 2)
 
         self.calc_rect()
 
@@ -106,17 +189,38 @@ class BezCurve(pygame.sprite.Sprite):
         self.position = position
 
         # 4 Control points defining the curve
+        # Also needs a control point to move the shape
+        # but probably better to build this into a different item
+        # e.g. move_control_point, which is always at the center
+        # of the shape
         self.control_points = control_points
+        # CPGroup, sprite group containing all control points for quick access
+        self.CPGroup = pygame.sprite.Group()
+        # CPDict, dict containing keyed control points for easy access to modify
+        self.CPDict = {}
+        print self.control_points
+        for cp, key in zip(self.control_points, ["e0", "e1", "e2", "e3"]):
+            sp = CPSprite(cp + self.position)
+            self.CPGroup.add(sp)
+            self.CPDict[key] = sp
+        # Calculate the sprite's rect
         self.calc_rect()
+        # Add CP for middle of shape to move it
+        sp = CPSprite(self.position + vec2d(self.width / 2, self.height / 2))
+        self.CPGroup.add(sp)
+        self.CPDict["move"] = sp
+        # Debugging printout of entire dict/group
+        debug("CPDict: %s, CPGroup: %s" % (str(self.CPDict), str(self.CPGroup.sprites())))
+        # Must modify control points in two ways:
+        #  Update control_points value
+        #  Update CPDict value
         self.update()
 
     def calc_rect(self):
         """Calculate the current rect of this tile"""
-        x = self.position[0]
-        y = self.position[1]
         # Rect must completely bound all of the control points
         # Since a bezier curve is completely bounded by the convex hull of its 
-        # control points we can simply find the smallest rect which contains all of these
+        # control points we can simply find the smallest rect which contains them all
         cps = self.control_points
         xvals = [cps[0].x, cps[1].x, cps[2].x, cps[3].x]
         yvals = [cps[0].y, cps[1].y, cps[2].y, cps[3].y]
@@ -127,7 +231,7 @@ class BezCurve(pygame.sprite.Sprite):
         # Rect position takes into account the offset
         self.width = maxx-minx
         self.height = maxy-miny
-        self.rect = (self.position[0], self.position[1], self.width, self.height)
+        self.rect = (self.position.x, self.position.y, self.width, self.height)
         return self.rect
 
     def update(self, update_type=0):
@@ -135,20 +239,15 @@ class BezCurve(pygame.sprite.Sprite):
         self.image = pygame.Surface((self.width, self.height))
         self.image.fill(blue)
 
-        pos = vec2d(self.position)
-        cps_adj = []
-        for cp in self.control_points:
-            cps_adj.append(cp - pos)
-
         # Draw control lines for endpoints
-        pygame.draw.line(self.image, green, cps_adj[0], cps_adj[1])
-        pygame.draw.line(self.image, green, cps_adj[2], cps_adj[3])
+        pygame.draw.line(self.image, green, self.control_points[0], self.control_points[1])
+        pygame.draw.line(self.image, green, self.control_points[2], self.control_points[3])
         # Draw control handles
-        for p in cps_adj:
+        for p in self.control_points:
             pygame.draw.circle(self.image, red, (int(p.x), int(p.y)), 2)
 
         # Draw the bezier curve itself
-        cps, tangents = self.bezier.calculate_bezier(cps_adj, 30)
+        cps, tangents = self.bezier.calculate_bezier(self.control_points, 30)
         pygame.draw.lines(self.image, white, False, cps, 1)
         self.calc_rect()
 
@@ -197,12 +296,14 @@ class DisplayMain(object):
         self.last_rmbpos = (0,0)
 
         # Current tool mode
-        self.mode = "add"
-        self.modified = False
+        self.lmb_tool = ControlMover()
+        self.rmb_tool = ScreenMover()
+
 
         self.sprites = pygame.sprite.LayeredUpdates()
 
-        s = BezCurve([vec2d(200,200),vec2d(240,240),vec2d(400,300),vec2d(340,340)], (200,200))
+        s = BezCurve([vec2d(0,0),vec2d(40,40),vec2d(200,100),vec2d(240,240)], 
+                     vec2d(200,200))
         self.sprites.add(s, layer=1)
         s = Circle(30, vec2d(500,200))
         self.sprites.add(s, layer=1)
@@ -223,28 +324,39 @@ class DisplayMain(object):
                         pygame.display.quit()
                         sys.exit()
 
-                if event.type == MOUSEMOTION:
-                    if event.buttons[2] == 1:
-                        rmbpos = event.pos
-                        if rmbpos != self.last_rmbpos:
-                            pass
-                        #print "offx: %s, offy: %s" % (World.offx, World.offy)
-                        self.last_rmbpos = rmbpos
-                        self.modified = 1
-                if event.type == MOUSEBUTTONDOWN:
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    # LMB
+                    if event.button == 1:
+                        self.lmb_tool.mouse_down(event.pos, self.sprites)
+                    # RMB
                     if event.button == 3:
-                        self.last_rmbpos = event.pos
-                        self.refresh_screen = True
-                if event.type == MOUSEBUTTONUP:
-                    pass
-##                    if event.button == 3:
-##                        self.drag_start = None
+                        self.rmb_tool.mouse_down(event.pos, self.sprites)
+                if event.type == pygame.MOUSEBUTTONUP:
+                    # LMB
+                    if event.button == 1:
+                        self.lmb_tool.mouse_up(event.pos, self.sprites)
+                    # RMB
+                    if event.button == 3:
+                        self.rmb_tool.mouse_up(event.pos, self.sprites)
+                if event.type == pygame.MOUSEMOTION:
+                    # LMB is pressed, update all the time to keep highlight working
+##                    if event.buttons[0] == 1:
+                    self.lmb_tool.mouse_move(event.pos, self.sprites)
+                    # RMB is pressed, only update while RMB pressed
+                    if event.buttons[2] == 1:
+                        self.rmb_tool.mouse_move(event.pos, self.sprites)
 
+            if self.lmb_tool.has_aoe_changed():
+                # Update the screen to reflect changes made by tools
+                aoe = self.lmb_tool.get_last_aoe() + self.lmb_tool.get_aoe()
+                self.update_world(aoe, self.lmb_tool.get_highlight())
+                self.lmb_tool.set_aoe_changed(False)
+                self.lmb_tool.clear_aoe()
 
-            if self.modified:
-                self.sprites.update(self.modified)
-                self.refresh_screen = True
-                self.modfied = False
+            if self.rmb_tool.active():
+                # Repaint the entire screen until something better is implemented
+                self.paint_world()
+                self.refresh_screen = 1
 
             # Write some useful info on the top bar
             self.fps_elapsed += self.clock.get_time()
@@ -256,6 +368,8 @@ class DisplayMain(object):
             if self.refresh_screen:
                 self.screen.fill(darkgreen)
                 rectlist = self.sprites.draw(self.screen)
+                for s in self.sprites.sprites():
+                    s.CPGroup.draw(self.screen)
                 pygame.display.update()
                 self.refresh_screen = False
             else:
@@ -264,7 +378,15 @@ class DisplayMain(object):
                 rectlist = self.sprites.draw(self.screen)
                 pygame.display.update(self.dirty)
 
+    def update_world(self):
+        """Update necessary sprites in the world"""
+        self.sprites.update()
+        self.refresh_screen = True
 
+    def paint_world(self):
+        """Update the entire world (all sprites)"""
+        self.sprites.update()
+        self.refresh_screen = True
     
 if __name__ == "__main__":
     sys.stderr = debug

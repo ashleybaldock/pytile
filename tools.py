@@ -86,6 +86,20 @@ class Tool(object):
         and update the AOE of the tool"""
         return True
 
+    def process_key(self, key):
+        """Process keystrokes sent to this tool"""
+        keyname = pygame.key.name(key)
+        debug("process_key: %s" % keyname)
+        return False
+    def mouse_down(self, position, collisionlist):
+        """Mouse button DOWN"""
+        pass
+    def mouse_up(self, position, collisionlist):
+        """Mouse button UP"""
+        pass
+    def mouse_move(self, position, collisionlist):
+        """Tool updated, current cursor position is newpos"""
+        pass
     # AOE related access functions
     def get_aoe(self):
         """Return the current area of effect for this tool"""
@@ -249,8 +263,6 @@ class Track(Tool):
         tiles[(x,y)] = t
         return tiles
 
-    def mouse_down(self, position, collisionlist):
-        """Mouse button DOWN"""
     def mouse_up(self, position, collisionlist):
         """Mouse button UP"""
         if self.startpos:
