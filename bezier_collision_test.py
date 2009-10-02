@@ -146,7 +146,6 @@ class CPSprite(pygame.sprite.Sprite):
                                 position.y - CPSprite.radius, 
                                 CPSprite.radius*2, 
                                 CPSprite.radius*2)
-        print "CPSprite updated, new rect is: %s" % self.rect
 
 class ScreenMover(Tool):
     """"""
@@ -191,8 +190,6 @@ class Circle(pygame.sprite.Sprite):
         sp = CPSprite(self.position + vec2d(self.radius * 2, self.radius), self)
         self.CPGroup.add(sp)
         self.CPDict["radius"] = sp
-        # Debugging printout of entire dict/group
-        debug("CPDict: %s, CPGroup: %s" % (str(self.CPDict), str(self.CPGroup.sprites())))
         self.calc_rect()
         self.update()
 
@@ -251,8 +248,6 @@ class BezCurve(pygame.sprite.Sprite):
                       self, label="move")
         self.CPGroup.add(sp)
         self.CPDict["move"] = sp
-        # Debugging printout of entire dict/group
-        debug("CPDict: %s, CPGroup: %s" % (str(self.CPDict), str(self.CPGroup.sprites())))
         # Must modify control points in two ways:
         #  Update control_points value
         #  Update CPDict value
@@ -287,10 +282,22 @@ class BezCurve(pygame.sprite.Sprite):
         if endpoint in self.eps:
             # Move the specified endpoint and recalculate all
             self.CPDict[endpoint].position = newposition
+            self.calc_rect()
+            self.CPDict["move"].position = self.position + vec2d(self.width/2, self.height/2)
             self.update()
         elif endpoint == "move":
             # Move the entire shape to center on new position
-            pass
+            # Get old position of the center control point
+            oldpos = self.CPDict["move"].position
+            # Calculate vector from the old to the new
+            movepos = oldpos - newposition
+            # Apply this movement vector to the rest of the control points
+            for p in self.CPDict.values():
+                p.position = p.position - movepos
+            # This will automatically update the position of the entire shape
+            # when we do a calc_rect
+            self.calc_rect()
+            self.update()
 
     def update(self, update_type=0):
         """Draw the image this tile represents"""
@@ -316,7 +323,7 @@ class BezCurve(pygame.sprite.Sprite):
         # Draw the bezier curve itself
         cps, tangents = self.bezier.calculate_bezier(control_points, 30)
         pygame.draw.lines(self.image, white, False, cps, 1)
-        self.calc_rect()
+
         for p in self.CPDict.values():
             p.update()
 
