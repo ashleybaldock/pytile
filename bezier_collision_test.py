@@ -171,23 +171,15 @@ class Circle(pygame.sprite.Sprite):
 
         # Circles defined by radius
         self.radius = radius
-        # Control points, one in center, one for radius
-        # Control points are relative to the position
-        self.control_points = [vec2d(self.radius,
-                                     self.radius), 
-                               vec2d(self.radius * 2,
-                                     self.radius)]
         # CPGroup, sprite group containing all control points for quick access
         self.CPGroup = pygame.sprite.Group()
         # CPDict, dict containing keyed control points for easy access to modify
         self.CPDict = {}
-        sp = CPSprite(self.position + vec2d(self.radius, self.radius), self)
+        sp = CPSprite(self.position + vec2d(self.radius, self.radius), self, label="move")
         self.CPGroup.add(sp)
         self.CPDict["move"] = sp
-        # Calculate the sprite's rect
-        self.calc_rect()
         # Add CP for middle of shape to move it
-        sp = CPSprite(self.position + vec2d(self.radius * 2, self.radius), self)
+        sp = CPSprite(self.position + vec2d(self.radius * 2, self.radius), self, label="radius")
         self.CPGroup.add(sp)
         self.CPDict["radius"] = sp
         self.calc_rect()
@@ -197,8 +189,35 @@ class Circle(pygame.sprite.Sprite):
         """"""
         self.width = self.radius * 2
         self.height = self.radius * 2
+        self.position = self.CPDict["move"].position - vec2d(self.radius, self.radius)
         self.rect = (self.position.x, self.position.y, self.width, self.height)
         return self.rect
+
+    def update_endpoint(self, endpoint, newposition):
+        """"""
+        if endpoint is "radius":
+            # Increase the radius of the circle
+            oldradpos = self.CPDict["radius"].position
+            # Calculate vector from old radius to new radius
+            movepos = oldradpos - newposition
+            # Use only the change in X to change the radius
+            movepos.y = 0
+            # Set the radius to the current radius - the x component
+            self.radius = self.radius - movepos.x
+            self.CPDict["radius"].position = self.CPDict["radius"].position - movepos
+        elif endpoint is "move":
+            # Move the entire shape to center on new position
+            # Get old position of the center control point
+            oldpos = self.CPDict["move"].position
+            # Calculate vector from the old to the new
+            movepos = oldpos - newposition
+            # Apply this movement vector to the rest of the control points
+            for p in self.CPDict.values():
+                p.position = p.position - movepos
+        # This will automatically update the position of the entire shape
+        # when we do a calc_rect
+        self.calc_rect()
+        self.update()
 
     def update(self, update_type=0):
         """Draw the image this tile represents"""
@@ -208,10 +227,13 @@ class Circle(pygame.sprite.Sprite):
         # Draw the circle
         pygame.draw.circle(self.image, white, (self.radius, self.radius), self.radius, 1)
         # Draw circle conntrol points
-        for p in self.control_points:
-            pygame.draw.circle(self.image, red, p, 2)
+        for p in self.CPDict.values():
+            q = p.position - self.position
+            pygame.draw.circle(self.image, red, (int(q.x), int(q.y)), 2)
 
-        self.calc_rect()
+        # Finally call update on all child CPSprites, to align their positions
+        for p in self.CPDict.values():
+            p.update()
 
 class BezCurve(pygame.sprite.Sprite):
     """A bezier curve graphic"""
@@ -232,12 +254,11 @@ class BezCurve(pygame.sprite.Sprite):
         # but probably better to build this into a different item
         # e.g. move_control_point, which is always at the center
         # of the shape
-        self.control_points = control_points
         # CPGroup, sprite group containing all control points for quick access
         self.CPGroup = pygame.sprite.Group()
         # CPDict, dict containing keyed control points for easy access to modify
         self.CPDict = {}
-        for cp, key in zip(self.control_points, self.eps):
+        for cp, key in zip(control_points, self.eps):
             sp = CPSprite(cp + self.position, self, label=key)
             self.CPGroup.add(sp)
             self.CPDict[key] = sp
@@ -285,7 +306,7 @@ class BezCurve(pygame.sprite.Sprite):
             self.calc_rect()
             self.CPDict["move"].position = self.position + vec2d(self.width/2, self.height/2)
             self.update()
-        elif endpoint == "move":
+        elif endpoint is "move":
             # Move the entire shape to center on new position
             # Get old position of the center control point
             oldpos = self.CPDict["move"].position
@@ -300,7 +321,7 @@ class BezCurve(pygame.sprite.Sprite):
             self.update()
 
     def update(self, update_type=0):
-        """Draw the image this tile represents"""
+        """"""
         self.image = pygame.Surface((self.width, self.height))
         self.image.fill(blue)
 
@@ -324,6 +345,7 @@ class BezCurve(pygame.sprite.Sprite):
         cps, tangents = self.bezier.calculate_bezier(control_points, 30)
         pygame.draw.lines(self.image, white, False, cps, 1)
 
+        # Finally call update on all child CPSprites, to align their positions
         for p in self.CPDict.values():
             p.update()
 
@@ -381,8 +403,8 @@ class DisplayMain(object):
         s = BezCurve([vec2d(0,0),vec2d(40,40),vec2d(200,100),vec2d(240,240)], 
                      vec2d(200,200))
         self.sprites.add(s, layer=1)
-        #s = Circle(30, vec2d(500,200))
-        #self.sprites.add(s, layer=1)
+        s = Circle(30, vec2d(500,200))
+        self.sprites.add(s, layer=1)
 
         while True:
             self.clock.tick(0)
@@ -448,16 +470,16 @@ class DisplayMain(object):
             if self.refresh_screen:
                 self.screen.fill(darkgreen)
                 rectlist = self.sprites.draw(self.screen)
-                #for s in self.sprites.sprites():
-                #    s.CPGroup.draw(self.screen)
+                for s in self.sprites.sprites():
+                    s.CPGroup.draw(self.screen)
                 pygame.display.update()
                 self.refresh_screen = False
             else:
                 for a in self.dirty:
                     self.screen.fill(darkgreen, a)
                 rectlist = self.sprites.draw(self.screen)
-                #for s in self.sprites.sprites():
-                #    s.CPGroup.draw(self.screen)
+                for s in self.sprites.sprites():
+                    s.CPGroup.draw(self.screen)
                 pygame.display.update(self.dirty)
 
     def update_world(self):
