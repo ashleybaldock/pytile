@@ -125,6 +125,74 @@ class Bezier(object):
         a_to_b = b - a
         return a + a_to_b / 2.0
 
+    def get_lengths(self, cps):
+        """Return array of segment lengths for curve defined by the points in cps"""
+        lengths = []
+        for p in range(1, len(cps)):
+            # Get gradient of a->b
+            b = cps[p]
+            a = cps[p-1]
+            a_to_b = b - a
+            ab_n = a_to_b.normalized()
+            # Find length of vector divided by normal vector (number of unit lengths)
+            lengths.append(a_to_b.get_length() / ab_n.get_length())
+        return lengths
+
+    def get_length(self, cps):
+        """Return an approximation of the length of the curve
+        defined by the control points in cps"""
+        lengths = self.get_lengths(cps)
+        return sum(lengths)
+
+    def get_segment_vectors(self, cps):
+        """Return segment vectors for curve defined by cps"""
+        segments = []
+        for p in range(1, len(cps)):
+            # Get gradient of a->b
+            b = cps[p]
+            a = cps[p-1]
+            a_to_b = b - a
+            segments.append(a_to_b)
+        return segments
+
+    def get_point_at_length(self, cps, length):
+        """Return a vec2d representing the coords of the point on the curve
+        at the length specified in real terms"""
+        # 1. look up array of segment vectors
+        # cps is array from one endpoint to the other, need to find segments
+        # in-between these points
+        # Points:   0-1-2-3-4
+        # Segments:  0-1-2-3
+        segments = self.get_segment_vectors(cps)
+        # 2. loop through these until the segment length is found
+        running_total = 0
+        exact_point = False
+        for n, s in enumerate(segments):
+            seg_length = s.get_length() / s.normalized().get_length()
+            if running_total + seg_length == length:
+                print running_total, seg_length, length
+                # Edge case, length falls exactly on a segment endpoint
+                # Don't need to go any further, find exact point and break out
+                exact_point = cps[n+1]
+                print "(A) exact_point is: %s" % exact_point
+                break
+            elif running_total + seg_length > length:
+                print running_total, seg_length, length
+                # Don't need to go any further, find exact point and break out
+                remainder = length - running_total
+                exact_point = cps[n] + s.normalized() * remainder
+                print "(B) exact_point is: %s" % exact_point
+                break
+            else:
+                # Continue
+                print running_total, seg_length, length
+                running_total += seg_length
+                print "(C) continuing..."
+        return exact_point
+
+        # 3. If segment outside curve, return False
+        # 4. Once segment found, multiply remainder by the unit vector for
+        #    that segment to find the coordinates of that point
 
 
 
@@ -394,18 +462,11 @@ class Tile(pygame.sprite.Sprite):
         sleeper_points = []
         start = True
         # calculate total length of this curve section based on the straight lines which make it up
-        total_length = 0
-        for p in range(1, len(cps)):
-            # find gradient of a->b
-            b = cps[p]
-            a = cps[p-1]
-            a_to_b = b - a
-            ab_n = a_to_b.normalized()
-            total_length += a_to_b.get_length() / ab_n.get_length()
+        total_length = self.bezier.get_length(cps)
         # number of sleepers is length, (minus one interval to make the ends line up) divided by interval length
         num_sleepers = float(total_length) / float(Tile.sleeper_spacing)
         true_spacing = float(total_length) / float(math.ceil(num_sleepers))
-        
+
         for p in range(1, len(cps)):
             # find gradient of a->b
             b = cps[p]
@@ -415,7 +476,8 @@ class Tile(pygame.sprite.Sprite):
             # vector to add to start vector, to get offset start location
             start_vector = overflow * ab_n
             # number of sleepers to draw in this section
-            n_sleepers, overflow = divmod((a_to_b + start_vector).get_length(), (ab_n * true_spacing).get_length())
+            n_sleepers, overflow = divmod((a_to_b + start_vector).get_length(), 
+                                          (ab_n * true_spacing).get_length())
             n_sleepers = int(n_sleepers)
             # loop through n_sleepers, draw a sleeper at the start of each sleeper spacing interval
             if start:
@@ -430,6 +492,8 @@ class Tile(pygame.sprite.Sprite):
                            self.bezier.get_at_width(a - start_vector + n*ab_n*true_spacing + ab_n*0.5*self.sleeper_width, a_to_b, -self.sleeper_length)]
                 # translate points into iso perspective
                 sleeper_points.append(self.translate_points(sleep_p))
+
+
         # finally draw all the sleeper points
         for p in sleeper_points:
             pygame.draw.polygon(self.image, brown, p, 0)

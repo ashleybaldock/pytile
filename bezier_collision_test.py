@@ -246,6 +246,8 @@ class BezCurve(pygame.sprite.Sprite):
 
         # Position of this graphic
         self.position = position
+        # Length of the bezier curve
+        self.length = 30.5
 
         self.eps = ["e0","e1","e2","e3"]
 
@@ -343,7 +345,19 @@ class BezCurve(pygame.sprite.Sprite):
 
         # Draw the bezier curve itself
         cps, tangents = self.bezier.calculate_bezier(control_points, 30)
+        print cps, len(cps)
+        a = self.bezier.get_segment_vectors(cps)
+        print a, len(a)
+        self.length = a[0].get_length()
+        #self.length = 0
         pygame.draw.lines(self.image, white, False, cps, 1)
+        for p in cps:
+            pygame.draw.circle(self.image, red, p, 1)
+        # Draw a spot at some arbitrary length
+        p = self.bezier.get_point_at_length(cps, self.length)
+        print "point: %s" % p
+        pygame.draw.circle(self.image, yellow, p, 3)
+
 
         # Finally call update on all child CPSprites, to align their positions
         for p in self.CPDict.values():
@@ -470,16 +484,18 @@ class DisplayMain(object):
             if self.refresh_screen:
                 self.screen.fill(darkgreen)
                 rectlist = self.sprites.draw(self.screen)
-                for s in self.sprites.sprites():
-                    s.CPGroup.draw(self.screen)
+                if DEBUG:
+                    for s in self.sprites.sprites():
+                        s.CPGroup.draw(self.screen)
                 pygame.display.update()
                 self.refresh_screen = False
             else:
                 for a in self.dirty:
                     self.screen.fill(darkgreen, a)
                 rectlist = self.sprites.draw(self.screen)
-                for s in self.sprites.sprites():
-                    s.CPGroup.draw(self.screen)
+                if DEBUG:
+                    for s in self.sprites.sprites():
+                        s.CPGroup.draw(self.screen)
                 pygame.display.update(self.dirty)
 
     def update_world(self):
