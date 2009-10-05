@@ -59,6 +59,8 @@ FPS_REFRESH = 500
 WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 800
 
+EP_SIZE = 3
+
 class ControlMover(Tool):
     """"""
     def __init__(self):
@@ -117,7 +119,6 @@ class CPSprite(pygame.sprite.Sprite):
     """Invisible sprite to represent control points of sprites"""
     # This sprite never gets drawn, so no need to worry about what it looks like
     image = None
-    #mask = None
     radius = 10
     def __init__(self, position, parent, label=None):
         pygame.sprite.Sprite.__init__(self)
@@ -160,6 +161,8 @@ class ScreenMover(Tool):
 class Circle(pygame.sprite.Sprite):
     """A circle graphic"""
     init = True
+    # Radius of the endpoints (also used for sprite padding)
+    ep_size = EP_SIZE
     def __init__(self, radius, position):
         pygame.sprite.Sprite.__init__(self)
         if BezCurve.init:
@@ -189,8 +192,12 @@ class Circle(pygame.sprite.Sprite):
         """"""
         self.width = self.radius * 2
         self.height = self.radius * 2
+        # Get position from the move CPSprite
         self.position = self.CPDict["move"].position - vec2d(self.radius, self.radius)
-        self.rect = (self.position.x, self.position.y, self.width, self.height)
+        self.rect = (self.position.x - self.ep_size, 
+                     self.position.y - self.ep_size, 
+                     self.width  + self.ep_size, 
+                     self.height + self.ep_size)
         return self.rect
 
     def update_endpoint(self, endpoint, newposition):
@@ -221,15 +228,85 @@ class Circle(pygame.sprite.Sprite):
 
     def update(self, update_type=0):
         """Draw the image this tile represents"""
-        self.image = pygame.Surface((self.width, self.height))
+        vpad = vec2d(self.ep_size, self.ep_size)
+        self.image = pygame.Surface((self.width + vpad.x * 2, 
+                                     self.height + vpad.y * 2))
         self.image.fill(blue)
 
         # Draw the circle
-        pygame.draw.circle(self.image, white, (self.radius, self.radius), self.radius, 1)
+        pygame.draw.circle(self.image, 
+                           white, 
+                           (self.radius + vpad.x, self.radius + vpad.y), 
+                           self.radius, 
+                           1)
         # Draw circle conntrol points
         for p in self.CPDict.values():
-            q = p.position - self.position
-            pygame.draw.circle(self.image, red, (int(q.x), int(q.y)), 2)
+            q = p.position - self.position + vpad
+            pygame.draw.circle(self.image, red, (int(q.x), int(q.y)), self.ep_size)
+
+        # Finally call update on all child CPSprites, to align their positions
+        for p in self.CPDict.values():
+            p.update()
+
+class Point(pygame.sprite.Sprite):
+    """A point defined by a vector"""
+    init = True
+    # Radius of the endpoints (also used for sprite padding)
+    ep_size = EP_SIZE
+    def __init__(self, position):
+        pygame.sprite.Sprite.__init__(self)
+        if Point.init:
+            Point.init = False
+        # Position of this graphic
+        self.position = position
+
+        self.CPGroup = pygame.sprite.Group()
+        self.CPDict = {}
+        sp = CPSprite(self.position, self, label="move")
+        self.CPGroup.add(sp)
+        self.CPDict["move"] = sp
+        # Calculate rect
+        self.calc_rect()
+        # Update sprite
+        self.update()
+
+    def calc_rect(self):
+        """Calculate the current rect of this tile"""
+        self.width = 1
+        self.height = 1
+        # Get position from the move CPSprite
+        self.position = self.CPDict["move"].position
+        self.rect = (self.position.x - self.ep_size, 
+                     self.position.y - self.ep_size, 
+                     self.width  + self.ep_size, 
+                     self.height + self.ep_size)
+        return self.rect
+
+    def update_endpoint(self, endpoint, newposition):
+        """"""
+        if endpoint is "move":
+            # Move the entire shape to center on new position
+            # Get old position of the center control point
+            oldpos = self.CPDict["move"].position
+            # Calculate vector from the old to the new
+            movepos = oldpos - newposition
+            # Apply this movement vector to the rest of the control points
+            for p in self.CPDict.values():
+                p.position = p.position - movepos
+            # This will automatically update the position of the entire shape
+            # when we do a calc_rect
+            self.calc_rect()
+            self.update()
+
+    def update(self, update_type=0):
+        """"""
+        vpad = vec2d(self.ep_size, self.ep_size)
+        self.image = pygame.Surface((self.width + vpad.x * 2, 
+                                     self.height + vpad.y * 2))
+        self.image.fill(blue)
+
+        # Draw spot to represent this point
+        pygame.draw.circle(self.image, red, vpad, self.ep_size)
 
         # Finally call update on all child CPSprites, to align their positions
         for p in self.CPDict.values():
@@ -238,6 +315,8 @@ class Circle(pygame.sprite.Sprite):
 class BezCurve(pygame.sprite.Sprite):
     """A bezier curve graphic"""
     init = True
+    # Radius of the endpoints (also used for sprite padding)
+    ep_size = EP_SIZE
     def __init__(self, control_points, position):
         pygame.sprite.Sprite.__init__(self)
         if BezCurve.init:
@@ -297,7 +376,10 @@ class BezCurve(pygame.sprite.Sprite):
         self.width = maxx-minx
         self.height = maxy-miny
         self.position = vec2d(minx, miny)
-        self.rect = (self.position.x, self.position.y, self.width, self.height)
+        self.rect = (self.position.x - self.ep_size, 
+                     self.position.y - self.ep_size, 
+                     self.width  + self.ep_size, 
+                     self.height + self.ep_size)
         return self.rect
 
     def update_endpoint(self, endpoint, newposition):
@@ -324,40 +406,37 @@ class BezCurve(pygame.sprite.Sprite):
 
     def update(self, update_type=0):
         """"""
-        self.image = pygame.Surface((self.width, self.height))
+        vpad = vec2d(self.ep_size, self.ep_size)
+        self.image = pygame.Surface((self.width + vpad.x * 2, 
+                                     self.height + vpad.y * 2))
         self.image.fill(blue)
 
         # Draw control lines for endpoints
         pygame.draw.line(self.image, green, 
-                         self.CPDict[self.eps[0]].position - self.position, 
-                         self.CPDict[self.eps[1]].position - self.position)
+                         self.CPDict[self.eps[0]].position - self.position + vpad, 
+                         self.CPDict[self.eps[1]].position - self.position + vpad)
         pygame.draw.line(self.image, green, 
-                         self.CPDict[self.eps[2]].position - self.position, 
-                         self.CPDict[self.eps[3]].position - self.position)
+                         self.CPDict[self.eps[2]].position - self.position + vpad, 
+                         self.CPDict[self.eps[3]].position - self.position + vpad)
         # Draw control handles
         for p in self.CPDict.values():
-            q = p.position - self.position
-            pygame.draw.circle(self.image, red, (int(q.x), int(q.y)), 2)
+            q = p.position - self.position + vpad
+            pygame.draw.circle(self.image, red, (int(q.x), int(q.y)), self.ep_size)
 
         control_points = []
         for p in self.eps:
-            control_points.append(self.CPDict[p].position - self.position)
+            control_points.append(self.CPDict[p].position - self.position + vpad)
 
         # Draw the bezier curve itself
         cps, tangents = self.bezier.calculate_bezier(control_points, 30)
-        print cps, len(cps)
-        a = self.bezier.get_segment_vectors(cps)
-        print a, len(a)
-        self.length = a[0].get_length()
-        #self.length = 0
+
         pygame.draw.lines(self.image, white, False, cps, 1)
         for p in cps:
             pygame.draw.circle(self.image, red, p, 1)
+
         # Draw a spot at some arbitrary length
         p = self.bezier.get_point_at_length(cps, self.length)
-        print "point: %s" % p
         pygame.draw.circle(self.image, yellow, p, 3)
-
 
         # Finally call update on all child CPSprites, to align their positions
         for p in self.CPDict.values():
@@ -418,6 +497,8 @@ class DisplayMain(object):
                      vec2d(200,200))
         self.sprites.add(s, layer=1)
         s = Circle(30, vec2d(500,200))
+        self.sprites.add(s, layer=1)
+        s = Point(vec2d(500,400))
         self.sprites.add(s, layer=1)
 
         while True:
