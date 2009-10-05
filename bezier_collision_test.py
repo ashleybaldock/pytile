@@ -253,12 +253,18 @@ class Point(pygame.sprite.Sprite):
     init = True
     # Radius of the endpoints (also used for sprite padding)
     ep_size = EP_SIZE
-    def __init__(self, position):
+    def __init__(self, position, constraint_path=None):
         pygame.sprite.Sprite.__init__(self)
         if Point.init:
             Point.init = False
         # Position of this graphic
         self.position = position
+        # The constraint path is a shape object which this shape object "snaps" to
+        # Any movement done to this shape object will be tempered by the transform_path()
+        # method of its constraint_path shape, e.g. for a point constrained by a
+        # bezcurve, the point can only move to points which are on the bezcurve
+        # Constrant path of this object
+        self.constraint_path = constraint_path
 
         self.CPGroup = pygame.sprite.Group()
         self.CPDict = {}
@@ -292,11 +298,12 @@ class Point(pygame.sprite.Sprite):
             movepos = oldpos - newposition
             # Apply this movement vector to the rest of the control points
             for p in self.CPDict.values():
-                p.position = p.position - movepos
+                p.position -= movepos
             # This will automatically update the position of the entire shape
             # when we do a calc_rect
             self.calc_rect()
             self.update()
+            return vec2d(0,0)
 
     def update(self, update_type=0):
         """"""
@@ -323,10 +330,15 @@ class BezCurve(pygame.sprite.Sprite):
             BezCurve.bezier = Bezier()
             BezCurve.init = False
 
+        self.time = pygame.time.get_ticks()
+
         # Position of this graphic
         self.position = position
         # Length of the bezier curve
-        self.length = 30.5
+        self.length = 0
+        self.dot_pos = 0
+        self.speed = 0.1
+        self.movement = 1
 
         self.eps = ["e0","e1","e2","e3"]
 
@@ -367,7 +379,6 @@ class BezCurve(pygame.sprite.Sprite):
         yvals = []
         for y in self.eps:
             yvals.append(cps[y].position.y)
-        print xvals, yvals
         minx = min(xvals)
         miny = min(yvals)
         maxx = max(xvals)
@@ -404,6 +415,10 @@ class BezCurve(pygame.sprite.Sprite):
             self.calc_rect()
             self.update()
 
+    def closest_point(self, point):
+        """Return the closest point on the curve to the point passed in"""
+
+
     def update(self, update_type=0):
         """"""
         vpad = vec2d(self.ep_size, self.ep_size)
@@ -434,8 +449,20 @@ class BezCurve(pygame.sprite.Sprite):
         for p in cps:
             pygame.draw.circle(self.image, red, p, 1)
 
+        l = (pygame.time.get_ticks() - self.time) * self.speed
+        self.time = pygame.time.get_ticks()
+        self.length = self.bezier.get_length(cps)
+        
+        self.dot_pos += l * self.movement
+        if self.dot_pos > self.length:
+            self.dot_pos = self.length - (self.dot_pos - self.length)
+            self.movement = -1
+        elif self.dot_pos < 0:
+            self.dot_pos = self.dot_pos * -1
+            self.movement = 1
+
         # Draw a spot at some arbitrary length
-        p = self.bezier.get_point_at_length(cps, self.length)
+        p = self.bezier.get_point_at_length(cps, self.dot_pos)
         pygame.draw.circle(self.image, yellow, p, 3)
 
         # Finally call update on all child CPSprites, to align their positions
@@ -493,13 +520,13 @@ class DisplayMain(object):
 
         self.sprites = pygame.sprite.LayeredUpdates()
 
-        s = BezCurve([vec2d(0,0),vec2d(40,40),vec2d(200,100),vec2d(240,240)], 
+        bc = BezCurve([vec2d(0,0),vec2d(40,40),vec2d(200,100),vec2d(240,240)], 
                      vec2d(200,200))
-        self.sprites.add(s, layer=1)
-        s = Circle(30, vec2d(500,200))
-        self.sprites.add(s, layer=1)
-        s = Point(vec2d(500,400))
-        self.sprites.add(s, layer=1)
+        self.sprites.add(bc, layer=1)
+        cir = Circle(30, vec2d(500,200))
+        self.sprites.add(cir, layer=1)
+        poi = Point(vec2d(500,400), constraint_path=bc)
+        self.sprites.add(poi, layer=1)
 
         while True:
             self.clock.tick(0)
@@ -546,7 +573,8 @@ class DisplayMain(object):
                 self.lmb_tool.set_aoe_changed(False)
                 self.lmb_tool.clear_aoe()
 
-            if self.rmb_tool.active():
+            #if self.rmb_tool.active():
+            if True:
                 # Repaint the entire screen until something better is implemented
                 self.paint_world()
                 self.refresh_screen = 1
@@ -560,6 +588,7 @@ class DisplayMain(object):
             if self.fps_elapsed >= self.fps_refresh:
                 self.fps_elapsed = 0
                 #pygame.display.set_caption("FPS: %i" % (self.clock.get_fps()))
+
 
             # Refresh the screen if necessary, or just draw the updated bits
             if self.refresh_screen:

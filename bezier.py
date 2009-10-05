@@ -170,24 +170,18 @@ class Bezier(object):
         for n, s in enumerate(segments):
             seg_length = s.get_length() / s.normalized().get_length()
             if running_total + seg_length == length:
-                print running_total, seg_length, length
                 # Edge case, length falls exactly on a segment endpoint
                 # Don't need to go any further, find exact point and break out
                 exact_point = cps[n+1]
-                print "(A) exact_point is: %s" % exact_point
                 break
             elif running_total + seg_length > length:
-                print running_total, seg_length, length
                 # Don't need to go any further, find exact point and break out
                 remainder = length - running_total
                 exact_point = cps[n] + s.normalized() * remainder
-                print "(B) exact_point is: %s" % exact_point
                 break
             else:
                 # Continue
-                print running_total, seg_length, length
                 running_total += seg_length
-                print "(C) continuing..."
         return exact_point
 
         # 3. If segment outside curve, return False
