@@ -192,6 +192,8 @@ class Bezier(object):
             """Compute the parameter value fo the point on a Bezier curve
             segment closest to some arbitrary, user-input point
             Return point on the curve at that parameter value"""
+            self.maxdepth = 64
+            self.epsilon = math.ldexp(1.0, -self.maxdepth-1)
             rec_depth = 0
             w_degree = 5
             degree = 3
@@ -264,7 +266,100 @@ class Bezier(object):
                     j = k - i
                     w[i+j].y += cdtable[j][i] * z[j][i]
             return w
+        def find_roots(self, cps, depth):
+            """Given a 5th degree equation in Bernstein-Bezier form, find
+            all the roots in the interval [0,1]. Return number of roots found"""
+            if depth == 0:
+                # First level of recursion, set up variables used by the next steps
+                self.tvals = []
+            cc = self.crossing_count(cps, degree)
+            if cc is 0:
+                # No solutions here
+                return 0
+            elif cc is 1:
+                # Unique solution
+                # Stop recursion when enough recursions have occured (deep enough)
+                # If deep enough, return 1 solution at midpoint of current curve
+                if depth >= self.maxdepth:
+                    # cps here is relative, i.e. it refers to the control points
+                    # of the bisected bezier curve that this branch of recursion
+                    # is dealing with
+                    self.tvals.append((cps[0].x + cps[-1].x) / 2.0)
+                    return 1
+                elif self.polygon_flat_enough(cps):
+                    self.tvals.append(self.compute_x_intercept(cps))
+                    return 1
+            # Otherwise, solve recursively after subdividing control polygon
+            left, right = self.subdivide_bezier(cps, 0.5)
+            left_count = self.find_roots(left, depth+1)
+            right_count = self.find_roots(right, depth+1)
+            # All solutions are still being stored in self.tvals, so no need
+            # to gather them together
 
+            # Send back total number of solutions
+            return left_count + right_count
+        def crossing_count(self, cps):
+            """Count the number of times a bezier control polygon crosses
+            the 0-axis, this number is >= the number of roots"""
+            crossings = 0
+            # Starting state for sign
+            sign = math.copysign(1, cps[0].y)
+            old_sign = math.copysign(1, cps[0].y)
+            for cp in cps:
+                sign = math.copysign(1, cp.y)
+                if sign != old_sign:
+                    crossings += 1
+                old_sign = sign
+            return crossings
+        def control_polygon_flat_enough(self, cps):
+            """Check if the control polygon of a bezier curve is flat
+            enough for recursive subdivision to bottom out"""
+            # Derive implicit equation for line connecting first and last
+            # control points
+            a = cps[0].y - cps[-1].y
+            b = cps[-1].x - cps[0].x
+            c = cps[0].x * cps[-1].y - cps[-1].x * cps[0].y
+_
+            max_above = 0.0
+            max_below = 0.0
+
+            for cp in cps:
+                value = a * cp.x + b * cp.y + c
+                if value > max_above:
+                    max_above = value
+                elif value < max_below:
+                    max_below = value
+
+            # Implicit equation for zero line
+            a1 = 0.0
+            b1 = 1.0
+            c1 = 0.0
+            # Implicit equation for "above" line
+            a2 = a
+            b2 = b
+            c2 = c - max_above
+            det = a1 * b2 - a2 * b1
+            dInv = 1.0 / det
+            intercept_1 = (b1 * c2 - b2 * c1) * dInv
+            # Implicit equation for "below" line
+            a2 = a
+            b2 = b
+            c2 = c - max_below
+            det = a1 * b2 - a2 * b1
+            dInv = 1.0 / det
+            intercept_2 = (b1 * c2 - b2 * c1) * dInv
+            # Compute intercepts of bounding box
+            left_intercept = min(intercept_1, intercept_2)
+            right_intercept = max(intercept_1, intercept_2)
+
+            error = right_intercept - left_intercept
+            if error < self.epsilon:
+                return 1
+            else:
+                return 0
+
+
+                
 
 
 class Tile(pygame.sprite.Sprite):
