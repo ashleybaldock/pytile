@@ -188,6 +188,83 @@ class Bezier(object):
         # 4. Once segment found, multiply remainder by the unit vector for
         #    that segment to find the coordinates of that point
 
+        def nearest_point_on_curve(self, P, cps):
+            """Compute the parameter value fo the point on a Bezier curve
+            segment closest to some arbitrary, user-input point
+            Return point on the curve at that parameter value"""
+            rec_depth = 0
+            w_degree = 5
+            degree = 3
+            # Convert point p and bezcurve defined by control points cps into
+            # a 5th-degree bezier curve form
+            w = self.convert_to_bezier_form(P, cps)
+            # Find all possible roots of that 5th degree equation
+            t_candidates = self.find_roots(w, w_degree, rec_depth)
+
+            # Check distance to beginning of curve, where t = 0
+            dist = (P - cps[0]).get_length_sqrd()
+            tval = 0.0
+
+            # Compare distances of point p to all candidate points found as roots
+            for t in t_candidates:
+                p = self.get_at_t(cps, t)
+                new_dist = (P - p).get_length_sqrd()
+                if new_dist < dist:
+                    dist = new_dist
+                    tval = t
+
+            # Finally, look at distance to end point, where t = 1.0
+            new_dist = (P - cps[3]).get_length_sqrd()
+            if new_dist < dist:
+                dist = new_dist
+                tval = t
+
+            # Return point on curve at parameter value tval
+            return self.get_at_t(cps, tval)
+
+        def convert_to_bezier_form(self, P, cps):
+            """Given a point and control points for a bezcurve, generate 5th degree
+            Bezier-format equation whose solution finds the point on the curve
+            nearest the user-defined point"""
+            # Precomputed "z" values for cubics
+            z = [[1.0, 0.6, 0.3, 0.1],
+                 [0.4, 0.6, 0.6, 0.4],
+                 [0.1, 0.3, 0.6, 1.0]]
+            n = len(cps)
+            m = len(cps) - 1
+            # Determine the "c" values, these are vectors created by subtracting
+            # point P from each of the control points
+            c = []
+            for cp in cps:
+                c.append(cp - P)
+            # Determine the "d" values, these are vectors created by subtracting
+            # each control point from the next (and multiplying by 3?)
+            d = []
+            for i in m:
+                d.append((cps[i+1] - cps[i]) * 3.0)
+            # Create table of c/d values, table of the dot products of the
+            # values from c and d
+            cdtable = []
+            for row in range(m):
+                temp = []
+                for col in range(n):
+                    temp.append(d[row].dot(c[col]))
+                cdtable.append(temp)
+            # A little unsure about this part, the C-code was unclear!
+            # Apply the "z" values to the dot products, on the skew diagonal
+            # Also set up the x-values, making these "points"                   - What does this mean?
+            w = []
+            # Bezier is uniform parameterised
+            for i in range(5):
+                w.append(vec2d(i/5.0, 0.0))
+            for k in range(n+m):
+                lb = max(0, k - m)
+                ub = min(k, n)
+                for i in range(lb, ub+1):
+                    j = k - i
+                    w[i+j].y += cdtable[j][i] * z[j][i]
+            return w
+
 
 
 class Tile(pygame.sprite.Sprite):
