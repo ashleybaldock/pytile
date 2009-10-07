@@ -189,6 +189,9 @@ class Bezier(object):
         # 4. Once segment found, multiply remainder by the unit vector for
         #    that segment to find the coordinates of that point
 
+
+    # This is based on the Graphics Gem code found here:
+    # http://tog.acm.org/resources/GraphicsGems/gems/NearestPoint.c 
     def nearest_point_on_curve(self, P, cps):
         """Compute the parameter value fo the point on a Bezier curve
         segment closest to some arbitrary, user-input point
@@ -391,21 +394,17 @@ class Bezier(object):
             Vtemp.append(vt)
                 
         # Copy control points
-        #print "control points are: %s" % cps
         for n, cp in enumerate(cps):
             Vtemp[0][n].x = cp.x
             vt2[0][n] = 2
             Vtemp[0][n].y = cp.y
         # Triangle computation
+        # Uses forward/back substitution on the triangular matrix
         for i in range(1, len(cps)):
             for j in range(len(cps) - i):
                 Vtemp[i][j].x = (1.0 - t) * Vtemp[i-1][j].x + t * Vtemp[i-1][j+1].x
                 Vtemp[i][j].y = (1.0 - t) * Vtemp[i-1][j].y + t * Vtemp[i-1][j+1].y
                 vt2[i][j] = 1
-        #for a in Vtemp:
-        #    print a
-        #for a in vt2:
-        #    print a
         return Vtemp
 
     def subdivide_bezier(self, cps, t):
