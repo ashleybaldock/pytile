@@ -332,6 +332,8 @@ class BezCurve(pygame.sprite.Sprite):
 
         self.time = pygame.time.get_ticks()
 
+
+
         # Position of this graphic
         self.position = position
         # Length of the bezier curve
@@ -415,10 +417,6 @@ class BezCurve(pygame.sprite.Sprite):
             self.calc_rect()
             self.update()
 
-    def closest_point(self, point):
-        """Return the closest point on the curve to the point passed in"""
-
-
     def update(self, update_type=0):
         """"""
         vpad = vec2d(self.ep_size, self.ep_size)
@@ -449,6 +447,7 @@ class BezCurve(pygame.sprite.Sprite):
         for p in cps:
             pygame.draw.circle(self.image, red, p, 1)
 
+        # Draw a dot which moves along the curve
         l = (pygame.time.get_ticks() - self.time) * self.speed
         self.time = pygame.time.get_ticks()
         self.length = self.bezier.get_length(cps)
@@ -464,6 +463,16 @@ class BezCurve(pygame.sprite.Sprite):
         # Draw a spot at some arbitrary length
         p = self.bezier.get_point_at_length(cps, self.dot_pos)
         pygame.draw.circle(self.image, yellow, p, 3)
+
+        # Test new bezier functions
+        self.pp = vec2d(100,100)
+        self.np = self.bezier.nearest_point_on_curve(self.pp, control_points)
+        # Draw the closest point test point and its point on the line, along with the
+        # line between them
+        pygame.draw.line(self.image, black, self.pp, self.np)
+        pygame.draw.circle(self.image, green, self.pp, 3)
+        pygame.draw.circle(self.image, green, self.np, 3)
+
 
         # Finally call update on all child CPSprites, to align their positions
         for p in self.CPDict.values():

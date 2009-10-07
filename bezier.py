@@ -166,6 +166,7 @@ class Bezier(object):
         segments = self.get_segment_vectors(cps)
         # 2. loop through these until the segment length is found
         running_total = 0
+        remainder = 0
         exact_point = False
         for n, s in enumerate(segments):
             seg_length = s.get_length() / s.normalized().get_length()
@@ -201,7 +202,8 @@ class Bezier(object):
         # a 5th-degree bezier curve form
         w = self.convert_to_bezier_form(P, cps)
         # Find all possible roots of that 5th degree equation
-        t_candidates = self.find_roots(w, w_degree, rec_depth)
+        n_candidates = self.find_roots(w, rec_depth)
+        t_candidates = self.tvals
 
         # Check distance to beginning of curve, where t = 0
         dist = (P - cps[0]).get_length_sqrd()
@@ -219,7 +221,9 @@ class Bezier(object):
         new_dist = (P - cps[3]).get_length_sqrd()
         if new_dist < dist:
             dist = new_dist
-            tval = t
+            tval = 1.0
+
+        #print tval, dist, self.tvals
 
         # Return point on curve at parameter value tval
         return self.get_at_t(cps, tval)
@@ -232,8 +236,6 @@ class Bezier(object):
         z = [[1.0, 0.6, 0.3, 0.1],
              [0.4, 0.6, 0.6, 0.4],
              [0.1, 0.3, 0.6, 1.0]]
-        n = len(cps)
-        m = len(cps) - 1
         # Determine the "c" values, these are vectors created by subtracting
         # point P from each of the control points
         c = []
@@ -242,24 +244,26 @@ class Bezier(object):
         # Determine the "d" values, these are vectors created by subtracting
         # each control point from the next (and multiplying by 3?)
         d = []
-        for i in m:
+        for i in range(len(cps)-1):
             d.append((cps[i+1] - cps[i]) * 3.0)
         # Create table of c/d values, table of the dot products of the
         # values from c and d
         cdtable = []
-        for row in range(m):
+        for row in range(len(cps)-1):
             temp = []
-            for col in range(n):
+            for col in range(len(cps)):
                 temp.append(d[row].dot(c[col]))
             cdtable.append(temp)
         # A little unsure about this part, the C-code was unclear!
         # Apply the "z" values to the dot products, on the skew diagonal
         # Also set up the x-values, making these "points"                   - What does this mean?
         w = []
+        n = len(cps) - 1
+        m = len(cps) - 2
         # Bezier is uniform parameterised
-        for i in range(5):
+        for i in range(6):
             w.append(vec2d(i/5.0, 0.0))
-        for k in range(n+m):
+        for k in range(n+m+1):
             lb = max(0, k - m)
             ub = min(k, n)
             for i in range(lb, ub+1):
@@ -272,7 +276,7 @@ class Bezier(object):
         if depth == 0:
             # First level of recursion, set up variables used by the next steps
             self.tvals = []
-        cc = self.crossing_count(cps, degree)
+        cc = self.crossing_count(cps)
         if cc is 0:
             # No solutions here
             return 0
@@ -311,7 +315,7 @@ class Bezier(object):
                 crossings += 1
             old_sign = sign
         return crossings
-    def control_polygon_flat_enough(self, cps):
+    def polygon_flat_enough(self, cps):
         """Check if the control polygon of a bezier curve is flat
         enough for recursive subdivision to bottom out"""
         # Derive implicit equation for line connecting first and last
@@ -373,51 +377,54 @@ class Bezier(object):
 
         return x_lk * (x_nm * y_mk - y_nm * x_mk) * dInv
 
+    def build_vtemp(self, cps, t):
+        """"""
+        Vtemp = []
+        vt2 = []
+        for x in range(len(cps)):
+            vt = []
+            vt22 = []
+            for y in range(len(cps)):
+                vt.append(vec2d(0,0))
+                vt22.append(0)
+            vt2.append(vt22)
+            Vtemp.append(vt)
+                
+        # Copy control points
+        #print "control points are: %s" % cps
+        for n, cp in enumerate(cps):
+            Vtemp[0][n].x = cp.x
+            vt2[0][n] = 2
+            Vtemp[0][n].y = cp.y
+        # Triangle computation
+        for i in range(1, len(cps)):
+            for j in range(len(cps) - i):
+                Vtemp[i][j].x = (1.0 - t) * Vtemp[i-1][j].x + t * Vtemp[i-1][j+1].x
+                Vtemp[i][j].y = (1.0 - t) * Vtemp[i-1][j].y + t * Vtemp[i-1][j+1].y
+                vt2[i][j] = 1
+        #for a in Vtemp:
+        #    print a
+        #for a in vt2:
+        #    print a
+        return Vtemp
+
     def subdivide_bezier(self, cps, t):
         """Subdivide bezier curve into two smaller curves
         Split occurs at parameter value t"""
-        Vtemp = [
-                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
-                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
-                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
-                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
-                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
-                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
-                 ]
-        # Copy control points
-        for cp in cps:
-            Vtemp[0][j] = cp
-        # Triangle computation
-        for i in range(len(cps)):
-            for j in range(len(cps) - i):
-                Vtemp[i][j] = (1.0 - t) * Vtemp[i-1][j] + t * Vtemp[i-1][j+1]
-                #Vtemp[i][j].x = (1.0 - t) * Vtemp[i-1][j].x + t * Vtemp[i-1][j+1].x
-                #Vtemp[i][j].y = (1.0 - t) * Vtemp[i-1][j].x + t * Vtemp[i-1][j+1].y
+        Vtemp = self.build_vtemp(cps, t)
+        left = []
+        right = []
         for j in range(len(cps)):
             left.append(Vtemp[j][0])
-            right.append(Vtemp[len(cps) - j][j]
+            right.append(Vtemp[len(cps)-1 - j][j])
 
         return (left, right)
-            
+
     def get_at_t(self, cps, t):
         """Evaluate bezier curve at particular parameter value"""
-        Vtemp = [
-                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
-                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
-                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
-                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
-                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
-                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
-                 ]
-        # Copy control points
-        for cp in cps:
-            Vtemp[0][j] = cp
-        # Triangle computation
-        for i in range(len(cps)):
-            for j in range(len(cps) - i):
-                Vtemp[i][j] = (1.0 - t) * Vtemp[i-1][j] + t * Vtemp[i-1][j+1]
+        Vtemp = self.build_vtemp(cps, t)
 
-        return Vtemp[len(cps)][0]
+        return Vtemp[len(cps)-1][0]
 
 class Tile(pygame.sprite.Sprite):
     """A tile containing tracks, drawn in layers"""
