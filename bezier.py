@@ -425,3 +425,7 @@ class Bezier(object):
 
         return Vtemp[len(cps)-1][0]
 
+
+
+
+

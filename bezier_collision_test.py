@@ -319,6 +319,101 @@ class Point(pygame.sprite.Sprite):
         for p in self.CPDict.values():
             p.update()
 
+class BezLinkedLine(pygame.sprite.Sprite):
+    """A line linked to a bezier curve"""
+    init = True
+    ep_size = EP_SIZE
+    def __init__(self, position, parent):
+        pygame.sprite.Sprite.__init__(self)
+        if BezLinkedLine.init:
+            BezLinkedLine.bezier = Bezier()
+            BezLinkedLine.init = False
+        
+        self.position = position
+        # The BezCurve that this sprite is a child to
+        self.parent = parent
+
+        # Line defined by two control points, one is moveable, the other is fixed
+        # to the bezier curve that this line is a child to
+
+        self.CPGroup = pygame.sprite.Group()
+        self.CPDict = {}
+
+        # Movable control point
+        sp = CPSprite(self.position, self, label="move")
+        self.CPGroup.add(sp)
+        self.CPDict["move"] = sp
+        # UnMovable control point
+        sp = CPSprite(self.position + vec2d(50,50), self, label="unmove")
+        self.CPGroup.add(sp)
+        self.CPDict["unmove"] = sp
+
+        self.update_endpoint("move", self.position)
+
+        self.calc_rect()
+        self.update()
+
+    def calc_rect(self):
+        """Calculate the rect of this shape"""
+        # Line has two endpoints, one is determined by the user
+        # the other is determined by finding the closest point to it
+        # on the parent's bezier curve
+        p1 = self.CPDict["move"].position
+        p2 = self.CPDict["unmove"].position
+        # Rect must encompass both points, find max and min for x and y
+        maxx = max(p1.x, p2.x)
+        minx = min(p1.x, p2.x)
+        maxy = max(p1.y, p2.y)
+        miny = min(p1.y, p2.y)
+        self.width = maxx-minx
+        self.height = maxy-miny
+        self.position = vec2d(minx, miny)
+        self.rect = (self.position.x - self.ep_size, 
+                     self.position.y - self.ep_size, 
+                     self.width  + self.ep_size, 
+                     self.height + self.ep_size)
+        return self.rect
+
+    def update_endpoint(self, endpoint, newposition):
+        """"""
+        if endpoint is "move":
+            # Change the position of the moveable endpoint and
+            # recalculate the position of the other endpoint
+            p1 = newposition
+            cps = []
+            for e in self.parent.eps:
+                cps.append(self.parent.CPDict[e].position)
+            p2 = self.bezier.nearest_point_on_curve(p1, cps)
+            # Update position of the control point sprites
+            self.CPDict["move"].position = p1
+            self.CPDict["unmove"].position = p2
+            self.calc_rect()
+            self.update()
+        elif endpoint is "unmove":
+            # Do nothing, the other endpoint isn't moveable
+            pass
+
+    def update(self, update_type=0):
+        """"""
+        vpad = vec2d(self.ep_size, self.ep_size)
+        self.image = pygame.Surface((self.width + vpad.x * 2, 
+                                     self.height + vpad.y * 2))
+        self.image.fill(blue)
+
+        # Draw a line between control handles
+        pygame.draw.line(self.image, green, 
+                         self.CPDict["move"].position - self.position + vpad, 
+                         self.CPDict["unmove"].position - self.position + vpad)
+
+        # Draw control handles
+        for p in self.CPDict.values():
+            q = p.position - self.position + vpad
+            pygame.draw.circle(self.image, red, (int(q.x), int(q.y)), self.ep_size)
+
+        # Finally call update on all child CPSprites, to align their positions
+        for p in self.CPDict.values():
+            p.update()
+
 class BezCurve(pygame.sprite.Sprite):
     """A bezier curve graphic"""
     init = True
@@ -331,8 +426,6 @@ class BezCurve(pygame.sprite.Sprite):
             BezCurve.init = False
 
         self.time = pygame.time.get_ticks()
-
-
 
         # Position of this graphic
         self.position = position
@@ -459,20 +552,9 @@ class BezCurve(pygame.sprite.Sprite):
         elif self.dot_pos < 0:
             self.dot_pos = self.dot_pos * -1
             self.movement = 1
-
         # Draw a spot at some arbitrary length
         p = self.bezier.get_point_at_length(cps, self.dot_pos)
         pygame.draw.circle(self.image, yellow, p, 3)
-
-        # Test new bezier functions
-        self.pp = vec2d(100,100)
-        self.np = self.bezier.nearest_point_on_curve(self.pp, control_points)
-        # Draw the closest point test point and its point on the line, along with the
-        # line between them
-        pygame.draw.line(self.image, black, self.pp, self.np)
-        pygame.draw.circle(self.image, green, self.pp, 3)
-        pygame.draw.circle(self.image, green, self.np, 3)
-
 
         # Finally call update on all child CPSprites, to align their positions
         for p in self.CPDict.values():
@@ -503,6 +585,7 @@ class DisplayMain(object):
 
         # Set up variables
         self.refresh_screen = True
+        self.debug = DEBUG
 
     def MainLoop(self):
         """This is the Main Loop of the Game"""
@@ -532,6 +615,9 @@ class DisplayMain(object):
         bc = BezCurve([vec2d(0,0),vec2d(40,40),vec2d(200,100),vec2d(240,240)], 
                      vec2d(200,200))
         self.sprites.add(bc, layer=1)
+        bll = BezLinkedLine(vec2d(50,50), parent=bc)
+        self.sprites.add(bll, layer=1)
+
         cir = Circle(30, vec2d(500,200))
         self.sprites.add(cir, layer=1)
         poi = Point(vec2d(500,400), constraint_path=bc)
@@ -552,6 +638,10 @@ class DisplayMain(object):
                     if event.key == pygame.K_ESCAPE:
                         pygame.display.quit()
                         sys.exit()
+                    if event.key == pygame.K_t:
+                        # Activate "debug" mode
+                        self.debug = not self.debug
+                        print "debug toggled, new state: %s" % self.debug
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     # LMB
@@ -603,7 +693,7 @@ class DisplayMain(object):
             if self.refresh_screen:
                 self.screen.fill(darkgreen)
                 rectlist = self.sprites.draw(self.screen)
-                if DEBUG:
+                if self.debug:
                     for s in self.sprites.sprites():
                         s.CPGroup.draw(self.screen)
                 pygame.display.update()
@@ -612,7 +702,7 @@ class DisplayMain(object):
                 for a in self.dirty:
                     self.screen.fill(darkgreen, a)
                 rectlist = self.sprites.draw(self.screen)
-                if DEBUG:
+                if self.debug:
                     for s in self.sprites.sprites():
                         s.CPGroup.draw(self.screen)
                 pygame.display.update(self.dirty)
