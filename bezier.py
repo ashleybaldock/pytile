@@ -188,179 +188,236 @@ class Bezier(object):
         # 4. Once segment found, multiply remainder by the unit vector for
         #    that segment to find the coordinates of that point
 
-        def nearest_point_on_curve(self, P, cps):
-            """Compute the parameter value fo the point on a Bezier curve
-            segment closest to some arbitrary, user-input point
-            Return point on the curve at that parameter value"""
-            self.maxdepth = 64
-            self.epsilon = math.ldexp(1.0, -self.maxdepth-1)
-            rec_depth = 0
-            w_degree = 5
-            degree = 3
-            # Convert point p and bezcurve defined by control points cps into
-            # a 5th-degree bezier curve form
-            w = self.convert_to_bezier_form(P, cps)
-            # Find all possible roots of that 5th degree equation
-            t_candidates = self.find_roots(w, w_degree, rec_depth)
+    def nearest_point_on_curve(self, P, cps):
+        """Compute the parameter value fo the point on a Bezier curve
+        segment closest to some arbitrary, user-input point
+        Return point on the curve at that parameter value"""
+        self.maxdepth = 64
+        self.epsilon = math.ldexp(1.0, -self.maxdepth-1)
+        rec_depth = 0
+        w_degree = 5
+        degree = 3
+        # Convert point p and bezcurve defined by control points cps into
+        # a 5th-degree bezier curve form
+        w = self.convert_to_bezier_form(P, cps)
+        # Find all possible roots of that 5th degree equation
+        t_candidates = self.find_roots(w, w_degree, rec_depth)
 
-            # Check distance to beginning of curve, where t = 0
-            dist = (P - cps[0]).get_length_sqrd()
-            tval = 0.0
+        # Check distance to beginning of curve, where t = 0
+        dist = (P - cps[0]).get_length_sqrd()
+        tval = 0.0
 
-            # Compare distances of point p to all candidate points found as roots
-            for t in t_candidates:
-                p = self.get_at_t(cps, t)
-                new_dist = (P - p).get_length_sqrd()
-                if new_dist < dist:
-                    dist = new_dist
-                    tval = t
-
-            # Finally, look at distance to end point, where t = 1.0
-            new_dist = (P - cps[3]).get_length_sqrd()
+        # Compare distances of point p to all candidate points found as roots
+        for t in t_candidates:
+            p = self.get_at_t(cps, t)
+            new_dist = (P - p).get_length_sqrd()
             if new_dist < dist:
                 dist = new_dist
                 tval = t
 
-            # Return point on curve at parameter value tval
-            return self.get_at_t(cps, tval)
+        # Finally, look at distance to end point, where t = 1.0
+        new_dist = (P - cps[3]).get_length_sqrd()
+        if new_dist < dist:
+            dist = new_dist
+            tval = t
 
-        def convert_to_bezier_form(self, P, cps):
-            """Given a point and control points for a bezcurve, generate 5th degree
-            Bezier-format equation whose solution finds the point on the curve
-            nearest the user-defined point"""
-            # Precomputed "z" values for cubics
-            z = [[1.0, 0.6, 0.3, 0.1],
-                 [0.4, 0.6, 0.6, 0.4],
-                 [0.1, 0.3, 0.6, 1.0]]
-            n = len(cps)
-            m = len(cps) - 1
-            # Determine the "c" values, these are vectors created by subtracting
-            # point P from each of the control points
-            c = []
-            for cp in cps:
-                c.append(cp - P)
-            # Determine the "d" values, these are vectors created by subtracting
-            # each control point from the next (and multiplying by 3?)
-            d = []
-            for i in m:
-                d.append((cps[i+1] - cps[i]) * 3.0)
-            # Create table of c/d values, table of the dot products of the
-            # values from c and d
-            cdtable = []
-            for row in range(m):
-                temp = []
-                for col in range(n):
-                    temp.append(d[row].dot(c[col]))
-                cdtable.append(temp)
-            # A little unsure about this part, the C-code was unclear!
-            # Apply the "z" values to the dot products, on the skew diagonal
-            # Also set up the x-values, making these "points"                   - What does this mean?
-            w = []
-            # Bezier is uniform parameterised
-            for i in range(5):
-                w.append(vec2d(i/5.0, 0.0))
-            for k in range(n+m):
-                lb = max(0, k - m)
-                ub = min(k, n)
-                for i in range(lb, ub+1):
-                    j = k - i
-                    w[i+j].y += cdtable[j][i] * z[j][i]
-            return w
-        def find_roots(self, cps, depth):
-            """Given a 5th degree equation in Bernstein-Bezier form, find
-            all the roots in the interval [0,1]. Return number of roots found"""
-            if depth == 0:
-                # First level of recursion, set up variables used by the next steps
-                self.tvals = []
-            cc = self.crossing_count(cps, degree)
-            if cc is 0:
-                # No solutions here
-                return 0
-            elif cc is 1:
-                # Unique solution
-                # Stop recursion when enough recursions have occured (deep enough)
-                # If deep enough, return 1 solution at midpoint of current curve
-                if depth >= self.maxdepth:
-                    # cps here is relative, i.e. it refers to the control points
-                    # of the bisected bezier curve that this branch of recursion
-                    # is dealing with
-                    self.tvals.append((cps[0].x + cps[-1].x) / 2.0)
-                    return 1
-                elif self.polygon_flat_enough(cps):
-                    self.tvals.append(self.compute_x_intercept(cps))
-                    return 1
-            # Otherwise, solve recursively after subdividing control polygon
-            left, right = self.subdivide_bezier(cps, 0.5)
-            left_count = self.find_roots(left, depth+1)
-            right_count = self.find_roots(right, depth+1)
-            # All solutions are still being stored in self.tvals, so no need
-            # to gather them together
+        # Return point on curve at parameter value tval
+        return self.get_at_t(cps, tval)
 
-            # Send back total number of solutions
-            return left_count + right_count
-        def crossing_count(self, cps):
-            """Count the number of times a bezier control polygon crosses
-            the 0-axis, this number is >= the number of roots"""
-            crossings = 0
-            # Starting state for sign
-            sign = math.copysign(1, cps[0].y)
-            old_sign = math.copysign(1, cps[0].y)
-            for cp in cps:
-                sign = math.copysign(1, cp.y)
-                if sign != old_sign:
-                    crossings += 1
-                old_sign = sign
-            return crossings
-        def control_polygon_flat_enough(self, cps):
-            """Check if the control polygon of a bezier curve is flat
-            enough for recursive subdivision to bottom out"""
-            # Derive implicit equation for line connecting first and last
-            # control points
-            a = cps[0].y - cps[-1].y
-            b = cps[-1].x - cps[0].x
-            c = cps[0].x * cps[-1].y - cps[-1].x * cps[0].y
-_
-            max_above = 0.0
-            max_below = 0.0
-
-            for cp in cps:
-                value = a * cp.x + b * cp.y + c
-                if value > max_above:
-                    max_above = value
-                elif value < max_below:
-                    max_below = value
-
-            # Implicit equation for zero line
-            a1 = 0.0
-            b1 = 1.0
-            c1 = 0.0
-            # Implicit equation for "above" line
-            a2 = a
-            b2 = b
-            c2 = c - max_above
-            det = a1 * b2 - a2 * b1
-            dInv = 1.0 / det
-            intercept_1 = (b1 * c2 - b2 * c1) * dInv
-            # Implicit equation for "below" line
-            a2 = a
-            b2 = b
-            c2 = c - max_below
-            det = a1 * b2 - a2 * b1
-            dInv = 1.0 / det
-            intercept_2 = (b1 * c2 - b2 * c1) * dInv
-            # Compute intercepts of bounding box
-            left_intercept = min(intercept_1, intercept_2)
-            right_intercept = max(intercept_1, intercept_2)
-
-            error = right_intercept - left_intercept
-            if error < self.epsilon:
+    def convert_to_bezier_form(self, P, cps):
+        """Given a point and control points for a bezcurve, generate 5th degree
+        Bezier-format equation whose solution finds the point on the curve
+        nearest the user-defined point"""
+        # Precomputed "z" values for cubics
+        z = [[1.0, 0.6, 0.3, 0.1],
+             [0.4, 0.6, 0.6, 0.4],
+             [0.1, 0.3, 0.6, 1.0]]
+        n = len(cps)
+        m = len(cps) - 1
+        # Determine the "c" values, these are vectors created by subtracting
+        # point P from each of the control points
+        c = []
+        for cp in cps:
+            c.append(cp - P)
+        # Determine the "d" values, these are vectors created by subtracting
+        # each control point from the next (and multiplying by 3?)
+        d = []
+        for i in m:
+            d.append((cps[i+1] - cps[i]) * 3.0)
+        # Create table of c/d values, table of the dot products of the
+        # values from c and d
+        cdtable = []
+        for row in range(m):
+            temp = []
+            for col in range(n):
+                temp.append(d[row].dot(c[col]))
+            cdtable.append(temp)
+        # A little unsure about this part, the C-code was unclear!
+        # Apply the "z" values to the dot products, on the skew diagonal
+        # Also set up the x-values, making these "points"                   - What does this mean?
+        w = []
+        # Bezier is uniform parameterised
+        for i in range(5):
+            w.append(vec2d(i/5.0, 0.0))
+        for k in range(n+m):
+            lb = max(0, k - m)
+            ub = min(k, n)
+            for i in range(lb, ub+1):
+                j = k - i
+                w[i+j].y += cdtable[j][i] * z[j][i]
+        return w
+    def find_roots(self, cps, depth):
+        """Given a 5th degree equation in Bernstein-Bezier form, find
+        all the roots in the interval [0,1]. Return number of roots found"""
+        if depth == 0:
+            # First level of recursion, set up variables used by the next steps
+            self.tvals = []
+        cc = self.crossing_count(cps, degree)
+        if cc is 0:
+            # No solutions here
+            return 0
+        elif cc is 1:
+            # Unique solution
+            # Stop recursion when enough recursions have occured (deep enough)
+            # If deep enough, return 1 solution at midpoint of current curve
+            if depth >= self.maxdepth:
+                # cps here is relative, i.e. it refers to the control points
+                # of the bisected bezier curve that this branch of recursion
+                # is dealing with
+                self.tvals.append((cps[0].x + cps[-1].x) / 2.0)
                 return 1
-            else:
-                return 0
+            elif self.polygon_flat_enough(cps):
+                self.tvals.append(self.compute_x_intercept(cps))
+                return 1
+        # Otherwise, solve recursively after subdividing control polygon
+        left, right = self.subdivide_bezier(cps, 0.5)
+        left_count = self.find_roots(left, depth+1)
+        right_count = self.find_roots(right, depth+1)
+        # All solutions are still being stored in self.tvals, so no need
+        # to gather them together
 
+        # Send back total number of solutions
+        return left_count + right_count
+    def crossing_count(self, cps):
+        """Count the number of times a bezier control polygon crosses
+        the 0-axis, this number is >= the number of roots"""
+        crossings = 0
+        # Starting state for sign
+        sign = math.copysign(1, cps[0].y)
+        old_sign = math.copysign(1, cps[0].y)
+        for cp in cps:
+            sign = math.copysign(1, cp.y)
+            if sign != old_sign:
+                crossings += 1
+            old_sign = sign
+        return crossings
+    def control_polygon_flat_enough(self, cps):
+        """Check if the control polygon of a bezier curve is flat
+        enough for recursive subdivision to bottom out"""
+        # Derive implicit equation for line connecting first and last
+        # control points
+        a = cps[0].y - cps[-1].y
+        b = cps[-1].x - cps[0].x
+        c = cps[0].x * cps[-1].y - cps[-1].x * cps[0].y
 
-                
+        max_above = 0.0
+        max_below = 0.0
 
+        for cp in cps:
+            value = a * cp.x + b * cp.y + c
+            if value > max_above:
+                max_above = value
+            elif value < max_below:
+                max_below = value
+
+        # Implicit equation for zero line
+        a1 = 0.0
+        b1 = 1.0
+        c1 = 0.0
+        # Implicit equation for "above" line
+        a2 = a
+        b2 = b
+        c2 = c - max_above
+        det = a1 * b2 - a2 * b1
+        dInv = 1.0 / det
+        intercept_1 = (b1 * c2 - b2 * c1) * dInv
+        # Implicit equation for "below" line
+        a2 = a
+        b2 = b
+        c2 = c - max_below
+        det = a1 * b2 - a2 * b1
+        dInv = 1.0 / det
+        intercept_2 = (b1 * c2 - b2 * c1) * dInv
+        # Compute intercepts of bounding box
+        left_intercept = min(intercept_1, intercept_2)
+        right_intercept = max(intercept_1, intercept_2)
+
+        error = right_intercept - left_intercept
+        if error < self.epsilon:
+            return 1
+        else:
+            return 0
+
+    def compute_x_intercept(self, cps):
+        """Compute intersection of line from first control point
+        to last control point with the 0-axis"""
+        x_lk = 1.0
+        y_lk = 0.0
+        x_nm = cps[-1].x - cps[0].x
+        y_nm = cps[-1].y - cps[0].y
+        x_mk = cps[0].x
+        y_mk = cps[0].y
+
+        det = x_nm * y_lk - y_nm * x_lk
+        dInv = 1.0/det
+
+        return x_lk * (x_nm * y_mk - y_nm * x_mk) * dInv
+
+    def subdivide_bezier(self, cps, t):
+        """Subdivide bezier curve into two smaller curves
+        Split occurs at parameter value t"""
+        Vtemp = [
+                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
+                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
+                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
+                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
+                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
+                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
+                 ]
+        # Copy control points
+        for cp in cps:
+            Vtemp[0][j] = cp
+        # Triangle computation
+        for i in range(len(cps)):
+            for j in range(len(cps) - i):
+                Vtemp[i][j] = (1.0 - t) * Vtemp[i-1][j] + t * Vtemp[i-1][j+1]
+                #Vtemp[i][j].x = (1.0 - t) * Vtemp[i-1][j].x + t * Vtemp[i-1][j+1].x
+                #Vtemp[i][j].y = (1.0 - t) * Vtemp[i-1][j].x + t * Vtemp[i-1][j+1].y
+        for j in range(len(cps)):
+            left.append(Vtemp[j][0])
+            right.append(Vtemp[len(cps) - j][j]
+
+        return (left, right)
+            
+    def get_at_t(self, cps, t):
+        """Evaluate bezier curve at particular parameter value"""
+        Vtemp = [
+                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
+                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
+                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
+                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
+                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
+                 [Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0),Vec2d(0,0)],
+                 ]
+        # Copy control points
+        for cp in cps:
+            Vtemp[0][j] = cp
+        # Triangle computation
+        for i in range(len(cps)):
+            for j in range(len(cps) - i):
+                Vtemp[i][j] = (1.0 - t) * Vtemp[i-1][j] + t * Vtemp[i-1][j+1]
+
+        return Vtemp[len(cps)][0]
 
 class Tile(pygame.sprite.Sprite):
     """A tile containing tracks, drawn in layers"""
