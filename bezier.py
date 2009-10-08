@@ -21,9 +21,7 @@
 
 DEBUG = False
 
-import os
-import sys
-import math
+import os, sys, math
 
 import pygame
 from pygame.locals import *
@@ -50,27 +48,6 @@ yellow = (255,255,0)
 FPS_REFRESH = 500
 WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 800
-
-# Size of the world in tiles
-xWorld = 10
-yWorld = 10
-
-TILE_SIZE = 128
-#TILE_SIZE = 96
-#TILE_SIZE = 96
-
-DRAW_HINTS = False
-
-class World(object):
-    """Global world object for all Tiles to reference"""
-    init = True
-    def __init__(self):
-        if World.init:
-            World.xWorld = xWorld
-            World.yWorld = yWorld
-            # Starting offsets, these will center the map by default
-            World.offx = WINDOW_WIDTH / 2 - World.xWorld * TILE_SIZE / 2
-            World.offy = WINDOW_HEIGHT / 2 - World.yWorld * TILE_SIZE / 2
 
 class Bezier(object):
     """Bezier curve related methods"""
