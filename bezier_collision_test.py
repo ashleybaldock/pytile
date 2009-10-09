@@ -30,7 +30,7 @@ from pygame.locals import *
 
 from numpy import *
 
-from bezier import Bezier
+from bezier import Bezier, Intersection
 from tools import Tool, MouseSprite
 
 import logger
@@ -612,16 +612,29 @@ class DisplayMain(object):
 
         self.sprites = pygame.sprite.LayeredUpdates()
 
-        bc = BezCurve([vec2d(0,0),vec2d(40,40),vec2d(200,100),vec2d(240,240)], 
-                     vec2d(200,200))
+        curve_points = [vec2d(0,0),vec2d(40,40),vec2d(200,100),vec2d(240,240)]
+
+        bc = BezCurve(curve_points, vec2d(200,200))
         self.sprites.add(bc, layer=1)
         bll = BezLinkedLine(vec2d(50,50), parent=bc)
         self.sprites.add(bll, layer=1)
 
-        cir = Circle(30, vec2d(500,200))
+        for c in curve_points:
+            c += vec2d(200,200)
+
+        circle_pos = vec2d(320,280)
+        circle_rad = 40
+
+        intersection = Intersection()
+        ppps = intersection.intersect_bezier3_ellipse(curve_points, 
+                                                      circle_pos + vec2d(circle_rad, circle_rad), 
+                                                      circle_rad)
+
+        cir = Circle(circle_rad, circle_pos)
         self.sprites.add(cir, layer=1)
-        poi = Point(vec2d(500,400), constraint_path=bc)
-        self.sprites.add(poi, layer=1)
+        for ppp in ppps:
+            poi = Point(ppp)
+            self.sprites.add(poi, layer=10)
 
         while True:
             self.clock.tick(0)

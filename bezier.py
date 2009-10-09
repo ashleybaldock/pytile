@@ -403,6 +403,243 @@ class Bezier(object):
         return Vtemp[len(cps)-1][0]
 
 
+class Intersection(object):
+    """Methods for calculating the intersection points between shapes"""
+    def __init__(self):
+        """"""
+        self.tolerance = 1e-6
+        self.accuracy = 6
+    def intersect_bezier3_ellipse(self, curve_points, ec, rx, ry=None):
+        """Find points of intersection between a cubic bezier curve and an ellipse"""
+        p1, p2, p3, p4 = curve_points
+        if ry is None:
+            ry = rx
+        # Calculate coefficients of cubic polynomial
+        a = p1 * -1
+        b = p2 * 3
+        c = p3 * -3
+        d = a + b + c + p4
+        c3 = vec2d(d.x, d.y)
 
+        a = p1 * 3
+        b = p2 * -6
+        c = p3 * 3
+        d = a + b + c
+        c2 = vec2d(d.x, d.y)
 
+        a = p1 * -3
+        b = p2 * 3
+        c = a + b
+        c1 = vec2d(c.x, c.y)
 
+        c0 = vec2d(p1.x, p1.y)
+
+        rxrx = rx*rx
+        ryry = ry*ry
+
+        poly = [
+                c3.x*c3.x*ryry + c3.y*c3.y*rxrx,
+                2*(c3.x*c2.x*ryry + c3.y*c2.y*rxrx),
+                2*(c3.x*c1.x*ryry + c3.y*c1.y*rxrx) + c2.x*c2.x*ryry + c2.y*c2.y*rxrx,
+                2*c3.x*ryry*(c0.x - ec.x) + 2*c3.y*rxrx*(c0.y - ec.y) +
+                    2*(c2.x*c1.x*ryry + c2.y*c1.y*rxrx),
+                2*c2.x*ryry*(c0.x - ec.x) + 2*c2.y*rxrx*(c0.y - ec.y) +
+                    c1.x*c1.x*ryry + c1.y*c1.y*rxrx,
+                2*c1.x*ryry*(c0.x - ec.x) + 2*c1.y*rxrx*(c0.y - ec.y),
+                c0.x*c0.x*ryry - 2*c0.y*ec.y*rxrx - 2*c0.x*ec.x*ryry +
+                    c0.y*c0.y*rxrx + ec.x*ec.x*ryry + ec.y*ec.y*rxrx - rxrx*ryry
+                ]
+        print "poly is: %s" % poly[::-1]
+        roots = self.get_roots_in_interval(poly[::-1])
+        print "roots are: %s" % roots
+        result = []
+        for t in roots:
+            result.append(c3 * t ** 3 + c2 * t ** 2 + c1 * t + c0)
+        print "results are: %s" % result
+        return result
+
+    def get_roots_in_interval(self, poly):
+        """Find roots in interval 0,1"""
+        print poly
+        roots = []
+        if len(poly) == 2:
+            root = self.bisection(poly, 0, 1)
+            print "2, root: %s" % root
+            if root:
+                roots.append(root)
+        else:
+            # Get roots of derivative
+            dpoly = self.get_derivative(poly)
+            droots = self.get_roots_in_interval(dpoly)
+            print "dpoly: %s" % dpoly
+            print "droots: %s" % droots
+            if len(droots) > 0:
+                drootsb = []
+                for d in droots:
+                    drootsb.append(d)
+                droots.insert(0, 0)
+                drootsb.append(1)
+                print "droots: %s" % droots
+                print "drootsb: %s" % drootsb
+                for a, b in zip(droots, drootsb):
+                    # Find root on [min, droots[0]]
+                    root = self.bisection(poly, a, b)
+                    if root:
+                        roots.append(root)
+            else:
+                # Polynomial is monotone on [min,max], has at most one root
+                root = self.bisection(poly, 0, 1)
+                if root:
+                    roots.append(root)
+        print "roots: %s" % roots
+        return roots
+    #/*****
+    #*
+    #*   getRootsInInterval
+    #*
+    #*****/
+    #Polynomial.prototype.getRootsInInterval = function(min, max) {
+    #    var roots = new Array();
+    #    var root;
+    #
+    #    if ( this.getDegree() == 1 ) {
+    #        root = this.bisection(min, max);
+    #        if ( root != null ) roots.push(root);
+    #    } else {
+    #        // get roots of derivative
+    #        var deriv  = this.getDerivative();
+    #        var droots = deriv.getRootsInInterval(min, max);
+    #
+    #        if ( droots.length > 0 ) {
+    #            // find root on [min, droots[0]]
+    #            root = this.bisection(min, droots[0]);
+    #            if ( root != null ) roots.push(root);
+    #
+    #            // find root on [droots[i],droots[i+1]] for 0 <= i <= count-2
+    #            for ( i = 0; i <= droots.length-2; i++ ) {
+    #                root = this.bisection(droots[i], droots[i+1]);
+    #                if ( root != null ) roots.push(root);
+    #            }
+    #
+    #            // find root on [droots[count-1],xmax]
+    #            root = this.bisection(droots[droots.length-1], max);
+    #            if ( root != null ) roots.push(root);
+    #        } else {
+    #            // polynomial is monotone on [min,max], has at most one root
+    #            root = this.bisection(min, max);
+    #            if ( root != null ) roots.push(root);
+    #        }
+    #    }
+    #
+    #    return roots;
+    #};
+
+    def get_derivative(self, poly):
+        """"""
+        coefs = []
+        for i in range(1, len(poly)):
+            coefs.append(i*poly[i])
+        return coefs
+    #/*****
+    #*
+    #*   getDerivative
+    #*
+    #*****/
+    #Polynomial.prototype.getDerivative = function() {
+    #    var derivative = new Polynomial();
+    #
+    #    for ( var i = 1; i < this.coefs.length; i++ ) {
+    #        derivative.coefs.push(i*this.coefs[i]);
+    #    }
+    #
+    #    return derivative;
+    #};
+
+    def bisection(self, poly, minv, maxv):
+        """"""
+        minval = self.eval(poly, minv)
+        maxval = self.eval(poly, maxv)
+        print "eval: min: %s, max: %s" % (minval, maxval)
+        result = 0
+        if abs(minval) <= self.tolerance:
+            result = minv
+        elif abs(maxval) <= self.tolerance:
+            result = maxv
+        elif minval * maxval <= 0:
+            tmp1 = math.log(maxv - minv)
+            tmp2 = 2.302585092994046 * self.accuracy
+            iters = math.ceil((tmp1 + tmp2) / 0.6931471805599453)
+            for i in range(iters):
+                result = 0.5 * (minv + maxv)
+                value = self.eval(poly, result)
+                if abs(value) <= self.tolerance:
+                    break
+                if value * minval < 0:
+                    maxv = result
+                    maxval = value
+                else:
+                    minv = result
+                    minval = value
+        return result
+    #/*****
+    #*
+    #*   bisection
+    #*
+    #*****/
+    #Polynomial.prototype.bisection = function(min, max) {
+    #    var minValue = this.eval(min);
+    #    var maxValue = this.eval(max);
+    #    var result;
+    #    
+    #    if ( Math.abs(minValue) <= Polynomial.TOLERANCE )
+    #        result = min;
+    #    else if ( Math.abs(maxValue) <= Polynomial.TOLERANCE )
+    #        result = max;
+    #    else if ( minValue * maxValue <= 0 ) {
+    #        var tmp1  = Math.log(max - min);
+    #        var tmp2  = Math.LN10 * Polynomial.ACCURACY;
+    #        var iters = Math.ceil( (tmp1+tmp2) / Math.LN2 );
+    #
+    #        for ( var i = 0; i < iters; i++ ) {
+    #            result = 0.5 * (min + max);
+    #            var value = this.eval(result);
+    #
+    #            if ( Math.abs(value) <= Polynomial.TOLERANCE ) {
+    #                break;
+    #            }
+    #
+    #            if ( value * minValue < 0 ) {
+    #                max = result;
+    #                maxValue = value;
+    #            } else {
+    #                min = result;
+    #                minValue = value;
+    #            }
+    #        }
+    #    }
+    #
+    #    return result;
+    #};
+
+    def eval(self, poly, x):
+        """"""
+        result = 0
+        for i in range(len(poly)-1, -1, -1):
+            result = result * x + poly[i]
+        return result
+    #/*****
+    #*
+    #*   eval
+    #*
+    #*****/
+    #Polynomial.prototype.eval = function(x) {
+    #    if ( isNaN(x) )
+    #        throw new Error("Polynomial.eval: parameter must be a number");
+    #
+    #    var result = 0;
+    #
+    #    for ( var i = this.coefs.length - 1; i >= 0; i-- )
+    #        result = result * x + this.coefs[i];
+    #
+    #    return result;
+    #};
