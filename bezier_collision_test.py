@@ -51,6 +51,7 @@ silver = (224,216,216)
 black = (0,0,0)
 white = (255,255,255)
 yellow = (255,255,0)
+transparent = (231,255,255)
 
 nothing = (0,0,0,0)
 opaque = (0,0,0,255)
@@ -168,6 +169,7 @@ class Circle(pygame.sprite.Sprite):
         if BezCurve.init:
             BezCurve.bezier = Bezier()
             BezCurve.init = False
+        self.transparency = True
 
         # Position of this graphic
         self.position = position
@@ -231,7 +233,12 @@ class Circle(pygame.sprite.Sprite):
         vpad = vec2d(self.ep_size, self.ep_size)
         self.image = pygame.Surface((self.width + vpad.x * 2, 
                                      self.height + vpad.y * 2))
-        self.image.fill(blue)
+
+        # Either draw the background blue, or don't
+        if self.transparency:
+            self.image.fill(transparent)
+        else:
+            self.image.fill(blue)
 
         # Draw the circle
         pygame.draw.circle(self.image, 
@@ -243,6 +250,9 @@ class Circle(pygame.sprite.Sprite):
         for p in self.CPDict.values():
             q = p.position - self.position + vpad
             pygame.draw.circle(self.image, red, (int(q.x), int(q.y)), self.ep_size)
+
+        # Set transparency
+        self.image.set_colorkey(transparent)
 
         # Finally call update on all child CPSprites, to align their positions
         for p in self.CPDict.values():
@@ -257,6 +267,7 @@ class Point(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
         if Point.init:
             Point.init = False
+        self.transparency = True
         # Position of this graphic
         self.position = position
         # The constraint path is a shape object which this shape object "snaps" to
@@ -310,10 +321,18 @@ class Point(pygame.sprite.Sprite):
         vpad = vec2d(self.ep_size, self.ep_size)
         self.image = pygame.Surface((self.width + vpad.x * 2, 
                                      self.height + vpad.y * 2))
-        self.image.fill(blue)
+
+        # Either draw the background blue, or don't
+        if self.transparency:
+            self.image.fill(transparent)
+        else:
+            self.image.fill(blue)
 
         # Draw spot to represent this point
         pygame.draw.circle(self.image, red, vpad, self.ep_size)
+
+        # Set transparency
+        self.image.set_colorkey(transparent)
 
         # Finally call update on all child CPSprites, to align their positions
         for p in self.CPDict.values():
@@ -328,6 +347,7 @@ class BezLinkedLine(pygame.sprite.Sprite):
         if BezLinkedLine.init:
             BezLinkedLine.bezier = Bezier()
             BezLinkedLine.init = False
+        self.transparency = True
         
         self.position = position
         # The BezCurve that this sprite is a child to
@@ -398,7 +418,12 @@ class BezLinkedLine(pygame.sprite.Sprite):
         vpad = vec2d(self.ep_size, self.ep_size)
         self.image = pygame.Surface((self.width + vpad.x * 2, 
                                      self.height + vpad.y * 2))
-        self.image.fill(blue)
+
+        # Either draw the background blue, or don't
+        if self.transparency:
+            self.image.fill(transparent)
+        else:
+            self.image.fill(blue)
 
         # Draw a line between control handles
         pygame.draw.line(self.image, green, 
@@ -409,6 +434,9 @@ class BezLinkedLine(pygame.sprite.Sprite):
         for p in self.CPDict.values():
             q = p.position - self.position + vpad
             pygame.draw.circle(self.image, red, (int(q.x), int(q.y)), self.ep_size)
+
+        # Set transparency
+        self.image.set_colorkey(transparent)
 
         # Finally call update on all child CPSprites, to align their positions
         for p in self.CPDict.values():
@@ -424,6 +452,7 @@ class BezCurve(pygame.sprite.Sprite):
         if BezCurve.init:
             BezCurve.bezier = Bezier()
             BezCurve.init = False
+        self.transparency = True
 
         self.time = pygame.time.get_ticks()
 
@@ -515,7 +544,12 @@ class BezCurve(pygame.sprite.Sprite):
         vpad = vec2d(self.ep_size, self.ep_size)
         self.image = pygame.Surface((self.width + vpad.x * 2, 
                                      self.height + vpad.y * 2))
-        self.image.fill(blue)
+
+        # Either draw the background blue, or don't
+        if self.transparency:
+            self.image.fill(transparent)
+        else:
+            self.image.fill(blue)
 
         # Draw control lines for endpoints
         pygame.draw.line(self.image, green, 
@@ -555,6 +589,9 @@ class BezCurve(pygame.sprite.Sprite):
         # Draw a spot at some arbitrary length
         p = self.bezier.get_point_at_length(cps, self.dot_pos)
         pygame.draw.circle(self.image, yellow, p, 3)
+
+        # Set transparency
+        self.image.set_colorkey(transparent)
 
         # Finally call update on all child CPSprites, to align their positions
         for p in self.CPDict.values():
@@ -654,6 +691,8 @@ class DisplayMain(object):
                     if event.key == pygame.K_t:
                         # Activate "debug" mode
                         self.debug = not self.debug
+                        for s in self.sprites:
+                            s.transparency = not self.debug
                         print "debug toggled, new state: %s" % self.debug
 
                 if event.type == pygame.MOUSEBUTTONDOWN:
