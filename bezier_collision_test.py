@@ -113,8 +113,6 @@ class ControlMover(Tool):
             return True
         else:
             return False
-        
-
 
 class CPSprite(pygame.sprite.Sprite):
     """Invisible sprite to represent control points of sprites"""
@@ -164,13 +162,16 @@ class Circle(pygame.sprite.Sprite):
     init = True
     # Radius of the endpoints (also used for sprite padding)
     ep_size = EP_SIZE
-    def __init__(self, radius, position, intersect_link=None):
+    def __init__(self, radius, position, intersect_link=None, parent=None):
         pygame.sprite.Sprite.__init__(self)
         if Circle.init:
             Circle.bezier = Bezier()
             Circle.intersection = Intersection()
             Circle.init = False
         self.transparency = True
+
+        # The Shape that this Shape is a child to
+        self.parent = parent
 
         # Position of this graphic
         self.position = position
@@ -222,22 +223,36 @@ class Circle(pygame.sprite.Sprite):
             # Set the radius to the current radius - the x component
             self.radius = self.radius - movepos.x
             self.CPDict["radius"].position = self.CPDict["radius"].position - movepos
-
-            # If this shape has an intersect_link, need to update intersection
-            self.update_intersect()
         elif endpoint is "move":
-            # Move the entire shape to center on new position
-            # Get old position of the center control point
-            oldpos = self.CPDict["move"].position
-            # Calculate vector from the old to the new
-            movepos = oldpos - newposition
-            # Apply this movement vector to the rest of the control points
-            for p in self.CPDict.values():
-                p.position = p.position - movepos
+            if self.parent is None:
+                # Move the entire shape to center on new position
+                # Get old position of the center control point
+                oldpos = self.CPDict["move"].position
+                # Calculate vector from the old to the new
+                movepos = oldpos - newposition
+                # Apply this movement vector to the rest of the control points
+                for p in self.CPDict.values():
+                    p.position = p.position - movepos
 
-            # If this shape has an intersect_link, need to update intersection
-            self.update_intersect()
+            else:
+                cps = []
+                for e in self.parent.eps:
+                    cps.append(self.parent.CPDict[e].position)
+                if newposition is None:
+                    p1 = self.CPDict["move"].position
+                    p2 = self.bezier.nearest_point_on_curve(p1, cps)
+                else:
+                    p1 = newposition
+                    p2 = self.bezier.nearest_point_on_curve(p1, cps)
+                    p1 = self.CPDict["move"].position
+                # Calculate vector from the old to the new
+                movepos = p1 - p2
+                # Apply this movement vector to the rest of the control points
+                for p in self.CPDict.values():
+                    p.position = p.position - movepos
 
+        # If this shape has an intersect_link, need to update intersection
+        self.update_intersect()
         # This will automatically update the position of the entire shape
         # when we do a calc_rect
         self.calc_rect()
@@ -437,7 +452,10 @@ class BezLinkedLine(pygame.sprite.Sprite):
         if endpoint is "move":
             # Change the position of the moveable endpoint and
             # recalculate the position of the other endpoint
-            p1 = newposition
+            if newposition is None:
+                p1 = self.CPDict["move"].position
+            else:
+                p1 = newposition
             cps = []
             for e in self.parent.eps:
                 cps.append(self.parent.CPDict[e].position)
@@ -491,6 +509,7 @@ class BezCurve(pygame.sprite.Sprite):
             BezCurve.bezier = Bezier()
             BezCurve.init = False
         self.transparency = True
+        self.children = []
 
         self.time = pygame.time.get_ticks()
 
@@ -577,6 +596,10 @@ class BezCurve(pygame.sprite.Sprite):
             self.calc_rect()
             self.update()
 
+    def link_child(self, child):
+        """Add a link to a shape which depends on this one for its position"""
+        self.children.append(child)
+
     def update(self, update_type=0):
         """"""
         vpad = vec2d(self.ep_size, self.ep_size)
@@ -634,6 +657,10 @@ class BezCurve(pygame.sprite.Sprite):
         # Finally call update on all child CPSprites, to align their positions
         for p in self.CPDict.values():
             p.update()
+        # And then call update on all child shapes to update their positions
+        # based on the position of this shape
+        for p in self.children:
+            p.update_endpoint("move", None)
 
 
 
@@ -693,15 +720,21 @@ class DisplayMain(object):
         self.sprites.add(bc, layer=1)
         bll = BezLinkedLine(vec2d(50,50), parent=bc)
         self.sprites.add(bll, layer=1)
+        bc.link_child(bll)
 
         for c in curve_points:
             c += vec2d(200,200)
 
         circle_pos = vec2d(320,280)
         circle_rad = 40
-
-        cir = Circle(circle_rad, circle_pos, intersect_link=bc)
+        cir = Circle(circle_rad, circle_pos, intersect_link=bc, parent=bc)
         self.sprites.add(cir, layer=1)
+        bc.link_child(cir)
+
+        circle_pos = vec2d(500,50)
+        circle_rad = 60
+        cir2 = Circle(circle_rad, circle_pos, intersect_link=bc)
+        self.sprites.add(cir2, layer=1)
 
         while True:
             self.clock.tick(0)
