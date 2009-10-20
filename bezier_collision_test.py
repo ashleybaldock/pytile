@@ -189,21 +189,11 @@ class Circle(pygame.sprite.Sprite):
         self.CPGroup.add(sp)
         self.CPDict["radius"] = sp
 
-        # If this shape has an intersect_link, need to update intersection
-        # control points based on the intersect_with function of its link
+        # Set ilink property to this shape's intersection_link neighbour
         self.ilink = intersect_link
-        i_points = self.intersection.intersect_bezier3_ellipse(
-                 [self.ilink.CPDict["e0"].position,
-                  self.ilink.CPDict["e1"].position,
-                  self.ilink.CPDict["e2"].position,
-                  self.ilink.CPDict["e3"].position,],
-                 self.CPDict["move"].position,
-                 self.radius
-                )
-        for n, i in enumerate(i_points):
-            p = CPSprite(i, self, label="i%s" % n)
-            self.CPGroup.add(p)
-            self.CPDict["i%s" % n] = p
+
+        # If this shape has an intersect_link, need to update intersection
+        self.update_intersect()
 
         self.calc_rect()
         self.update()
@@ -232,6 +222,9 @@ class Circle(pygame.sprite.Sprite):
             # Set the radius to the current radius - the x component
             self.radius = self.radius - movepos.x
             self.CPDict["radius"].position = self.CPDict["radius"].position - movepos
+
+            # If this shape has an intersect_link, need to update intersection
+            self.update_intersect()
         elif endpoint is "move":
             # Move the entire shape to center on new position
             # Get old position of the center control point
@@ -243,31 +236,35 @@ class Circle(pygame.sprite.Sprite):
                 p.position = p.position - movepos
 
             # If this shape has an intersect_link, need to update intersection
-            # control points based on the intersect_with function of its link
-            i_points = self.intersection.intersect_bezier3_ellipse(
-                     [self.ilink.CPDict["e0"].position,
-                      self.ilink.CPDict["e1"].position,
-                      self.ilink.CPDict["e2"].position,
-                      self.ilink.CPDict["e3"].position,],
-                     self.CPDict["move"].position,
-                     self.radius
-                    )
-            for n, i in enumerate(i_points):
-                # Check CPDict
-                lb = "i%s" % n
-                if lb in self.CPDict.keys():
-                    # Update existing sprite
-                    self.CPDict[lb].position = i
-                else:
-                    # Make a new CPSprite and add it
-                    p = CPSprite(i, self, label=lb)
-                    self.CPGroup.add(p)
-                    self.CPDict[lb] = p
+            self.update_intersect()
 
         # This will automatically update the position of the entire shape
         # when we do a calc_rect
         self.calc_rect()
         self.update()
+
+    def update_intersect(self):
+        """Update the intersection CPsprites"""
+        # control points based on the intersect_with function of its link
+        i_points = self.intersection.intersect_bezier3_ellipse(
+                 [self.ilink.CPDict["e0"].position,
+                  self.ilink.CPDict["e1"].position,
+                  self.ilink.CPDict["e2"].position,
+                  self.ilink.CPDict["e3"].position,],
+                 self.CPDict["move"].position,
+                 self.radius
+                )
+        for n, i in enumerate(i_points):
+            # Check CPDict
+            lb = "i%s" % n
+            if lb in self.CPDict.keys():
+                # Update existing sprite
+                self.CPDict[lb].position = i
+            else:
+                # Make a new CPSprite and add it
+                p = CPSprite(i, self, label=lb)
+                self.CPGroup.add(p)
+                self.CPDict[lb] = p
 
     def update(self, update_type=0):
         """Draw the image this tile represents"""
