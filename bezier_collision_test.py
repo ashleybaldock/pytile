@@ -233,7 +233,6 @@ class Circle(pygame.sprite.Sprite):
                 # Apply this movement vector to the rest of the control points
                 for p in self.CPDict.values():
                     p.position = p.position - movepos
-
             else:
                 cps = []
                 for e in self.parent.eps:
@@ -262,13 +261,13 @@ class Circle(pygame.sprite.Sprite):
         """Update the intersection CPsprites"""
         # control points based on the intersect_with function of its link
         i_points = self.intersection.intersect_bezier3_ellipse(
-                 [self.ilink.CPDict["e0"].position,
-                  self.ilink.CPDict["e1"].position,
-                  self.ilink.CPDict["e2"].position,
-                  self.ilink.CPDict["e3"].position,],
-                 self.CPDict["move"].position,
-                 self.radius
-                )
+                   [self.ilink.CPDict["e0"].position,
+                    self.ilink.CPDict["e1"].position,
+                    self.ilink.CPDict["e2"].position,
+                    self.ilink.CPDict["e3"].position,],
+                   self.CPDict["move"].position,
+                   self.radius
+                   )
         for n, i in enumerate(i_points):
             # Check CPDict
             lb = "i%s" % n
