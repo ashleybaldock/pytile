@@ -164,11 +164,12 @@ class Circle(pygame.sprite.Sprite):
     init = True
     # Radius of the endpoints (also used for sprite padding)
     ep_size = EP_SIZE
-    def __init__(self, radius, position):
+    def __init__(self, radius, position, intersect_link=None):
         pygame.sprite.Sprite.__init__(self)
-        if BezCurve.init:
-            BezCurve.bezier = Bezier()
-            BezCurve.init = False
+        if Circle.init:
+            Circle.bezier = Bezier()
+            Circle.intersection = Intersection()
+            Circle.init = False
         self.transparency = True
 
         # Position of this graphic
@@ -187,6 +188,23 @@ class Circle(pygame.sprite.Sprite):
         sp = CPSprite(self.position + vec2d(self.radius * 2, self.radius), self, label="radius")
         self.CPGroup.add(sp)
         self.CPDict["radius"] = sp
+
+        # If this shape has an intersect_link, need to update intersection
+        # control points based on the intersect_with function of its link
+        self.ilink = intersect_link
+        i_points = self.intersection.intersect_bezier3_ellipse(
+                 [self.ilink.CPDict["e0"].position,
+                  self.ilink.CPDict["e1"].position,
+                  self.ilink.CPDict["e2"].position,
+                  self.ilink.CPDict["e3"].position,],
+                 self.CPDict["move"].position,
+                 self.radius
+                )
+        for n, i in enumerate(i_points):
+            p = CPSprite(i, self, label="i%s" % n)
+            self.CPGroup.add(p)
+            self.CPDict["i%s" % n] = p
+
         self.calc_rect()
         self.update()
 
@@ -223,6 +241,29 @@ class Circle(pygame.sprite.Sprite):
             # Apply this movement vector to the rest of the control points
             for p in self.CPDict.values():
                 p.position = p.position - movepos
+
+            # If this shape has an intersect_link, need to update intersection
+            # control points based on the intersect_with function of its link
+            i_points = self.intersection.intersect_bezier3_ellipse(
+                     [self.ilink.CPDict["e0"].position,
+                      self.ilink.CPDict["e1"].position,
+                      self.ilink.CPDict["e2"].position,
+                      self.ilink.CPDict["e3"].position,],
+                     self.CPDict["move"].position,
+                     self.radius
+                    )
+            for n, i in enumerate(i_points):
+                # Check CPDict
+                lb = "i%s" % n
+                if lb in self.CPDict.keys():
+                    # Update existing sprite
+                    self.CPDict[lb].position = i
+                else:
+                    # Make a new CPSprite and add it
+                    p = CPSprite(i, self, label=lb)
+                    self.CPGroup.add(p)
+                    self.CPDict[lb] = p
+
         # This will automatically update the position of the entire shape
         # when we do a calc_rect
         self.calc_rect()
@@ -662,16 +703,8 @@ class DisplayMain(object):
         circle_pos = vec2d(320,280)
         circle_rad = 40
 
-        intersection = Intersection()
-        ppps = intersection.intersect_bezier3_ellipse(curve_points, 
-                                                      circle_pos + vec2d(circle_rad, circle_rad), 
-                                                      circle_rad)
-
-        cir = Circle(circle_rad, circle_pos)
+        cir = Circle(circle_rad, circle_pos, intersect_link=bc)
         self.sprites.add(cir, layer=1)
-        for ppp in ppps:
-            poi = Point(ppp)
-            self.sprites.add(poi, layer=10)
 
         while True:
             self.clock.tick(0)

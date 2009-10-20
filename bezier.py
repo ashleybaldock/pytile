@@ -449,38 +449,38 @@ class Intersection(object):
                 c0.x*c0.x*ryry - 2*c0.y*ec.y*rxrx - 2*c0.x*ec.x*ryry +
                     c0.y*c0.y*rxrx + ec.x*ec.x*ryry + ec.y*ec.y*rxrx - rxrx*ryry
                 ]
-        print "poly is: %s" % poly[::-1]
+        #print "poly is: %s" % poly[::-1]
         roots = self.get_roots_in_interval(poly[::-1])
-        print "roots are: %s" % roots
+        #print "roots are: %s" % roots
         result = []
         for t in roots:
             result.append(c3 * t ** 3 + c2 * t ** 2 + c1 * t + c0)
-        print "results are: %s" % result
+        #print "results are: %s" % result
         return result
 
     def get_roots_in_interval(self, poly):
         """Find roots in interval 0,1"""
-        print poly
+        #print poly
         roots = []
         if len(poly) == 2:
             root = self.bisection(poly, 0, 1)
-            print "2, root: %s" % root
+        #    print "2, root: %s" % root
             if root:
                 roots.append(root)
         else:
             # Get roots of derivative
             dpoly = self.get_derivative(poly)
             droots = self.get_roots_in_interval(dpoly)
-            print "dpoly: %s" % dpoly
-            print "droots: %s" % droots
+        #    print "dpoly: %s" % dpoly
+        #    print "droots: %s" % droots
             if len(droots) > 0:
                 drootsb = []
                 for d in droots:
                     drootsb.append(d)
                 droots.insert(0, 0)
                 drootsb.append(1)
-                print "droots: %s" % droots
-                print "drootsb: %s" % drootsb
+        #        print "droots: %s" % droots
+        #        print "drootsb: %s" % drootsb
                 for a, b in zip(droots, drootsb):
                     # Find root on [min, droots[0]]
                     root = self.bisection(poly, a, b)
@@ -491,7 +491,7 @@ class Intersection(object):
                 root = self.bisection(poly, 0, 1)
                 if root:
                     roots.append(root)
-        print "roots: %s" % roots
+        #print "roots: %s" % roots
         return roots
     #/*****
     #*
@@ -559,7 +559,7 @@ class Intersection(object):
         """"""
         minval = self.eval(poly, minv)
         maxval = self.eval(poly, maxv)
-        print "eval: min: %s, max: %s" % (minval, maxval)
+        #print "eval: min: %s, max: %s" % (minval, maxval)
         result = 0
         if abs(minval) <= self.tolerance:
             result = minv
