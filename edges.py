@@ -1,4 +1,6 @@
 from PIL import Image, ImageDraw, ImageFont
+import math
+import random
 # compare a to b, b to c, c to d and d to a
 
 max_edge_difference = 2
@@ -48,11 +50,83 @@ for o in output:
         print o
 print len(output)
 
+
+class TileDraw(object):
+    """"""
+    def __init__(self):
+        """"""
+        # Lookup table for gradients
+        # [-2, -1, 0, 1, 2]
+        # Transformed to [0,1,2,3,4] by +2
+        self.start_0A = [self.up_x, self.up_3x4, self.up_x2, self.up_x4, self.up_0]
+        self.start_0B = [self.down_0, self.down_x4, self.down_x2, self.down_3x4, self.down_x]
+        self.start_1A = []
+        self.start_1B = []
+        self.start_2A = [self.up_x, self.up_3x4, self.up_x2, self.up_x4, self.up_0]
+        self.start_2B = [self.down_0, self.down_x4, self.down_x2, self.down_3x4, self.down_x]
+        self.start_3A = []
+        self.start_3B = []
+    def up_x(self, x):
+        return x
+    def up_3x4(self, x):
+        return int(math.ceil(x/2.0) + math.floor(x/4.0))
+    def up_x2(self, x):
+        return x / 2
+    def up_x4(self, x):
+        return x / 4
+    def up_0(self, x):
+        return 0
+    def down_x(self, x):
+        return - self.up_x(x)
+    def down_3x4(self, x):
+        return - self.up_3x4(x)
+    def down_x2(self, x):
+        return - self.up_x2(x)
+    def down_x4(self, x):
+        return - self.up_x4(x)
+    def down_0(self, x):
+        return - self.up_0(x)
+    def draw_tile(self, p, pix, offx, offy, tile):
+        """Draw a tile on the supplied pixel buffer"""
+        self.p = p
+        self.pix = pix
+        self.offx = offx
+        self.offy = offy
+        # Determine which way around the tile is to be drawn
+        # Either left+right to middle, or top+bottom to sides
+        # Then, call draw_segment for the two halves of the tile
+        self.draw_segment(0, tile[0], tile[1], tile[3])
+        self.draw_segment(2, tile[2], tile[1], tile[3])
+    def draw_segment(self, start_corner, start_height, end_height_A, end_height_B):
+        """"""
+        # Work out line gradient for both
+        gradient_A = start_height - end_height_A + 2
+        gradient_B = start_height - end_height_B + 2
+        # start_height (and other heights) can be in range 0 to 4
+        # Start corner is either left, top, right or bottom (0, 1, 2 or 3)
+        if start_corner == 0:
+            # Starting at left, so end_height_A is top, end_height_B is bottom
+            # Since we're starting at A, range is 32
+            for x in range(0, 32):
+                for y in range(self.offy + 48 - start_height * self.p/8 - self.start_0A[gradient_A](x), self.offy + 49 - start_height * self.p/8 - self.start_0B[gradient_B](x)):
+                    self.pix[self.offx + x, y] = (200,0,0)
+        elif start_corner == 1:
+            pass
+        elif start_corner == 2:
+            # Starting at left, so end_height_A is top, end_height_B is bottom
+            # Since we're starting at A, range is 32
+            for x in range(32, 64):
+                for y in range(self.offy + 48 - start_height * self.p/8 - self.start_0A[gradient_A](63 - x), self.offy + 49 - start_height * self.p/8 - self.start_0B[gradient_B](63 - x)):
+                    self.pix[self.offx + x, y] = (0,0,200)
+        else:
+            pass
+
 def draw_polygon(x, y):
-    draw.polygon([(-1+x*64, 49+y*64), (31+x*64, 33+y*64), (31+x*64, 49+y*64)], fill=(0,190,0))
-    draw.polygon([(32+x*64, 33+y*64), (64+x*64, 49+y*64), (32+x*64, 48+y*64)], fill=(0,190,0))
-    draw.polygon([(64+x*64, 48+y*64), (32+x*64, 64+y*64), (32+x*64, 48+y*64)], fill=(0,190,0))
-    draw.polygon([(31+x*64, 64+y*64), (-1+x*64, 48+y*64), (31+x*64, 48+y*64)], fill=(0,190,0))
+    for xx in range(0,32):
+        yval = (xx / 2)
+        for yy in range(48 - yval, 49 + yval):
+            outpix[xx + x*64, yy + y*64] = (0,255,0)
+            outpix[63-xx + x*64, yy + y*64] = (0,255,0)
 
 def draw_heights(x, y, h):
     draw.line([(0+x*64, 48+y*64), (0+x*64, 48+y*64-h[0]*8)], fill=(255,0,0))
@@ -65,26 +139,27 @@ def draw_heights(x, y, h):
     draw.line([(63+x*64, 48+y*64-h[2]*8), (32+x*64, 63+y*64-h[3]*8)], fill=(0,0,160))
     draw.line([(31+x*64, 63+y*64-h[3]*8), (0+x*64, 48+y*64-h[0]*8)], fill=(0,0,120))
 
+
 out = Image.new("RGB", (640, 640), (231,255,255))
+
+outpix = out.load()
 
 draw = ImageDraw.Draw(out)
 
 oi = 0
 
+tdraw = TileDraw()
+
 for y in range(10):
     for x in range(10):
         draw_polygon(x, y)
         try:
-            draw_heights(x, y, output[oi])
+            tdraw.draw_tile(64, outpix, x*64, y*64, output[oi])
+            #draw_heights(x, y, output[oi])
         except IndexError:
             pass
         oi += 1
 
-
-##draw.text((2,52), "0", fill=(0,0,0))
-##draw.text((32,25), "0", fill=(0,0,0))
-##draw.text((60,52), "0", fill=(0,0,0))
-##draw.text((38,58), "0", fill=(0,0,0))
 
 del draw
 
