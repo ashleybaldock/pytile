@@ -60,12 +60,10 @@ class TileDraw(object):
         # Transformed to [0,1,2,3,4] by +2
         self.start_0A = [self.up_x, self.up_3x4, self.up_x2, self.up_x4, self.up_0]
         self.start_0B = [self.down_0, self.down_x4, self.down_x2, self.down_3x4, self.down_x]
-        self.start_1A = []
-        self.start_1B = []
+        self.start_1 = [self.up_0, self.up_x4, self.up_x2, self.up_3x4, self.up_x]
         self.start_2A = [self.up_x, self.up_3x4, self.up_x2, self.up_x4, self.up_0]
         self.start_2B = [self.down_0, self.down_x4, self.down_x2, self.down_3x4, self.down_x]
-        self.start_3A = []
-        self.start_3B = []
+        self.start_3 = [self.down_x, self.down_3x4, self.down_x2, self.down_x4, self.down_0]
     def up_x(self, x):
         return x
     def up_3x4(self, x):
@@ -95,8 +93,12 @@ class TileDraw(object):
         # Determine which way around the tile is to be drawn
         # Either left+right to middle, or top+bottom to sides
         # Then, call draw_segment for the two halves of the tile
-        self.draw_segment(0, tile[0], tile[1], tile[3])
-        self.draw_segment(2, tile[2], tile[1], tile[3])
+        if tile[0] == tile[2]:
+            self.draw_segment(1, tile[1], tile[0], tile[2])
+            self.draw_segment(3, tile[3], tile[0], tile[2])
+        else:
+            self.draw_segment(0, tile[0], tile[1], tile[3])
+            self.draw_segment(2, tile[2], tile[1], tile[3])
     def draw_segment(self, start_corner, start_height, end_height_A, end_height_B):
         """"""
         # Work out line gradient for both
@@ -108,18 +110,38 @@ class TileDraw(object):
             # Starting at left, so end_height_A is top, end_height_B is bottom
             # Since we're starting at A, range is 32
             for x in range(0, 32):
-                for y in range(self.offy + 48 - start_height * self.p/8 - self.start_0A[gradient_A](x), self.offy + 49 - start_height * self.p/8 - self.start_0B[gradient_B](x)):
+                for y in range(self.offy + 48 - start_height * self.p/8 - self.start_0A[gradient_A](x), 
+                               self.offy + 49 - start_height * self.p/8 - self.start_0B[gradient_B](x)):
                     self.pix[self.offx + x, y] = (200,0,0)
         elif start_corner == 1:
-            pass
+            # Left corner to top corner, bottom constrained to left-right midline
+            for x in range(0, 32):
+                for y in range(self.offy + 48 - end_height_A * self.p/8 - self.start_1[gradient_A](x), 
+                               self.offy + 49 - end_height_A * self.p/8):
+                    self.pix[self.offx + x, y] = (100,0,0)
+            # Right corner to top corner, bottom constrained to left-right midline
+            for x in range(32, 64):
+                for y in range(self.offy + 48 - end_height_B * self.p/8 - self.start_1[gradient_B](63 - x), 
+                               self.offy + 49 - end_height_B * self.p/8):
+                    self.pix[self.offx + x, y] = (100,0,0)
         elif start_corner == 2:
             # Starting at left, so end_height_A is top, end_height_B is bottom
             # Since we're starting at A, range is 32
             for x in range(32, 64):
-                for y in range(self.offy + 48 - start_height * self.p/8 - self.start_0A[gradient_A](63 - x), self.offy + 49 - start_height * self.p/8 - self.start_0B[gradient_B](63 - x)):
+                for y in range(self.offy + 48 - start_height * self.p/8 - self.start_0A[gradient_A](63 - x), 
+                               self.offy + 49 - start_height * self.p/8 - self.start_0B[gradient_B](63 - x)):
                     self.pix[self.offx + x, y] = (0,0,200)
         else:
-            pass
+            # Left corner to bottom corner, top constrained to left-right midline
+            for x in range(0, 32):
+                for y in range(self.offy + 48 - end_height_A * self.p/8, 
+                               self.offy + 49 - end_height_A * self.p/8 - self.start_3[gradient_A](x)):
+                    self.pix[self.offx + x, y] = (100,100,0)
+            # Right corner to bottom corner, top constrained to left-right midline
+            for x in range(32, 64):
+                for y in range(self.offy + 48 - end_height_B * self.p/8, 
+                               self.offy + 49 - end_height_B * self.p/8 - self.start_3[gradient_B](63 - x)):
+                    self.pix[self.offx + x, y] = (100,100,0)
 
 def draw_polygon(x, y):
     for xx in range(0,32):
