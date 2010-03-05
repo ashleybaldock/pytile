@@ -52,10 +52,10 @@ class MouseSprite(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
         if MouseSprite.image is None:
             MouseSprite.image = pygame.Surface((1,1))
+            MouseSprite.image.fill((1,1,1))
+            MouseSprite.image.set_colorkey((0,0,0), pygame.RLEACCEL)
         if MouseSprite.mask is None:
-            s = pygame.Surface((1,1))
-            s.fill((1,1,1))
-            MouseSprite.mask = pygame.mask.from_surface(s, 0)
+            MouseSprite.mask = pygame.mask.from_surface(MouseSprite.image)
         self.mask = MouseSprite.mask
         self.image = MouseSprite.image
         self.rect = pygame.Rect(mouseX, mouseY, 1,1)
@@ -481,6 +481,7 @@ class Terrain(Tool):
         self.current = position
         if self.start == None:
             tile = self.collide_locate(self.current, collisionlist)
+            print "tile is: %s" % tile
             if tile and not tile.exclude:
                 subtile = self.subtile_position(self.current, tile)
                 # Only update the highlight if the cursor has changed enough to require it

@@ -771,6 +771,7 @@ class TileSprite(pygame.sprite.Sprite):
             image.blit(TileSprite.highlight_images["%sXX%s" % (tiletype[0], tiletype[3])], (0,0))
         image.set_colorkey((231,255,255), pygame.RLEACCEL)
         self.image = image
+        self.mask = pygame.mask.from_surface(self.image)
         return self.rect
     def array_to_string(self, array):
         """Convert a heightfield array to a string"""
@@ -976,6 +977,7 @@ class DisplayMain(object):
             # If an override is defined in highlight for this tile,
             # update based on that rather than on contents of World
             if highlight.has_key((x,y)):
+                debug("highlight override for %s,%s" % (x,y))
                 tile = highlight[(x,y)]
             else:
                 tile = World.array[x][y]
