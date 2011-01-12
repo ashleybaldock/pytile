@@ -1,10 +1,11 @@
+#!/usr/local/bin/python
 # coding: UTF-8
 #
 # This file is part of the pyTile project
 #
 # http://entropy.me.uk/pytile
 #
-## Copyright © 2008-2009 Timothy Baldock. All Rights Reserved.
+## Copyright © 2008-2011 Timothy Baldock. All Rights Reserved.
 ##
 ## Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 ##
@@ -72,7 +73,7 @@ class AStar(object):
     # F = G + H
 
     width = 1
-    def __init__(self):
+    def __init__(self, map):
         """"""
         # Needs to store:
         # Tile location (UID)
@@ -83,10 +84,16 @@ class AStar(object):
         # (x, y): ((px, py), g, h, f)
         self.open = {}
         self.closed = {}
+        self.map = map
+        self.width = len(map[0])
+        self.height = len(map)
 
     def get_lowest_f(self):
         """Returns the tile(s) from the open list with the lowest F value, which should be considered next"""
-        return [item[0] for item in a.items() if item[1] == min(a.values(), key=lambda x: x[3])]
+        debug("min of open list is: %s" % str(min(self.open.items(), key=lambda x: x[1][3])))
+        lowfs = [item[0] for item in self.open.items() if item[1] == min(self.open.values(), key=lambda x: x[3])]
+        debug("items equal to the min of open list: %s" % lowfs)
+        return lowfs
 
     def in_open_list(self, node):
         """Returns true if the node specified is on the open list"""
@@ -98,12 +105,17 @@ class AStar(object):
 
     def get_adjacent(self, node):
         """Finds adjacent nodes to the current node"""
+        debug("node is: %s" % str(node))
         xmin = max(node[0]-1, 0)
-        xmax = min(node[0]+1, World.WorldX)
-        ymin = max(node[0]-1, 0)
-        ymax = min(node[0]+1, World.WorldY)
+        xmax = min(node[0]+1, self.width)
+        ymin = max(node[1]-1, 0)
+        ymax = min(node[1]+1, self.height)
 
-        return [(x,y) for x in range(xmin, xmax) for y in range(ymin, ymax)]
+        debug("xmin: %s, xmax: %s, ymin: %s, ymax: %s" % (xmin, xmax, ymin, ymax))
+        adjacencies = [(x,y) for x in range(xmin, xmax+1) for y in range(ymin, ymax+1) if self.map[y-1][x-1][1] != 1 and (x,y) != node]
+        debug("adjacencies: %s" % adjacencies)
+
+        return adjacencies
 
     def get_move_cost(self, node1, node2):
         """Returns the cost to move from node1 to node2"""
@@ -119,7 +131,7 @@ class AStar(object):
         """Returns approximate cost to move from node to target"""
         # Using the Chebyshev distance allowing for diagonal movement
         xdistance = abs(node[0] - target[0])
-        ydistance = abs(node[0] - target[0])
+        ydistance = abs(node[1] - target[1])
         if xdistance > ydistance:
             H = 14*ydistance + 10*(xdistance-ydistance)
         else:
@@ -128,7 +140,7 @@ class AStar(object):
         return H
 
 
-    def find_path(self, start, end):
+    def find_path(self, start, target):
         """Implementation of the a* algorithm"""
         # This operates across the world, based on the start and end tile specified
 
@@ -136,28 +148,28 @@ class AStar(object):
 
         # Add start to open list
         # (x, y): ((px, py), g, h, f)
-        debug("Pathfinding start, adding: %s to open list as starting node, parent: %s, values: %s" % (start, start, (0,0,0)))
+        debug("\nPathfinding start, adding: %s to open list as starting node, parent: %s, values: %s" % (start, start, (0,0,0)))
         self.open[start] = (start, 0, 0, 0)
 
         # Loop
         done = False
         while not done:
-            debug(self.open)
-            debug(self.closed)
+            debug("self.open: %s" % self.open)
+            debug("self.closed: %s" % self.closed)
 
             # For lowest F cost in open list:
             lowf = self.get_lowest_f()[0]
-            debug("lowf is: %s" % lowf)
+            debug("lowf is: %s" % str(lowf))
 
             # Find neighbours, 8 tiles surrounding it
             adj = self.get_adjacent(lowf)
-            debug("adj is: %s" % adj)
+            debug("adj is: %s" % str(adj))
 
             for a in adj:
                 # Check if each of these is in closed list, if so do nothing with it
-                if not in_closed_list(a):
+                if not self.in_closed_list(a):
                     # If not in closed list, check if it's in the open list
-                    if not in_open_list(a):
+                    if not self.in_open_list(a):
                         # If it is not in the open list, add it to the open list with this square as its parent
                         # Cost to get here is cost to get to parent plus cost from parent to this node
                         g = self.open[lowf][1] + self.get_move_cost(lowf, a)
@@ -175,12 +187,12 @@ class AStar(object):
                             self.open[a] = (lowf, g, h, g+h)
 
             # Move current node from open to closed list
-            debug("Moving node: %s from open to closed list" % lowf)
+            debug("Moving node: %s from open to closed list" % str(lowf))
             self.closed[lowf] = self.open.pop(lowf)
 
             # Check for completion, is target in closed list?
             if self.closed.has_key(target):
-                debug("Completion test passed, target: %s is in closed list, calculating path..." % target)
+                debug("Completion test passed, target: %s is in closed list, calculating path..." % str(target))
                 done = True
                 path = [target]
                 part = target
@@ -201,6 +213,58 @@ class AStar(object):
         # Stop when open list is empty and the target square has not been found = no route
         return path
         
+
+if __name__ == "__main__":
+
+    map = []
+    for y in range(50):
+        line = []
+        for x in range(50):
+            if x == 10 and y < 30 and y > 1:
+                line.append([[x,y], 1])
+            else:
+                line.append([[x,y], 0])
+        map.append(line)
+
+    debug("map is: %s" % map)
+
+    p = AStar(map)
+
+    if len(sys.argv) > 1:
+        start = (int(sys.argv[1]), int(sys.argv[2]))
+        target = (int(sys.argv[3]), int(sys.argv[4]))
+    else:
+        start = (2,2)
+        target = (40,40)
+
+    path = p.find_path(start,target)
+    if path is None:
+        path = []
+
+    # Map is a 50x50 grid, print out results
+    for y in range(1,51):
+        line = ""
+        for x in range(1,51):
+            if (x,y) == start:
+                line = line + "S "
+            elif (x,y) == target:
+                line = line + "T "
+            elif (x,y) in path:
+                line = line + "0 "
+            elif (x,y) in p.closed:
+                line = line + "- "
+            elif (x,y) in p.open:
+                line = line + "+ "
+            else:
+                if map[y-1][x-1][1] == 1:
+                    line = line + "X "
+                else:
+                    line = line + ". "
+        print line
+
+
+
+
 
 
 
