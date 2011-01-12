@@ -1,3 +1,5 @@
+#!/usr/local/bin/python
+
 from PIL import Image, ImageDraw, ImageFont
 import math
 import random
@@ -204,6 +206,7 @@ for y in range(10):
 
 del draw
 
+print "Saving to testout.png"
 out.save("testout.png", "PNG")
 
 

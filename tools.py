@@ -220,6 +220,131 @@ class Move(Tool):
         rel_y = start_y - end_y
         World.set_offset(World.dxoff + rel_x, World.dyoff + rel_y)
 
+class Pathfinder(Tool):
+    """Pathfinder demo tool"""
+    xdims = 1
+    ydims = 1
+    def __init__(self):
+        """"""
+        # Init parent
+        super(Pathfinder, self).__init__()
+        # Start/end state
+        self.startpos = None
+        self.endpos = None
+
+    def process_key(self, key):
+        """Process keystrokes sent to this tool"""
+        keyname = pygame.key.name(key)
+        debug("process_key: %s" % keyname)
+        ret = False
+        return ret
+
+    def find_highlight(self, x, y, subtile):
+        """Find the primary area of effect of the tool, based on tool dimensions
+        Return a list of tiles to modify in [(x,y), modifier] form
+        Used to specify region which will be highlighted"""
+        tiles = {}
+        t = copy.copy(World.array[x][y])
+        if len(t) == 2:
+            t.append([])
+        t.append(subtile)
+        tiles[(x,y)] = t
+        return tiles
+
+    def mouse_up(self, position, collisionlist):
+        """Mouse button UP"""
+        if self.startpos:
+            # Selection of ending position
+            # First point has already been selected
+            tile = self.collide_locate(position, collisionlist)
+            if tile and not tile.exclude:
+                subtile = self.subtile_position(position, tile)
+
+                debug("endpos is now: %s" % self.endpos)
+                # Set which tiles need updating
+                self.aoe = [(tile.xWorld, tile.yWorld)]
+                self.set_aoe_changed(True)
+                # Reset the tool
+                self.endpos = None
+                self.startpos = None
+                debug("endpos is now: %s" % self.endpos)
+                self.tile = tile
+                self.subtile = subtile
+            else:
+                # Invalid location clicked on, do nothing
+                pass
+        else:
+            # Selection of starting position
+            tile = self.collide_locate(position, collisionlist)
+            if tile and not tile.exclude:
+                subtile = self.subtile_position(position, tile)
+
+                debug("startpos is now: %s" % self.startpos)
+                self.tile = tile
+                self.subtile = subtile
+            else:
+                # Invalid location clicked on, do nothing
+                pass
+
+    def mouse_move(self, position, collisionlist):
+        """Tool updated, current cursor position is newpos"""
+        if self.startpos:
+            # First point already selected, find closest endpoint and draw highlight between them
+            tile = self.collide_locate(position, collisionlist)
+            if tile and not tile.exclude:
+                x = tile.xWorld
+                y = tile.yWorld
+                subtile = self.subtile_position(position, tile)
+                # Assign highlight in dict
+                self.set_highlight({(x,y): t})
+                # Set which tiles need updating
+                self.aoe = [(x,y)]
+                self.set_aoe_changed(True)
+                self.tile = tile
+                self.subtile = subtile
+            else:
+                # Invalid location clicked on, do nothing
+                pass
+        else:
+            # If startpos is None there's no dragging operation ongoing, just update the position of the highlight
+            tile = self.collide_locate(position, collisionlist)
+            if tile and not tile.exclude:
+                subtile = self.subtile_position(position, tile)
+                # Only update the highlight if the cursor has changed enough to require it
+                if tile != self.tile or subtile != self.subtile:
+                    self.set_highlight(self.find_highlight(tile.xWorld, tile.yWorld, subtile))
+                    self.set_aoe_changed(True)
+                    self.aoe = self.find_rect_aoe(tile.xWorld, tile.yWorld)
+                else:
+                    self.set_aoe_changed(False)
+                self.tile = tile
+                self.subtile = subtile
+            else:
+                self.set_highlight({})
+                self.set_aoe_changed(True)
+                self.tile = None
+                self.subtile = None
+
+    def collide_convert(self, subtile, start=False, end=False):
+        """Convert subtile edge locations from collide_detect form to track drawing form"""
+        # 9 equates to the middle of the tile, not doing anything with that for the moment
+        if subtile == 9:
+            return None
+        b = [5,3,1,7,4,2,0,6][subtile-1]
+        # Convert to an endpoint, depends on whether we're drawing single or double track
+        if Track.width == 1:
+            # Single track, return only one endpoint, found by multiplying the side the endpoint is on
+            # by three, then adding one (to offset to the middle of the side)
+            return [b*3+1]
+        else:
+            # Double track, return two endpoints, found by multiplying the side the endpoing is on
+            # by three, then adding 2 to one (to offset correctly). Which one we add 2 to depends on
+            # whether this is the start or end of a segment (since if we did the same on both, the
+            # tracks would produce a crossover)
+            if start:
+                return [b*3,b*3+2]
+            elif end:
+                return [b*3+2,b*3]
 
 class Track(Tool):
     """Track drawing tool"""
